@@ -263,8 +263,7 @@ function SettingsContent() {
             <div className="space-y-3">
               {[
                 { name: 'Google', icon: 'G', color: 'bg-red-50 text-red-600', connected: user?.email?.includes('@gmail') },
-                { name: 'GitHub', icon: '', color: 'bg-slate-100 text-slate-700', connected: false },
-                { name: 'Microsoft', icon: '', color: 'bg-blue-50 text-blue-600', connected: false },
+                { name: 'Apple ID', icon: '', color: 'bg-slate-100 text-slate-900', connected: false },
               ].map((account) => (
                 <div key={account.name} className="flex items-center justify-between rounded-xl border border-slate-100 p-4">
                   <div className="flex items-center gap-3">

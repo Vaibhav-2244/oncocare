@@ -109,7 +109,7 @@ for authentication and extends it with application-level profile and role data.
 -- ============================================================
 CREATE TABLE IF NOT EXISTS profiles (
   id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  email text UNIQUE NOT NULL,
+  email text UNIQUE,
   full_name text,
   avatar_url text,
   phone text,

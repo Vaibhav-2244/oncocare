@@ -68,7 +68,7 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <AuthLayout title="Check your email" subtitle="We've sent you a verification link">
+      <AuthLayout title="Account created" subtitle="Check your email to verify your account">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -78,8 +78,8 @@ export default function SignUpPage() {
             <Mail className="h-8 w-8 text-teal-600" />
           </div>
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
-            We sent a verification link to <span className="font-semibold text-slate-900">{email}</span>.
-            Click the link to verify your email and complete your registration.
+            A verification email has been sent to <span className="font-semibold text-slate-900">{email}</span>.
+            Click the link in the email to activate your account.
           </p>
           <div className="mt-6 space-y-3">
             <Link
@@ -200,15 +200,15 @@ export default function SignUpPage() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-700">Email Address</label>
-                <div className="relative mt-1.5">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    placeholder="you@example.com"
+<label className="text-sm font-semibold text-slate-700">Email Address</label>
+              <div className="relative mt-1.5">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>

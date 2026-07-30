@@ -11,7 +11,7 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string, fullName: string, role: RoleName) => Promise<{ error: string | null }>;
-  signInWithOAuth: (provider: 'google' | 'github' | 'azure') => Promise<{ error: string | null }>;
+  signInWithOAuth: (provider: 'google' | 'apple') => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
@@ -43,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return {
       id: authUser.id,
       email: authUser.email || '',
+      phone: authUser.phone || profile?.phone || '',
       profile,
       roles,
       primaryRole: roles[0]?.name || null,
@@ -133,16 +134,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.from('user_roles').insert({ user_id: data.user.id, role_id: roleData.id });
       }
       await supabase.from('notification_preferences').insert({ user_id: data.user.id }).then(() => {});
+      await supabase.from('profiles').update({ full_name: fullName }).eq('id', data.user.id);
     }
 
     return { error: null };
   }, []);
 
-  const signInWithOAuth = useCallback(async (provider: 'google' | 'github' | 'azure') => {
-    const providerMap: Record<string, 'google' | 'github' | 'azure'> = {
+  const signInWithOAuth = useCallback(async (provider: 'google' | 'apple') => {
+    const providerMap: Record<string, 'google' | 'apple'> = {
       google: 'google',
-      github: 'github',
-      azure: 'azure',
+      apple: 'apple',
     };
     const { error } = await supabase.auth.signInWithOAuth({
       provider: providerMap[provider],

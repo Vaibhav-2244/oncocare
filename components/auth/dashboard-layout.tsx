@@ -43,7 +43,7 @@ export function DashboardLayout({
 
   const initials = user?.profile?.full_name
     ? user.profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-    : user?.email?.[0]?.toUpperCase() || 'U';
+    : user?.phone?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -132,7 +132,7 @@ export function DashboardLayout({
                   {initials}
                 </div>
                 <span className="hidden text-sm font-medium text-slate-700 sm:block">
-                  {user?.profile?.full_name || user?.email}
+                  {user?.profile?.full_name || user?.phone || user?.email}
                 </span>
                 <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
               </button>
@@ -151,7 +151,7 @@ export function DashboardLayout({
                         <p className="truncate text-sm font-semibold text-slate-900">
                           {user?.profile?.full_name || 'User'}
                         </p>
-                        <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                        <p className="truncate text-xs text-slate-500">{user?.phone || user?.email}</p>
                         {user?.primaryRole && (
                           <span className="mt-1.5 inline-block rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
                             {roleConfig[user.primaryRole].displayName}

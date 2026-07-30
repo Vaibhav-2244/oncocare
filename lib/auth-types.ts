@@ -18,7 +18,7 @@ export interface Role {
 
 export interface Profile {
   id: string;
-  email: string;
+  email: string | null;
   full_name: string | null;
   avatar_url: string | null;
   phone: string | null;
@@ -58,6 +58,7 @@ export interface NotificationPreferences {
 export interface AuthUser {
   id: string;
   email: string;
+  phone: string | null;
   profile: Profile | null;
   roles: Role[];
   primaryRole: RoleName | null;

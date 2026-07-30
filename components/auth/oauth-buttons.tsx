@@ -7,7 +7,7 @@ export function OAuthButtons() {
   const { signInWithOAuth } = useAuth();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
-  const handleOAuth = async (provider: 'google' | 'github' | 'azure') => {
+  const handleOAuth = async (provider: 'google' | 'apple') => {
     setLoadingProvider(provider);
     const { error } = await signInWithOAuth(provider);
     if (error) setLoadingProvider(null);
@@ -15,7 +15,7 @@ export function OAuthButtons() {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {/* Google */}
         <button
           onClick={() => handleOAuth('google')}
@@ -34,35 +34,17 @@ export function OAuthButtons() {
           )}
         </button>
 
-        {/* GitHub */}
+        {/* Apple */}
         <button
-          onClick={() => handleOAuth('github')}
+          onClick={() => handleOAuth('apple')}
           disabled={loadingProvider !== null}
           className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
         >
-          {loadingProvider === 'github' ? (
+          {loadingProvider === 'apple' ? (
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
           ) : (
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-          )}
-        </button>
-
-        {/* Microsoft */}
-        <button
-          onClick={() => handleOAuth('azure')}
-          disabled={loadingProvider !== null}
-          className="flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-        >
-          {loadingProvider === 'azure' ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
-          ) : (
-            <svg className="h-5 w-5" viewBox="0 0 24 24">
-              <path fill="#F25022" d="M1 1h10v10H1z" />
-              <path fill="#7FBA00" d="M13 1h10v10H13z" />
-              <path fill="#00A4EF" d="M1 13h10v10H1z" />
-              <path fill="#FFB900" d="M13 13h10v10H13z" />
+              <path d="M16.365 1.43c0 1.12-.42 2.02-.995 2.695-.65.82-1.665 1.55-2.73 1.52-.11-1.21.42-2.28 1.075-3.01.72-.79 1.875-1.4 2.65-1.395.03.005.055.01.005.19zm3.30 13.045c-.045-2.12.935-3.73 2.76-4.96-1.015-1.515-2.525-2.445-4.185-2.44-1.76.01-3.225 1.035-4.05 1.035-.84 0-2.13-1.015-3.505-1.005-1.8.005-3.44 1.045-4.355 2.66-1.86 3.195-.47 7.935 1.33 10.545.885 1.39 1.94 2.955 3.32 2.905 1.345-.05 1.85-.86 3.475-.86 1.605 0 2.075.86 3.51.835 1.49-.02 2.415-1.44 3.295-2.84 1.04-1.66 1.46-3.275 1.48-3.365-.035-.015-2.875-1.1-2.92-4.45z" />
             </svg>
           )}
         </button>
