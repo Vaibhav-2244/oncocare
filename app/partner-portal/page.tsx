@@ -60,7 +60,7 @@ export default function PartnerPortalPage() {
             Become a <span className="gradient-text">Verified Pharmacy Partner</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-slate-600 sm:text-lg">
-            Join OncoCare+'s network of trusted pharmacies. Reach cancer patients across India, manage your inventory online, and grow your business.
+            Join OncoCare+&apos;s network of trusted pharmacies. Reach cancer patients across India, manage your inventory online, and grow your business.
           </p>
           {!showForm && !submitted && (
             <button

@@ -80,7 +80,7 @@ export function Hero() {
             className="inline-flex items-center gap-2 rounded-full border border-teal-200/60 bg-white/80 px-4 py-1.5 text-xs font-semibold text-emerald-deep shadow-sm backdrop-blur-md"
           >
             <Sparkles className="h-3.5 w-3.5 text-teal-500" />
-            India's First AI-Powered Integrated Cancer Home Care Platform
+            India&apos;s First AI-Powered Integrated Cancer Home Care Platform
           </motion.div>
 
           {/* Headline */}
@@ -88,7 +88,7 @@ export function Hero() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="mt-8 max-w-4xl text-balance text-4xl font-bold leading-[1.05] tracking-tight text-slate-900 sm:text-6xl md:text-7xl"
+            className="mt-8 max-w-4xl text-balance text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl md:text-7xl"
           >
             The Future of{' '}
             <span className="gradient-text animate-gradient">Cancer Care</span>{' '}

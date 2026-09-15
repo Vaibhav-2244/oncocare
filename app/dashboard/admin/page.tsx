@@ -170,11 +170,7 @@ function AdminDashboardContent() {
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <button className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-teal-100 hover:text-teal-700">
-                          View
-                        </button>
-                      </td>
+                      <td className="px-5 py-3 text-right text-xs text-slate-400">Managed in profile</td>
                     </tr>
                   );
                 })

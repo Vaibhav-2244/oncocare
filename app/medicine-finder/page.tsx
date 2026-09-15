@@ -290,7 +290,7 @@ export default function MedicineFinderPage() {
                     <div className="mb-6 flex items-center justify-between">
                       <h2 className="text-xl font-bold text-slate-900">
                         {loading ? 'Searching...' : `${searchResults.length} medicines found`}
-                        {searchQuery && <span className="ml-2 text-sm font-normal text-slate-500">for "{searchQuery}"</span>}
+                        {searchQuery && <span className="ml-2 text-sm font-normal text-slate-500">for &quot;{searchQuery}&quot;</span>}
                       </h2>
                     </div>
 
@@ -357,7 +357,7 @@ export default function MedicineFinderPage() {
                       Future <span className="gradient-text">AI-Powered</span> Features
                     </h2>
                     <p className="mt-2 text-sm text-slate-500">
-                      We're building intelligent tools to make medicine discovery even smarter.
+                      We&apos;re building intelligent tools to make medicine discovery even smarter.
                     </p>
                   </div>
                   <FutureAIFeatures />

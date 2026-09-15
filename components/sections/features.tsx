@@ -151,7 +151,7 @@ export function Features() {
         title={
           <>
             Everything a cancer patient needs.{' '}
-            <span className="gradient-text">Nothing they don't.</span>
+            <span className="gradient-text">Nothing they do not need.</span>
           </>
         }
         subtitle="Fifteen deeply integrated modules—each designed with oncologists, patients, and caregivers. Built for the realities of cancer care at home."

@@ -48,7 +48,7 @@ export default function VerifyEmailPage() {
         ) : (
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
             We sent a verification link when you signed up. Click the link in the email to verify
-            your account. If you didn't receive it, enter your email below to resend.
+            your account. If you did not receive it, enter your email below to resend.
           </p>
         )}
 

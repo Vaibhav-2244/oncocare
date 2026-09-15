@@ -76,7 +76,7 @@ export function Testimonials() {
 
               {/* Quote */}
               <p className="mt-4 text-sm leading-relaxed text-slate-700">
-                "{testimonial.quote}"
+                &ldquo;{testimonial.quote}&rdquo;
               </p>
 
               {/* Author */}

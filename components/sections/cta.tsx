@@ -1,10 +1,19 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { ArrowRight, Building2, Sparkles, Mail, CheckCircle2 } from 'lucide-react';
 import { Reveal } from '@/components/shared/reveal';
 
 export function CTA() {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (email.trim()) setSubmitted(true);
+  };
+
   return (
     <section id="cta" className="relative overflow-hidden px-6 py-24 sm:py-32">
       {/* Background */}
@@ -33,32 +42,35 @@ export function CTA() {
 
         <Reveal delay={0.1}>
           <h2 className="mt-8 text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
-            Let's Transform Cancer Care Together.
+            Let&apos;s Transform Cancer Care Together.
           </h2>
         </Reveal>
 
         <Reveal delay={0.15}>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-relaxed text-teal-50 sm:text-lg">
-            Whether you're a patient, caregiver, doctor, or hospital—there's a place for you in the OncoCare+ community. Join our waitlist today and be part of India's cancer care revolution.
+            Whether you&apos;re a patient, caregiver, doctor, or hospital—there&apos;s a place for you in the OncoCare+ community. Join our waitlist today and be part of India&apos;s cancer care revolution.
           </p>
         </Reveal>
 
         {/* Email input + button */}
         <Reveal delay={0.2}>
-          <div className="mx-auto mt-10 flex max-w-md flex-col gap-3 sm:flex-row">
+          <form onSubmit={handleSubmit} className="mx-auto mt-10 flex max-w-md flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
                 placeholder="Enter your email"
+                value={email}
+                onChange={(event) => { setEmail(event.target.value); setSubmitted(false); }}
+                required
                 className="w-full rounded-2xl border border-white/20 bg-white/10 px-4 py-3.5 pl-11 text-sm text-white placeholder:text-teal-200/60 backdrop-blur-md focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20"
               />
             </div>
-            <button className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-emerald-deep shadow-lg transition-all hover:shadow-xl hover:shadow-black/20 hover:-translate-y-0.5">
-              Join Waitlist
+            <button type="submit" className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-emerald-deep shadow-lg transition-all hover:shadow-xl hover:shadow-black/20 hover:-translate-y-0.5">
+              {submitted ? 'You are on the list' : 'Join Waitlist'}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
-          </div>
+          </form>
         </Reveal>
 
         {/* Trust line */}

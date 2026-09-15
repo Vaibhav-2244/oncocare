@@ -15,7 +15,7 @@ export function AuthLayout({
   subtitle: string;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-white lg:flex-row">
+    <div className="flex min-h-screen flex-col bg-background lg:flex-row">
       {/* Left panel — branding */}
       <div className="relative hidden overflow-hidden bg-gradient-to-br from-teal-600 via-emerald-600 to-teal-700 lg:flex lg:w-1/2 lg:flex-col lg:justify-between lg:p-12">
         <div className="absolute inset-0 bg-grid-dark opacity-20" />
@@ -73,8 +73,8 @@ export function AuthLayout({
             <span className="text-xl font-bold text-slate-900">OncoCare+</span>
           </Link>
 
-          <h1 className="text-2xl font-bold text-slate-900">{title}</h1>
-          <p className="mt-2 text-sm text-slate-500">{subtitle}</p>
+          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
 
           <div className="mt-8">{children}</div>
         </motion.div>

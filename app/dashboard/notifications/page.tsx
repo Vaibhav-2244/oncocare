@@ -295,7 +295,7 @@ function NotificationsContent() {
                     : 'No notifications yet'}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                You're all caught up. New notifications will appear here.
+                You&apos;re all caught up. New notifications will appear here.
               </p>
             </div>
           ) : (

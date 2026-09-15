@@ -247,10 +247,7 @@ export default function SignUpPage() {
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                 />
                 <span className="text-xs leading-relaxed text-slate-500">
-                  I agree to the{' '}
-                  <Link href="/terms" className="font-semibold text-teal-600 hover:underline">Terms of Service</Link>
-                  {' '}and{' '}
-                  <Link href="/privacy" className="font-semibold text-teal-600 hover:underline">Privacy Policy</Link>
+                  I agree to the OncoCare+ terms of service and privacy policy.
                 </span>
               </label>
 

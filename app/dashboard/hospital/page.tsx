@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Building2, Users, Calendar, TrendingUp, Stethoscope,
@@ -29,12 +29,7 @@ function HospitalDashboardContent() {
   const [doctors, setDoctors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -66,7 +61,12 @@ function HospitalDashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadData();
+  }, [user, loadData]);
 
   const statCards = [
     { label: 'Associated Doctors', value: stats.doctors, icon: Stethoscope, color: 'from-teal-500 to-emerald-500' },

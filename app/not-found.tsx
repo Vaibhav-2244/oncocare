@@ -21,7 +21,7 @@ export default function NotFound() {
 
         <h1 className="mt-8 text-2xl font-bold text-slate-900">Page not found</h1>
         <p className="mt-2 max-w-md text-sm text-slate-500">
-          The page you're looking for doesn't exist or has been moved. Let's get you back on track.
+          The page you&apos;re looking for doesn&apos;t exist or has been moved. Let&apos;s get you back on track.
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">

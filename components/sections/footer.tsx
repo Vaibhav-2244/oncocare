@@ -34,7 +34,7 @@ export function Footer() {
               </span>
             </a>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-500">
-              India's first AI-powered integrated cancer home care platform. Helping patients beyond hospital walls.
+              India&apos;s first AI-powered integrated cancer home care platform. Helping patients beyond hospital walls.
             </p>
 
             {/* Contact info */}

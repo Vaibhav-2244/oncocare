@@ -114,7 +114,7 @@ export function Solution() {
                   <div>
                     <div className="text-xs font-semibold text-emerald-deep">OncoCare AI Assistant</div>
                     <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                      Good morning, Priya. Your symptom score improved to 8.2. I've scheduled your medication reminder and flagged a mild nausea trend to your oncologist.
+                      Good morning, Priya. Your symptom score improved to 8.2. I&apos;ve scheduled your medication reminder and flagged a mild nausea trend to your oncologist.
                     </p>
                     <div className="mt-2 flex gap-2">
                       <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-medium text-teal-600 ring-1 ring-teal-200/50">

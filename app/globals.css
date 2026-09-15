@@ -5,11 +5,11 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 215 47% 11%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 215 47% 11%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 47% 11%;
+    --popover-foreground: 222 47% 11%;
     --primary: 173 75% 26%;
     --primary-foreground: 0 0% 100%;
     --secondary: 217 91% 60%;
@@ -30,20 +30,45 @@
     --chart-5: 198 93% 60%;
     --radius: 1rem;
   }
+
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: 'cv11', 'ss01';
-    font-variation-settings: normal;
-  }
+
   html {
     scroll-behavior: smooth;
+    background-color: hsl(var(--background));
+    color-scheme: light;
   }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    font-variation-settings: normal;
+    background-image: radial-gradient(circle at top, rgba(20, 184, 166, 0.12), transparent 28%), linear-gradient(to bottom, hsl(var(--background)), hsl(var(--background)));
+  }
+}
+
+@layer utilities {
+  .bg-white { background-color: hsl(var(--card)) !important; }
+  .bg-slate-50 { background-color: hsl(var(--muted)) !important; }
+  .bg-slate-100 { background-color: hsl(var(--muted)) !important; }
+  .bg-slate-200 { background-color: hsl(var(--border)) !important; }
+  .text-slate-900 { color: hsl(var(--foreground)) !important; }
+  .text-slate-800 { color: hsl(var(--foreground)) !important; }
+  .text-slate-700 { color: hsl(var(--foreground)) !important; }
+  .text-slate-600 { color: hsl(var(--muted-foreground)) !important; }
+  .text-slate-500 { color: hsl(var(--muted-foreground)) !important; }
+  .text-slate-400 { color: hsl(var(--muted-foreground)) !important; }
+  .border-slate-200 { border-color: hsl(var(--border)) !important; }
+  .border-slate-100 { border-color: hsl(var(--border)) !important; }
+  .border-slate-300 { border-color: hsl(var(--border)) !important; }
+  .ring-slate-100 { --tw-ring-color: hsl(var(--border)) !important; }
+  .shadow-slate-900\/5 { box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04), 0 18px 40px rgba(15, 23, 42, 0.05) !important; }
+  .shadow-slate-900\/10 { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08) !important; }
 }
 
 @layer utilities {

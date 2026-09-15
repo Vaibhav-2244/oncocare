@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -25,12 +25,7 @@ export default function PharmacyProfilePage() {
   const [isFavourite, setIsFavourite] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!pharmacyId) return;
-    loadData();
-  }, [pharmacyId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [pharm, revs, meds, favs] = await Promise.all([
@@ -48,7 +43,12 @@ export default function PharmacyProfilePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pharmacyId]);
+
+  useEffect(() => {
+    if (!pharmacyId) return;
+    loadData();
+  }, [pharmacyId, loadData]);
 
   const handleToggleFav = async () => {
     try {

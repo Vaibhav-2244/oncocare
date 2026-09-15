@@ -29,7 +29,7 @@ export function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
       </div>
     );
@@ -37,7 +37,7 @@ export function ProtectedRoute({
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
       </div>
     );
@@ -45,7 +45,7 @@ export function ProtectedRoute({
 
   if (allowedRoles && user.primaryRole && !allowedRoles.includes(user.primaryRole)) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-teal-500" />
       </div>
     );

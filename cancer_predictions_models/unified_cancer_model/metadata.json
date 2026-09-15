@@ -1,0 +1,7 @@
+{
+  "name": "unified_cancer_model",
+  "version": "0.1.0",
+  "description": "Unified router for cancer-specific prediction models (lung, cervical, colorectal, oral)",
+  "author": "Auto-generated",
+  "artifacts_root": "../"
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar, MessageSquare, FileText, Heart, TrendingUp,
@@ -8,7 +8,7 @@ import {
   User, Brain, Pill,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { getRecentActivity, getNotifications } from '@/lib/dashboard-api';
@@ -22,12 +22,7 @@ function PatientDashboardContent() {
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -55,7 +50,12 @@ function PatientDashboardContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    loadData();
+  }, [user, loadData]);
 
   const statCards = [
     { label: 'Appointments', value: stats.appointments, icon: Calendar, color: 'from-teal-500 to-emerald-500', href: '/dashboard/appointments' },
@@ -71,7 +71,7 @@ function PatientDashboardContent() {
         <h1 className="text-2xl font-bold text-slate-900">
           Welcome back, {user?.profile?.full_name?.split(' ')[0] || 'there'}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">Here's an overview of your care journey</p>
+        <p className="mt-1 text-sm text-slate-500">Here&apos;s an overview of your care journey</p>
       </div>
 
       {/* Stats */}
@@ -248,7 +248,7 @@ function PatientDashboardContent() {
 export default function PatientDashboardPage() {
   return (
     <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
-      <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
+      <DashboardLayout navItems={patientNavItems} dashboardTitle="Patient Dashboard">
         <PatientDashboardContent />
       </DashboardLayout>
     </ProtectedRoute>

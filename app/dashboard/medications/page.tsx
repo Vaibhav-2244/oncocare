@@ -12,6 +12,7 @@ import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layou
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { analyzePrescription } from '@/lib/prescription-analyzer';
 
 const navItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -110,8 +111,29 @@ function MedicationsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [analyzingPrescription, setAnalyzingPrescription] = useState(false);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
   const [form, setForm] = useState({ ...emptyForm });
+
+  const handlePrescriptionUpload = async (file: File | undefined) => {
+    if (!file) return;
+    setAnalyzingPrescription(true);
+    setAnalysisMessage(null);
+    try {
+      const extracted = await analyzePrescription(file);
+      if (!extracted) {
+        setAnalysisMessage('No medication details were detected. Please verify the file is clear and try again.');
+        return;
+      }
+      setForm((current) => ({ ...current, ...extracted }));
+      setAnalysisMessage('Details extracted. Review them carefully before saving.');
+    } catch (err) {
+      setAnalysisMessage(err instanceof Error ? err.message : 'Prescription analysis failed.');
+    } finally {
+      setAnalyzingPrescription(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -187,7 +209,6 @@ function MedicationsContent() {
     setError(null);
     try {
       const payload = {
-        user_id: user.id,
         name: form.name.trim(),
         dosage: form.dosage.trim(),
         frequency: form.frequency,
@@ -263,7 +284,6 @@ function MedicationsContent() {
         .from('medication_logs')
         .insert({
           medication_id: med.id,
-          user_id: user.id,
           taken_at: nowIso,
         })
         .select()
@@ -394,6 +414,21 @@ function MedicationsContent() {
               <h2 className="text-base font-bold text-slate-900">
                 {editingId ? 'Edit Medication' : 'Add a New Medication'}
               </h2>
+              {!editingId && (
+                <div className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-teal-800">Analyze a prescription</p>
+                      <p className="mt-1 text-xs text-teal-700">Upload an image or PDF to prefill this form. Nothing is saved automatically.</p>
+                    </div>
+                    <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800">
+                      {analyzingPrescription ? 'Analyzing...' : 'Choose file'}
+                      <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={analyzingPrescription} onChange={(event) => void handlePrescriptionUpload(event.target.files?.[0])} />
+                    </label>
+                  </div>
+                  {analysisMessage && <p className="mt-3 text-xs font-medium text-teal-800">{analysisMessage}</p>}
+                </div>
+              )}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">Name</label>

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Activity, AlertCircle, TrendingUp, Pill, Calendar, FileText,
   Users, Clock, MessageCircle, Bell, Brain, Siren, User, Settings,
-  Plus, Send, Trash2, Pin, PinOff, Sparkles, Loader2, MessageSquare,
+  Plus, Send, Trash2, Pin, PinOff, Sparkles, Loader2, MessageSquare, Stethoscope, Paperclip, X,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
@@ -55,6 +55,12 @@ const QUICK_ACTIONS = [
   { label: 'Suggest diet during treatment', icon: Pill },
   { label: 'Interpret my scan results', icon: Activity },
 ];
+
+const HEALTH_SUMMARY_ACTION = {
+  label: '🩺 Get My Health Summary',
+  icon: Stethoscope,
+  isSpecial: true,
+};
 
 /**
  * Template-based AI response generator.
@@ -304,6 +310,10 @@ function AIEngineContent() {
   const [error, setError] = useState<string | null>(null);
   const [input, setInput] = useState('');
   const [actionId, setActionId] = useState<string | null>(null); // for pin/delete spinners
+  const [generatingHealthSummary, setGeneratingHealthSummary] = useState(false);
+  const [predictionCancerType, setPredictionCancerType] = useState<string | undefined>();
+  const [predictionData, setPredictionData] = useState<Record<string, string | number | boolean>>({});
+  const [imageAttachment, setImageAttachment] = useState<{ name: string; mimeType: string; data: string } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -466,7 +476,6 @@ function AIEngineContent() {
     setSending(true);
     setError(null);
 
-    // Optimistic: add user message immediately
     const optimisticUser: AIMessage = {
       id: `temp-user-${Date.now()}`,
       conversation_id: selectedId,
@@ -479,7 +488,122 @@ function AIEngineContent() {
     setMessages((prev) => [...prev, optimisticUser]);
 
     try {
-      // Insert the user message
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('No active session. Please sign in again.');
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationId: selectedId,
+          history: messages
+            .filter((msg) => msg.content?.trim())
+            .slice(-10)
+            .map((msg) => ({ role: msg.role === 'user' ? 'user' : 'model', text: msg.content })),
+          userName: user?.email?.split('@')[0] || 'there',
+          predictionCancerType,
+          predictionData,
+          imageData: imageAttachment?.data,
+          imageMimeType: imageAttachment?.mimeType,
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        success?: boolean;
+        reply?: string;
+        conversationId?: string;
+        userMessage?: AIMessage;
+        assistantMessage?: AIMessage;
+        error?: string;
+        prediction?: { cancerType?: string; data?: Record<string, string | number | boolean>; missingFeatures?: string[]; result?: unknown } | null;
+      };
+
+      if (!response.ok || !payload.success || !payload.reply) {
+        throw new Error(payload.error || 'The assistant could not respond.');
+      }
+
+      setMessages((prev) =>
+        prev
+          .filter((m) => m.id !== optimisticUser.id)
+          .concat([
+            payload.userMessage ?? optimisticUser,
+            payload.assistantMessage ?? { id: `assistant-${Date.now()}`, conversation_id: selectedId, user_id: user.id, role: 'assistant', content: payload.reply!, attachments: null, created_at: new Date().toISOString() },
+          ]),
+      );
+
+      if (payload.prediction?.missingFeatures?.length) {
+        setPredictionCancerType(payload.prediction.cancerType);
+        setPredictionData((current) => ({ ...current, ...(payload.prediction?.data || {}) }));
+      } else if (payload.prediction?.result) {
+        setPredictionCancerType(undefined);
+        setPredictionData({});
+        setImageAttachment(null);
+      }
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? { ...c, title: c.title.startsWith('Conversation ·') || !c.title.trim() ? userMessage.slice(0, 50) : c.title, updated_at: new Date().toISOString() }
+            : c,
+        ),
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send message';
+      setError(msg.includes('row-level security') ? 'Please sign in again to send messages.' : msg);
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleQuickAction = (label: string) => {
+    setInput(label);
+  };
+
+  const handleImageAttachment = (file: File | undefined) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setError('Please attach a JPG or PNG image for the oral cancer model.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = typeof reader.result === 'string' ? reader.result : '';
+      setImageAttachment({ name: file.name, mimeType: file.type, data: value.replace(/^data:[^;]+;base64,/, '') });
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleHealthSummary = async () => {
+    if (!user || !selectedId) {
+      setError('Please start a conversation first.');
+      return;
+    }
+
+    setGeneratingHealthSummary(true);
+    setError(null);
+
+    // Optimistically add a user message indicating the action
+    const userMessage = '🩺 Generate My Health Summary';
+    const optimisticUser: AIMessage = {
+      id: `temp-user-${Date.now()}`,
+      conversation_id: selectedId,
+      user_id: user.id,
+      role: 'user',
+      content: userMessage,
+      attachments: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticUser]);
+
+    try {
+      // Insert user message
       const { data: insertedUser, error: userInsertError } = await supabase
         .from('ai_messages')
         .insert({
@@ -491,6 +615,7 @@ function AIEngineContent() {
         })
         .select()
         .single();
+
       if (userInsertError) throw userInsertError;
 
       // Replace optimistic with real record
@@ -498,57 +623,80 @@ function AIEngineContent() {
         prev.map((m) => (m.id === optimisticUser.id ? (insertedUser as AIMessage) : m)),
       );
 
-      // Update conversation updated_at + auto-title from first message
-      const conv = conversations.find((c) => c.id === selectedId);
-      const titleUpdate =
-        conv && (conv.title.startsWith('Conversation ·') || !conv.title.trim())
-          ? { title: userMessage.slice(0, 50), updated_at: new Date().toISOString() }
-          : { updated_at: new Date().toISOString() };
-      const { error: convUpdateError } = await supabase
-        .from('ai_conversations')
-        .update(titleUpdate)
-        .eq('id', selectedId);
-      if (convUpdateError) throw convUpdateError;
+      // Get session for API call
+      const {
+        data: { session },
+        error: sessionError,
+      } = await supabase.auth.getSession();
 
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === selectedId
-            ? { ...c, ...titleUpdate, updated_at: new Date().toISOString() }
-            : c,
-        ),
-      );
+      if (sessionError || !session) {
+        throw new Error('Not authenticated - please sign in again.');
+      }
 
-      // Simulate AI thinking delay
-      await new Promise((resolve) => setTimeout(resolve, 700 + Math.random() * 600));
+      // Call the AI summary API
+      const response = await fetch('/api/ai-summary', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-      // Generate and insert assistant response
-      const aiContent = generateAIResponse(userMessage);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const summary = data.summary;
+
+      if (!summary) {
+        throw new Error('No summary received from server');
+      }
+
+      // Insert AI response
       const { data: insertedAI, error: aiInsertError } = await supabase
         .from('ai_messages')
         .insert({
           conversation_id: selectedId,
           user_id: user.id,
           role: 'assistant',
-          content: aiContent,
+          content: summary,
           attachments: [],
         })
         .select()
         .single();
+
       if (aiInsertError) throw aiInsertError;
 
       setMessages((prev) => [...prev, insertedAI as AIMessage]);
+
+      // Update conversation title and timestamp
+      const { error: convUpdateError } = await supabase
+        .from('ai_conversations')
+        .update({
+          title: 'Medical Summary',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedId);
+
+      if (convUpdateError) throw convUpdateError;
+
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === selectedId
+            ? { ...c, title: 'Medical Summary', updated_at: new Date().toISOString() }
+            : c,
+        ),
+      );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to send message';
-      setError(msg.includes('row-level security') ? 'Please sign in again to send messages.' : msg);
+      const msg = err instanceof Error ? err.message : 'Failed to generate health summary';
+      setError(msg);
       // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
     } finally {
-      setSending(false);
+      setGeneratingHealthSummary(false);
     }
-  };
-
-  const handleQuickAction = (label: string) => {
-    setInput(label);
   };
 
   const selectedConversation = conversations.find((c) => c.id === selectedId);
@@ -765,6 +913,19 @@ function AIEngineContent() {
 
               {/* Quick actions */}
               <div className="flex flex-wrap gap-2 border-b border-slate-100 p-3">
+                <button
+                  onClick={handleHealthSummary}
+                  disabled={generatingHealthSummary}
+                  className="inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-all hover:border-emerald-300 hover:bg-emerald-100 disabled:opacity-50"
+                  title="Generate a comprehensive medical summary using AI"
+                >
+                  {generatingHealthSummary ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <HEALTH_SUMMARY_ACTION.icon className="h-3.5 w-3.5" />
+                  )}
+                  {HEALTH_SUMMARY_ACTION.label}
+                </button>
                 {QUICK_ACTIONS.map((action) => (
                   <button
                     key={action.label}
@@ -867,6 +1028,14 @@ function AIEngineContent() {
                 onSubmit={handleSend}
                 className="border-t border-slate-100 p-3"
               >
+                {imageAttachment && (
+                  <div className="mb-2 flex items-center justify-between rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-xs text-teal-800">
+                    <span className="truncate">Image attached: {imageAttachment.name}</span>
+                    <button type="button" onClick={() => setImageAttachment(null)} className="p-1" aria-label="Remove image attachment">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-end gap-2">
                   <textarea
                     value={input}
@@ -882,6 +1051,10 @@ function AIEngineContent() {
                     placeholder="Ask about your treatment, symptoms, or care..."
                     className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30 disabled:opacity-60"
                   />
+                  <label className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-slate-200 text-slate-500 hover:border-teal-300 hover:text-teal-700" title="Attach an oral report or lesion image">
+                    <Paperclip className="h-4 w-4" />
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={(event) => { handleImageAttachment(event.target.files?.[0]); event.target.value = ''; }} />
+                  </label>
                   <button
                     type="submit"
                     disabled={!input.trim() || sending}

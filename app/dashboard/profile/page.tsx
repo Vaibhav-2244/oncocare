@@ -234,15 +234,12 @@ function ProfileContent() {
         <div className="relative h-24 bg-gradient-to-r from-teal-500 to-emerald-500">
           <div className="absolute inset-0 bg-grid-dark opacity-20" />
         </div>
-        <div className="px-6 pb-6">
+        <div className="relative z-10 px-6 pb-6">
           <div className="-mt-10 flex items-end gap-4">
             <div className="relative">
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-2xl font-bold text-white shadow-lg ring-4 ring-white">
                 {initials}
               </div>
-              <button className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-white text-slate-500 shadow-md hover:text-teal-600">
-                <Camera className="h-3.5 w-3.5" />
-              </button>
             </div>
             <div className="pb-1">
               <h2 className="text-lg font-bold text-slate-900">{fullName || 'User'}</h2>

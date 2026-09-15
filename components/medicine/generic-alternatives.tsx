@@ -82,9 +82,6 @@ export function GenericAlternatives({
                     Save {formatINR(generic.estimated_savings)}
                   </div>
                 </div>
-                <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-all hover:bg-teal-100 hover:text-emerald-deep">
-                  <ArrowRight className="h-4 w-4" />
-                </button>
               </div>
             </motion.div>
           );

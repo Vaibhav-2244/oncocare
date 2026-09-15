@@ -37,11 +37,10 @@ export default function ForgotPasswordPage() {
             <CheckCircle2 className="h-8 w-8 text-teal-600" />
           </div>
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
-            We sent a password reset link to <span className="font-semibold text-slate-900">{email}</span>.
-            Click the link in the email to reset your password.
+            We sent a password reset link to <span className="font-semibold text-slate-900">{email}</span>. Click the link in the email to reset your password.
           </p>
           <p className="mt-4 text-xs text-slate-400">
-            Didn't receive the email? Check your spam folder or{' '}
+            Did not receive the email? Check your spam folder or{' '}
             <button onClick={() => setSent(false)} className="font-semibold text-teal-600 hover:underline">
               try again
             </button>

@@ -57,7 +57,7 @@ export function Problem() {
         eyebrow="The Problem"
         title={
           <>
-            Cancer care doesn't end at the{' '}
+            Cancer care does not end at the{' '}
             <span className="gradient-text">hospital door</span>
           </>
         }

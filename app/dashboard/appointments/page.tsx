@@ -13,6 +13,7 @@ import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layou
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { VideoConsultation } from '@/components/tele-oncology/video-consultation';
 
 const navItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: Activity },
@@ -109,6 +110,7 @@ function AppointmentsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [actionId, setActionId] = useState<string | null>(null);
+  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
 
   // form state
   const [type, setType] = useState<AppointmentType>('in_person');
@@ -511,15 +513,13 @@ function AppointmentsContent() {
                       {/* Action buttons */}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {isTele && isActive && !isPast && (
-                          <a
-                            href="https://meet.google.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
+                            onClick={() => setActiveAppointment(appt)}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md"
                           >
                             <Video className="h-3.5 w-3.5" />
                             Join Video Call
-                          </a>
+                          </button>
                         )}
                         {isActive && (
                           <button
@@ -562,6 +562,13 @@ function AppointmentsContent() {
           </AnimatePresence>
         )}
       </div>
+
+      {activeAppointment && (
+        <VideoConsultation
+          appointment={activeAppointment}
+          onClose={() => setActiveAppointment(null)}
+        />
+      )}
     </div>
   );
 }

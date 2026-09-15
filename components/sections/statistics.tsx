@@ -27,11 +27,11 @@ export function Statistics() {
               Our Vision
             </span>
             <h2 className="mt-6 text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
-              Building India's largest{' '}
+              Building India&apos;s largest{' '}
               <span className="gradient-text-light">cancer care network</span>
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-slate-400 sm:text-lg">
-              We're just getting started. Here's what we're building toward in our first year.
+              We&apos;re just getting started. Here&apos;s what we&apos;re building toward in our first year.
             </p>
           </div>
         </Reveal>
