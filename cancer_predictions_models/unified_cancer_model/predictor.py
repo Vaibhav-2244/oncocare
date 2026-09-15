@@ -161,7 +161,11 @@ class Predictor:
         if scaler is not None:
             try:
                 if getattr(scaler, 'n_features_in_', len(feature_names)) != len(feature_names):
-                    return {'status': 'error', 'error': 'incompatible_preprocessing_artifact', 'detail': 'The cervical scaler does not match the fitted model feature count.'}
+                    return {
+                        'status': 'error',
+                        'error': 'incompatible_preprocessing_artifact',
+                        'detail': f'The cervical scaler expects {getattr(scaler, "n_features_in_", "an unknown number of")} features, but the fitted model requires {len(feature_names)}. Retrain or replace the cervical scaler/model pair.',
+                    }
                 X = scaler.transform(X)
             except Exception as e:
                 return {'status': 'error', 'error': 'preprocessing_failed', 'detail': str(e)}

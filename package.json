@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "model-service": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/start-model-service.ps1",
+    "dev:with-models": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-with-models.ps1",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

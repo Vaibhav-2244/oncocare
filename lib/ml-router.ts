@@ -31,10 +31,6 @@ type PredictionRoute = {
 const MODEL_SERVICE_URL = process.env.CANCER_MODEL_SERVICE_URL || 'http://127.0.0.1:8001';
 const SUPPORTED_CANCERS = ['lung', 'cervical', 'colorectal', 'oral'] as const;
 
-function normalize(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
-}
-
 function inferCancerType(message: string, requested?: string): string | undefined {
   const value = (requested || message).toLowerCase();
   if (value.includes('lung')) return 'lung';
@@ -52,8 +48,9 @@ function isPredictionRequest(message: string): boolean {
 function parseMessageData(message: string, features: string[]): PredictionData {
   const data: PredictionData = {};
   for (const feature of features) {
-    const key = feature.replace(/[()]/g, '').replace(/_/g, ' ');
-    const pattern = new RegExp(`(?:^|[;,])\\s*${key.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\s*(?:is|=|:)\\s*([^,;]+)`, 'i');
+    const key = feature.replace(/[()]/g, '').replace(/^_+|_+$/g, '').split(/_+/).filter(Boolean);
+    const escapedKey = key.map((part) => part.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')).join('[ _]+');
+    const pattern = new RegExp(`(?:^|[;,\\n])\\s*${escapedKey}\\s*(?:is|=|:)\\s*([^,;\\n]+)`, 'i');
     const labelled = message.match(pattern);
     const shorthand = feature === 'Age' ? message.match(/\bage\s+(\d{1,3})\b/i) : null;
     const value = labelled?.[1]?.trim() || shorthand?.[1];
@@ -63,7 +60,7 @@ function parseMessageData(message: string, features: string[]): PredictionData {
 }
 
 function displayFeature(feature: string): string {
-  return feature.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  return feature.replace(/^_+|_+$/g, '').replace(/_+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 async function getMetadata(cancerType: string): Promise<ModelMetadata> {
@@ -101,7 +98,7 @@ export async function routePrediction(options: {
   try {
     metadata = await getMetadata(cancerType);
   } catch (error) {
-    return { isPredictionRequest: true, cancerType, missingFeatures: [], message: `The ${cancerType} prediction model is not available right now. ${error instanceof Error ? error.message : 'Please try again later.'}` };
+    return { isPredictionRequest: true, cancerType, missingFeatures: [], message: `The ${cancerType} prediction service is not running. Start it with \`npm run model-service\`, then retry.` };
   }
 
   if (metadata.status !== 'success') {
@@ -121,7 +118,7 @@ export async function routePrediction(options: {
       cancerType,
       missingFeatures,
       data: patientData,
-      message: `To run the trained ${cancerType} model, please provide: ${missingFeatures.map(displayFeature).join(', ')}. Reply with labelled values such as "Age: 52; ${displayFeature(missingFeatures[0])}: ...". These results support discussion with your clinician and are not a diagnosis.`,
+      message: `To run the trained ${cancerType} model, please provide all of these fields: ${missingFeatures.map(displayFeature).join(', ')}. Reply with labelled values such as "Age: 52; ${displayFeature(missingFeatures[0])}: ...". These results support discussion with your clinician and are not a diagnosis.`,
     };
   }
 
@@ -134,7 +131,7 @@ export async function routePrediction(options: {
     });
     const result = (await response.json().catch(() => ({}))) as ModelResult;
     if (!response.ok || result.status !== 'success') {
-      return { isPredictionRequest: true, cancerType, missingFeatures: result.missing_features || [], data: patientData, message: `The ${cancerType} model could not complete this assessment: ${result.error || result.detail || 'prediction failed'}.`, result };
+      return { isPredictionRequest: true, cancerType, missingFeatures: result.missing_features || [], data: patientData, message: `The ${cancerType} model could not complete this assessment: ${result.error || result.detail || 'prediction failed'}. The trained artifact may need to be rebuilt with matching preprocessing files.`, result };
     }
     return { isPredictionRequest: true, cancerType, missingFeatures: [], data: patientData, result };
   } catch (error) {
