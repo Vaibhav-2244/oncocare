@@ -272,6 +272,7 @@ function SidebarContent({
 
 export const commonNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Personalized Nutrition', href: '/dashboard/diet-plan', icon: ChefHat },
   { label: 'BPL Donations', href: '/dashboard/bpl-donations', icon: Heart },
   { label: 'Symptoms', href: '/dashboard/symptoms', icon: AlertCircle },
   { label: 'Treatments', href: '/dashboard/treatments', icon: TrendingUp },
@@ -296,6 +297,8 @@ export const commonNavItems: NavItem[] = [
 
 export const patientNavItems: NavItem[] = [
   ...commonNavItems,
+  { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
+  { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
   { label: 'Nearby Hospitals', href: '/dashboard/nearby-hospitals', icon: Hospital },
   { label: 'Cancer Journey Roadmap', href: '/dashboard/cancer-journey', icon: Map },
   { label: 'Survivor Stories', href: '/dashboard/survivor-stories', icon: BookOpen },
@@ -305,6 +308,8 @@ export const patientNavItems: NavItem[] = [
 
 export const caregiverNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
+  { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
   { label: 'Patient Medications', href: '/dashboard/caregiver-medications', icon: Pill },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Profile', href: '/dashboard/profile', icon: User },

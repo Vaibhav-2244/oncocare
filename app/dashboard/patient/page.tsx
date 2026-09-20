@@ -6,9 +6,10 @@ import {
   Calendar, MessageSquare, FileText, Heart, TrendingUp,
   Bell, Activity, Clock, ArrowRight, CheckCircle2,
   User, Brain, Pill,
+  ChefHat,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, patientNavItems } from '@/components/auth/dashboard-layout';
+import { caregiverNavItems, DashboardLayout, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { getRecentActivity, getNotifications } from '@/lib/dashboard-api';
@@ -212,6 +213,7 @@ function PatientDashboardContent() {
       {/* Quick actions */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
+          { label: 'Personalized Nutrition', desc: 'View today\'s meal plan', icon: ChefHat, href: '/dashboard/diet-plan' },
           { label: 'Track Symptoms', desc: 'Log and monitor symptoms', icon: Activity, href: '/dashboard/symptoms' },
           { label: 'Treatment Tracker', desc: 'View treatment progress', icon: TrendingUp, href: '/dashboard/treatments' },
           { label: 'Medication Reminders', desc: 'Manage medication schedule', icon: Heart, href: '/dashboard/medications' },
@@ -246,9 +248,11 @@ function PatientDashboardContent() {
 }
 
 export default function PatientDashboardPage() {
+  const { user } = useAuth();
+
   return (
     <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
-      <DashboardLayout navItems={patientNavItems} dashboardTitle="Patient Dashboard">
+      <DashboardLayout navItems={user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems} dashboardTitle={user?.primaryRole === 'family_caregiver' ? 'Caregiver Dashboard' : 'Patient Dashboard'}>
         <PatientDashboardContent />
       </DashboardLayout>
     </ProtectedRoute>
