@@ -16,10 +16,11 @@ export default function DashboardRouter() {
       router.push('/auth/sign-in');
       return;
     }
-    const dashboardPath = user.primaryRole
-      ? roleConfig[user.primaryRole].dashboardPath
-      : '/dashboard/patient';
-    router.push(dashboardPath);
+    if (!user.primaryRole) {
+      router.push('/auth/sign-in?error=role');
+      return;
+    }
+    router.push(roleConfig[user.primaryRole].dashboardPath);
   }, [user, loading, router]);
 
   return (

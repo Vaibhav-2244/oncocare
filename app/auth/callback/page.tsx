@@ -14,10 +14,11 @@ export default function AuthCallbackPage() {
     if (loading) return;
 
     if (user) {
-      const dashboardPath = user.primaryRole
-        ? roleConfig[user.primaryRole].dashboardPath
-        : '/dashboard/patient';
-      router.push(dashboardPath);
+      if (!user.primaryRole) {
+        router.push('/auth/sign-in?error=role');
+        return;
+      }
+      router.push(roleConfig[user.primaryRole].dashboardPath);
     } else {
       router.push('/auth/sign-in');
     }

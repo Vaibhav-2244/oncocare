@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -11,6 +11,7 @@ import { roleConfig } from '@/lib/auth-types';
 
 export default function SignInPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signIn, user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,9 +21,18 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (searchParams.get('error') === 'role') {
+      setError('Your account has no assigned role. Please contact support before signing in again.');
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     if (!authLoading && user) {
-      const dashboardPath = user.primaryRole ? roleConfig[user.primaryRole].dashboardPath : '/dashboard/patient';
-      router.push(dashboardPath);
+      if (!user.primaryRole) {
+        setError('Your account has no assigned role. Please contact support.');
+        return;
+      }
+      router.push(roleConfig[user.primaryRole].dashboardPath);
     }
   }, [user, authLoading, router]);
 

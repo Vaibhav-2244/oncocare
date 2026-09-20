@@ -15,24 +15,24 @@ export function CTA() {
   };
 
   return (
-    <section id="cta" className="relative overflow-hidden px-6 py-24 sm:py-32">
+    <section id="cta" className="relative isolate overflow-hidden px-6 py-24 sm:py-32">
       {/* Background */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-emerald-deep via-teal-600 to-blue-700" />
-      <div className="absolute inset-0 -z-10 bg-grid-dark opacity-20" />
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-emerald-deep via-teal-600 to-blue-700" />
+      <div className="absolute inset-0 z-0 bg-grid-dark opacity-20" />
 
       {/* Floating orbs */}
       <motion.div
         animate={{ y: [0, -20, 0], x: [0, 10, 0] }}
         transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute left-10 top-10 h-40 w-40 rounded-full bg-teal-300/20 blur-3xl"
+        className="absolute left-10 top-10 z-0 h-40 w-40 rounded-full bg-teal-300/20 blur-3xl"
       />
       <motion.div
         animate={{ y: [0, 20, 0], x: [0, -10, 0] }}
         transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute right-10 bottom-10 h-48 w-48 rounded-full bg-blue-400/20 blur-3xl"
+        className="absolute right-10 bottom-10 z-0 h-48 w-48 rounded-full bg-blue-400/20 blur-3xl"
       />
 
-      <div className="relative mx-auto max-w-4xl text-center">
+      <div className="relative z-10 mx-auto max-w-4xl text-center">
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-200 ring-1 ring-white/20 backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5" />

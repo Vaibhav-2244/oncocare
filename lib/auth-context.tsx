@@ -35,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .eq('user_id', authUser.id),
     ]);
 
+    if (profileRes.error) throw profileRes.error;
+    if (rolesRes.error) throw rolesRes.error;
+
     const profile = profileRes.data as Profile | null;
     const roles: Role[] = (rolesRes.data || [])
       .map((r: any) => r.role)
@@ -46,7 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: authUser.phone || profile?.phone || '',
       profile,
       roles,
-      primaryRole: roles[0]?.name || null,
+      primaryRole: roles.find((role) => role.name === 'hospital')?.name
+        || roles.find((role) => role.name === 'doctor')?.name
+        || roles[0]?.name
+        || null,
     };
   }, []);
 
@@ -129,12 +135,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return { error: error.message };
 
     if (data.user) {
-      const { data: roleData } = await supabase.from('roles').select('id').eq('name', role).maybeSingle();
-      if (roleData) {
-        await supabase.from('user_roles').insert({ user_id: data.user.id, role_id: roleData.id });
+      if (!data.session) return { error: null };
+
+      const { data: roleData, error: roleLookupError } = await supabase
+        .from('roles')
+        .select('id')
+        .eq('name', role)
+        .maybeSingle();
+      if (roleLookupError) return { error: `Unable to verify the selected role: ${roleLookupError.message}` };
+      if (!roleData) return { error: 'The selected role is not available. Please contact support.' };
+
+      if (data.session) {
+        const { error: roleInsertError } = await supabase
+          .from('user_roles')
+          .upsert({ user_id: data.user.id, role_id: roleData.id }, { onConflict: 'user_id,role_id' });
+        if (roleInsertError) return { error: `Unable to assign your account role: ${roleInsertError.message}` };
       }
-      await supabase.from('notification_preferences').insert({ user_id: data.user.id }).then(() => {});
-      await supabase.from('profiles').update({ full_name: fullName }).eq('id', data.user.id);
+
+      const { error: notificationError } = await supabase
+        .from('notification_preferences')
+        .upsert({ user_id: data.user.id }, { onConflict: 'user_id' });
+      if (notificationError && data.session) return { error: `Unable to create notification settings: ${notificationError.message}` };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName })
+        .eq('id', data.user.id);
+      if (profileError && data.session) return { error: `Unable to save your profile: ${profileError.message}` };
     }
 
     return { error: null };
