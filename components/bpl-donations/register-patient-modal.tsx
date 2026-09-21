@@ -1,10 +1,10 @@
 'use client';
 
 import { Plus } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface RegisterPatientModalProps {
-  onSubmit: (data: Record<string, string>) => Promise<void>;
+  onSubmit: (data: Record<string, string>, imageFile: File | null) => Promise<void>;
   onClose: () => void;
   error?: string | null;
 }
@@ -23,17 +23,61 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
     summary: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!imageFile) {
+      setImagePreview(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(imageFile);
+    setImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [imageFile]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setImageError(null);
+
+    if (!file) {
+      setImageFile(null);
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+    const fileName = file.name.toLowerCase();
+    if (!allowedTypes.includes(file.type) || !allowedExtensions.some((extension) => fileName.endsWith(extension))) {
+      setImageFile(null);
+      e.target.value = '';
+      setImageError('Please choose a JPG, PNG, or WebP image.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setImageFile(null);
+      e.target.value = '';
+      setImageError('The patient photo must be 5MB or smaller.');
+      return;
+    }
+
+    setImageFile(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (imageError) return;
     setSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit(formData, imageFile);
     } finally {
       setSubmitting(false);
     }
@@ -160,6 +204,20 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
                 rows={4}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-slate-900">Patient Photo (optional)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
+              />
+              <p className="mt-1 text-xs text-slate-500">JPG, PNG, or WebP up to 5MB.</p>
+              {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
+              {imagePreview && (
+                <img src={imagePreview} alt="Selected patient photo preview" className="mt-3 h-24 w-24 rounded-lg object-cover" />
+              )}
             </div>
           </div>
 

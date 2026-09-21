@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase-client';
 import { DashboardLayout } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import {
@@ -22,6 +23,7 @@ import {
   searchBplPatients,
   createDonation,
   createBplPatient,
+  BPL_PATIENT_PLACEHOLDER,
   type BplPatient,
   type BplDonation,
 } from '@/lib/bpl-api';
@@ -162,13 +164,31 @@ export default function BplDonationsPage() {
     }
   };
 
-  const handleRegisterPatient = async (formData: Record<string, string>): Promise<void> => {
+  const handleRegisterPatient = async (formData: Record<string, string>, imageFile: File | null): Promise<void> => {
     if (!user) {
       setError('Please sign in before registering a patient.');
       return;
     }
     setError(null);
     try {
+      let imageUrl = BPL_PATIENT_PLACEHOLDER;
+
+      if (imageFile) {
+        const filePath = `${user.id}/${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
+        const { error: uploadError } = await supabase.storage
+          .from('bpl-patients')
+          .upload(filePath, imageFile);
+
+        if (uploadError) {
+          throw new Error(`Patient photo upload failed: ${uploadError.message}`);
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('bpl-patients')
+          .getPublicUrl(filePath);
+        imageUrl = urlData.publicUrl;
+      }
+
       const patientData = {
         name: formData.name,
         age: Number(formData.age),
@@ -182,9 +202,7 @@ export default function BplDonationsPage() {
         summary: formData.summary,
         verified: false,
         urgent: false,
-        image_url: formData.gender === 'Female'
-          ? 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=500&q=80'
-          : 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=500&q=80',
+        image_url: imageUrl,
         donors_count: 0,
         created_by: user!.id,
       };

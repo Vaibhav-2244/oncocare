@@ -1,7 +1,7 @@
 'use client';
 
 import { ShieldCheck, ChevronRight } from 'lucide-react';
-import type { BplPatient } from '@/lib/bpl-api';
+import { BPL_PATIENT_PLACEHOLDER, type BplPatient } from '@/lib/bpl-api';
 import { ProgressBar } from './progress-bar';
 
 interface PatientListCardProps {
@@ -16,7 +16,7 @@ export function PatientListCard({ patient, onDonate }: PatientListCardProps) {
     <div className="flex gap-4 rounded-lg border border-slate-200 bg-white p-4 transition-all hover:shadow-md">
       <div className="h-24 w-24 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
         <img
-          src={patient.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80'}
+          src={patient.image_url || BPL_PATIENT_PLACEHOLDER}
           alt={patient.name}
           className="h-full w-full object-cover"
         />

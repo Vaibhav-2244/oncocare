@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ArrowLeft, ShieldCheck, ChevronRight } from 'lucide-react';
-import { fetchPatientVerification, type BplPatient, type BplVerification } from '@/lib/bpl-api';
+import { BPL_PATIENT_PLACEHOLDER, fetchPatientVerification, type BplPatient, type BplVerification } from '@/lib/bpl-api';
 import { ProgressBar } from './progress-bar';
 import { PatientProfileHeader, VerificationItem, InfoBox } from './patient-profile-components';
 
@@ -50,7 +50,7 @@ export function PatientProfileModal({ patient, onClose, onDonate }: PatientProfi
               <div className="space-y-4">
                 <div className="aspect-video overflow-hidden rounded-lg bg-slate-100">
                   <img
-                    src={patient.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80'}
+                    src={patient.image_url || BPL_PATIENT_PLACEHOLDER}
                     alt={patient.name}
                     className="h-full w-full object-cover"
                   />

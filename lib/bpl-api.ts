@@ -2,6 +2,8 @@
 
 import { supabase } from '@/lib/supabase-client';
 
+export const BPL_PATIENT_PLACEHOLDER = '/brand/bpl-patient-placeholder.svg';
+
 // Type definitions for BPL tables
 export interface BplPatient {
   id?: number;

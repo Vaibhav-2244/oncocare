@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { X, ShieldCheck } from 'lucide-react';
-import type { BplPatient } from '@/lib/bpl-api';
+import { BPL_PATIENT_PLACEHOLDER, type BplPatient } from '@/lib/bpl-api';
 
 interface CheckoutModalProps {
   patient: BplPatient;
@@ -47,7 +47,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
         <div className="border-b border-slate-200 p-6">
           <div className="flex gap-4">
             <img
-              src={patient.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80'}
+              src={patient.image_url || BPL_PATIENT_PLACEHOLDER}
               alt={patient.name}
               className="h-16 w-16 rounded-lg object-cover"
             />

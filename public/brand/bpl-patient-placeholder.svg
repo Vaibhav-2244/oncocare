@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" role="img" aria-labelledby="title desc">
+  <title id="title">Patient placeholder</title>
+  <desc id="desc">Neutral placeholder illustration for a patient without a photo</desc>
+  <rect width="320" height="240" fill="#f1f5f9"/>
+  <circle cx="160" cy="92" r="42" fill="#cbd5e1"/>
+  <path d="M82 220c8-43 37-66 78-66s70 23 78 66" fill="#cbd5e1"/>
+</svg>
