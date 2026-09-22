@@ -5,6 +5,18 @@ import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase-client';
 import type { AuthUser, Profile, Role, RoleName } from '@/lib/auth-types';
 
+const ROLE_PRIORITY: RoleName[] = [
+  'super_admin',
+  'admin',
+  'hospital',
+  'doctor',
+  'research_partner',
+  'medical_advisor',
+  'family_caregiver',
+  'patient',
+  'pharmacy',
+];
+
 interface AuthContextValue {
   user: AuthUser | null;
   session: Session | null;
@@ -49,8 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: authUser.phone || profile?.phone || '',
       profile,
       roles,
-      primaryRole: roles.find((role) => role.name === 'hospital')?.name
-        || roles.find((role) => role.name === 'doctor')?.name
+      primaryRole: ROLE_PRIORITY.find((roleName) => roles.some((role) => role.name === roleName))
         || roles[0]?.name
         || null,
     };

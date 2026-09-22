@@ -126,9 +126,10 @@ export async function POST(request: NextRequest) {
       .eq('id', body.sessionId)
       .eq('user_id', userId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ success: false, error: "Session not found or you don't have access to it." }, { status: 404 });
     return NextResponse.json({ success: true, session: data });
   }
 

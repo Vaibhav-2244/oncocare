@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowUpRight, Send, ShieldAlert, Sparkles } from 'lucide-react';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
@@ -156,7 +156,7 @@ export default function SymptomCheckerPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">

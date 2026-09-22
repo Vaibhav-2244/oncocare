@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
-import { DashboardLayout } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import {
   Heart,
@@ -292,7 +292,7 @@ export default function BplDonationsPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="BPL Donations">
         {error && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">

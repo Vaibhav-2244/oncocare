@@ -16,6 +16,16 @@ import { useAuth } from '@/lib/auth-context';
 import { roleConfig, type RoleName } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
 
+export const ADMIN_ROLES: RoleName[] = ['super_admin', 'admin'];
+export const PATIENT_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor'];
+export const PATIENT_CAREGIVER_ROLES: RoleName[] = ['patient', 'family_caregiver'];
+export const PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin'];
+export const CAREGIVER_ROLES: RoleName[] = ['family_caregiver'];
+export const DOCTOR_ROLES: RoleName[] = ['doctor'];
+export const HOSPITAL_ROLES: RoleName[] = ['hospital'];
+export const PHARMACY_ROLES: RoleName[] = ['pharmacy'];
+export const RESEARCH_PARTNER_ROLES: RoleName[] = ['research_partner'];
+
 export interface NavItem {
   label: string;
   href: string;

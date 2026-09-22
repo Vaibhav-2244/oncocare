@@ -7,7 +7,7 @@ import {
   ArrowRight, Activity, FileText, Settings, Brain, Stethoscope,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { ADMIN_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { roleConfig, type RoleName } from '@/lib/auth-types';
@@ -213,7 +213,7 @@ function AdminDashboardContent() {
 
 export default function AdminDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={['super_admin', 'admin']}>
+    <ProtectedRoute allowedRoles={ADMIN_ROLES}>
       <DashboardLayout navItems={adminNavItems} dashboardTitle="Admin Panel">
         <AdminDashboardContent />
       </DashboardLayout>

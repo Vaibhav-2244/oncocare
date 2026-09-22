@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, FileText, FlaskConical, PencilLine, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { DashboardLayout, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
@@ -96,7 +96,7 @@ export default function LabReportDetailPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">

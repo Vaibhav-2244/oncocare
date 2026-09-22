@@ -7,7 +7,7 @@ import {
   Check, X, ArrowRight, DollarSign, Boxes, ShieldCheck,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PHARMACY_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { availabilityConfig, formatINR, type Availability } from '@/lib/medicine-types';
@@ -293,7 +293,7 @@ function PharmacyDashboardContent() {
 
 export default function PharmacyDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={['pharmacy']}>
+    <ProtectedRoute allowedRoles={PHARMACY_ROLES}>
       <DashboardLayout navItems={pharmacyNavItems} dashboardTitle="Pharmacy Portal">
         <PharmacyDashboardContent />
       </DashboardLayout>

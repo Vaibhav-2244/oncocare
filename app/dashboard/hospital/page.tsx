@@ -8,7 +8,7 @@ import {
   Search, Stethoscope, Users, Video,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, HOSPITAL_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 
@@ -204,5 +204,5 @@ function HospitalDashboardContent() {
 }
 
 export default function HospitalDashboardPage() {
-  return <ProtectedRoute allowedRoles={['hospital']}><DashboardLayout navItems={hospitalNavItems} dashboardTitle="Hospital Portal"><HospitalDashboardContent /></DashboardLayout></ProtectedRoute>;
+  return <ProtectedRoute allowedRoles={HOSPITAL_ROLES}><DashboardLayout navItems={hospitalNavItems} dashboardTitle="Hospital Portal"><HospitalDashboardContent /></DashboardLayout></ProtectedRoute>;
 }

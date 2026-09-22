@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CheckCircle, ChevronRight, FileText, ShieldCheck, Upload, X } from 'lucide-react';
-import { DashboardLayout } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { supabase } from '@/lib/supabase-client';
 
@@ -56,4 +56,4 @@ function SecondOpinionContent() {
   </div>;
 }
 
-export default function SecondOpinionPage() { return <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}><DashboardLayout dashboardTitle="Patient Dashboard"><SecondOpinionContent /></DashboardLayout></ProtectedRoute>; }
+export default function SecondOpinionPage() { return <ProtectedRoute allowedRoles={PATIENT_ROLES}><DashboardLayout dashboardTitle="Patient Dashboard"><SecondOpinionContent /></DashboardLayout></ProtectedRoute>; }

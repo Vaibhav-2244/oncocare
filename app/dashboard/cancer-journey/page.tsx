@@ -7,7 +7,7 @@ import {
   HeartPulse, Loader2, MapPin, Pill, Sparkles, type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { getPatientSummary, type PatientSummaryData } from '@/lib/patient-summary';
 import { supabase } from '@/lib/supabase-client';
@@ -202,5 +202,5 @@ function JourneyContent() {
 }
 
 export default function CancerJourneyPage() {
-  return <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}><DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard"><JourneyContent /></DashboardLayout></ProtectedRoute>;
+  return <ProtectedRoute allowedRoles={PATIENT_ROLES}><DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard"><JourneyContent /></DashboardLayout></ProtectedRoute>;
 }

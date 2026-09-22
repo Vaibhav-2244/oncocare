@@ -9,7 +9,7 @@ import {
   ChefHat,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { caregiverNavItems, DashboardLayout, patientNavItems } from '@/components/auth/dashboard-layout';
+import { caregiverNavItems, DashboardLayout, PATIENT_ROLES, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { getRecentActivity, getNotifications } from '@/lib/dashboard-api';
@@ -251,7 +251,7 @@ export default function PatientDashboardPage() {
   const { user } = useAuth();
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems} dashboardTitle={user?.primaryRole === 'family_caregiver' ? 'Caregiver Dashboard' : 'Patient Dashboard'}>
         <PatientDashboardContent />
       </DashboardLayout>

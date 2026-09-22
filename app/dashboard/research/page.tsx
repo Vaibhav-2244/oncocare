@@ -7,7 +7,7 @@ import {
   ArrowRight, FileText, Brain, BarChart3, Database,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, RESEARCH_PARTNER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 
@@ -197,7 +197,7 @@ function ResearchDashboardContent() {
 
 export default function ResearchDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={['research_partner']}>
+    <ProtectedRoute allowedRoles={RESEARCH_PARTNER_ROLES}>
       <DashboardLayout navItems={researchNavItems} dashboardTitle="Research Portal">
         <ResearchDashboardContent />
       </DashboardLayout>

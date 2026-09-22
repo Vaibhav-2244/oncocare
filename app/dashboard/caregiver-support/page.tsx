@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Bell, BookOpen, Check, ChevronRight, ExternalLink, Heart, Loader2, Search, Users } from 'lucide-react';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
@@ -205,5 +205,5 @@ function Empty({ text }: { text: string }) { return <div className="rounded-2xl 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true"><div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between gap-4"><h2 className="text-lg font-bold text-slate-900">{title}</h2><button onClick={onClose} aria-label="Close details" className="text-slate-400 hover:text-slate-700">×</button></div>{children}</div></div>; }
 
 export default function CaregiverSupportPage() {
-  return <ProtectedRoute allowedRoles={['patient', 'family_caregiver']}><DashboardLayout navItems={navItems} dashboardTitle="Caregiver Dashboard"><CaregiverSupportContent /></DashboardLayout></ProtectedRoute>;
+  return <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}><DashboardLayout navItems={navItems} dashboardTitle="Caregiver Dashboard"><CaregiverSupportContent /></DashboardLayout></ProtectedRoute>;
 }

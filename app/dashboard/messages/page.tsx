@@ -8,7 +8,7 @@ import {
   Send, Trash2, Loader2, Mail, MailOpen, Stethoscope, Search,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
@@ -576,7 +576,7 @@ function MessagesContent() {
 
 export default function MessagesPage() {
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <MessagesContent />
       </DashboardLayout>

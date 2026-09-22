@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
@@ -729,7 +729,7 @@ function TreatmentTrackerContent() {
 
 export default function TreatmentsPage() {
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <TreatmentTrackerContent />
       </DashboardLayout>

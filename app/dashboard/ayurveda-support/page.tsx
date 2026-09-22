@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, AlertTriangle, ArrowLeft, BookOpen, Check, ExternalLink, Heart, Loader2, Search, ShieldCheck } from 'lucide-react';
-import { DashboardLayout, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { supabase } from '@/lib/supabase-client';
 import { useAuth } from '@/lib/auth-context';
@@ -130,4 +130,4 @@ function AyurvedaSupportShell() {
   return <DashboardLayout navItems={isCaregiver ? caregiverNavItems : patientNavItems} dashboardTitle={isCaregiver ? 'Caregiver Dashboard' : 'Patient Dashboard'}><AyurvedaContent /></DashboardLayout>;
 }
 
-export default function AyurvedaSupportPage() { return <ProtectedRoute allowedRoles={['patient', 'family_caregiver']}><AyurvedaSupportShell /></ProtectedRoute>; }
+export default function AyurvedaSupportPage() { return <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}><AyurvedaSupportShell /></ProtectedRoute>; }

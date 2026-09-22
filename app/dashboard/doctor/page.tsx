@@ -7,7 +7,7 @@ import {
   Clock, ArrowRight, Video, Pill, Activity,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DOCTOR_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 
@@ -199,7 +199,7 @@ function DoctorDashboardContent() {
 
 export default function DoctorDashboardPage() {
   return (
-    <ProtectedRoute allowedRoles={['doctor']}>
+    <ProtectedRoute allowedRoles={DOCTOR_ROLES}>
       <DashboardLayout navItems={doctorNavItems} dashboardTitle="Doctor Portal">
         <DoctorDashboardContent />
       </DashboardLayout>

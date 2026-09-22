@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { getMarketplaceCaregiverById } from '@/lib/caregiver-marketplace';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +17,7 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
   const caregiver = result.caregiver;
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
         <main className="mx-auto max-w-5xl pb-10">
           <div className="mb-6 flex items-center justify-between">

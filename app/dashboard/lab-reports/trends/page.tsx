@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, BarChart3, FlaskConical } from 'lucide-react';
-import { DashboardLayout, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
@@ -94,7 +94,7 @@ export default function LabReportsTrendsPage() {
   const trendSummary = useMemo(() => calculateTrendSummary(series.map((point) => ({ date: point.date, value: point.value, unit: point.unit, label: selected || 'Biomarker' }))), [series, selected]);
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">

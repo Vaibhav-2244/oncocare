@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Check, Clock3, Pill, RefreshCw, Settings2, Users } from 'lucide-react';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { CAREGIVER_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -106,10 +106,10 @@ export default function CaregiverMedicationsPage() {
     if (!result.error && result.data) setSettings((current) => current.map((item) => item.relationship_id === setting.relationship_id ? { ...item, notification_enabled: !setting.notification_enabled } : item));
   };
 
-  if (loading) return <ProtectedRoute allowedRoles={['family_caregiver']}><DashboardLayout dashboardTitle="Caregiver Dashboard"><div className="flex min-h-64 items-center justify-center"><RefreshCw className="animate-spin text-teal-600" /></div></DashboardLayout></ProtectedRoute>;
+  if (loading) return <ProtectedRoute allowedRoles={CAREGIVER_ROLES}><DashboardLayout dashboardTitle="Caregiver Dashboard"><div className="flex min-h-64 items-center justify-center"><RefreshCw className="animate-spin text-teal-600" /></div></DashboardLayout></ProtectedRoute>;
 
   return (
-    <ProtectedRoute allowedRoles={['family_caregiver']}>
+    <ProtectedRoute allowedRoles={CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Caregiver Dashboard">
         <div className="space-y-6">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowRight, CalendarClock, CheckCircle2, Clock3, PlusCircle, TrendingUp } from 'lucide-react';
-import { DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { readStoredRecords, writeStoredRecords, type SideEffectRecord } from '@/lib/symptom-monitor';
@@ -118,7 +118,7 @@ export default function SideEffectTrackerPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <div className="space-y-6">
           <div className="flex items-center justify-between">

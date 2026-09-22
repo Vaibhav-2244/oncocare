@@ -60,7 +60,7 @@ export default function InsurancePlanDetailsPage() {
             "id, name, provider_id, coverage_amount, waiting_period_months, estimated_premium, cancer_coverage, hospital_network_size, benefits"
           )
           .eq("id", planId)
-          .single();
+          .maybeSingle();
 
       if (planError) {
         console.error("Insurance plan error:", planError);
@@ -72,6 +72,12 @@ export default function InsurancePlanDetailsPage() {
 
       setPlan(planData);
 
+      if (!planData) {
+        setError("Insurance plan was not found.");
+        setLoading(false);
+        return;
+      }
+
       // --------------------------------------------------------
       // LOAD PROVIDER
       // --------------------------------------------------------
@@ -81,7 +87,7 @@ export default function InsurancePlanDetailsPage() {
           .from("insurance_providers")
           .select("id, name, description")
           .eq("id", planData.provider_id)
-          .single();
+          .maybeSingle();
 
       if (providerError) {
         console.error(
@@ -89,6 +95,14 @@ export default function InsurancePlanDetailsPage() {
           providerError
         );
 
+        setError(
+          "Unable to load insurance provider details."
+        );
+        setLoading(false);
+        return;
+      }
+
+      if (!providerData) {
         setError(
           "Unable to load insurance provider details."
         );

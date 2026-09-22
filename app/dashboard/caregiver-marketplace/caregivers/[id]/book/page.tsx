@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 
@@ -154,7 +154,7 @@ export default function CaregiverBookingPage() {
 
   if (loading) {
     return (
-      <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+      <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
         <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
           <div className="flex min-h-screen items-center justify-center bg-slate-50">
             <div className="text-center">
@@ -169,7 +169,7 @@ export default function CaregiverBookingPage() {
 
   if (success) {
     return (
-      <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+      <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
         <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
           <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
             <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
@@ -193,7 +193,7 @@ export default function CaregiverBookingPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
         <main className="mx-auto max-w-4xl pb-10">
           <div className="mb-6 flex items-center justify-between">

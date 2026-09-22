@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { DashboardLayout } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { survivorStories } from '@/lib/survivor-stories-data';
 import { StoryCard } from '@/components/survivor-stories/StoryCard';
@@ -124,7 +124,7 @@ export default function SurvivorStoriesPage() {
   }, [selectedStory, showHelp]);
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin']}>
+    <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="Patient Dashboard">
         <div className="min-h-screen bg-slate-50">
       {/* PAGE HEADER */}

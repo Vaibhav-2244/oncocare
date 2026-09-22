@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { SearchFilters } from '@/components/tele-oncology/search-filters';
 import { DoctorCard } from '@/components/tele-oncology/doctor-card';
 import { DoctorProfile } from '@/components/tele-oncology/doctor-profile';
@@ -123,7 +123,7 @@ function TeleOncologyContent() {
 
 export default function TeleOncologyPage() {
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
         <TeleOncologyContent />
       </DashboardLayout>

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Activity, AlertCircle, ArrowRight, CalendarDays, Download, FileText, FlaskConical, Search, ShieldCheck, Sparkles, Trash2, Upload } from 'lucide-react';
-import { DashboardLayout, type NavItem, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, type NavItem, commonNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -226,7 +226,7 @@ export default function LabReportsPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['patient', 'family_caregiver', 'medical_advisor']}>
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <div className="space-y-6">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
