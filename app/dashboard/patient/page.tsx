@@ -31,7 +31,7 @@ function PatientDashboardContent() {
         supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('recipient_id', user.id).eq('is_read', false),
         supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('user_watchlist').select('id', { count: 'exact', head: true }),
+        supabase.from('user_watchlist').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         getRecentActivity(user.id, 5),
         getNotifications(user.id, 4),
         supabase.from('appointments').select('*').eq('user_id', user.id).gte('appointment_date', new Date().toISOString()).order('appointment_date', { ascending: true }).limit(3),

@@ -14,8 +14,10 @@ import {
 import type { Pharmacy, PharmacyReview, MedicinePrice } from '@/lib/medicine-types';
 import { availabilityConfig, formatINR } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 
 export default function PharmacyProfilePage() {
+  const { user } = useAuth();
   const params = useParams();
   const pharmacyId = params.id as string;
 
@@ -32,7 +34,7 @@ export default function PharmacyProfilePage() {
         getPharmacyById(pharmacyId),
         getPharmacyReviews(pharmacyId),
         getPharmacyMedicines(pharmacyId),
-        getFavouritePharmacies(),
+        user ? getFavouritePharmacies(user.id) : Promise.resolve([]),
       ]);
       setPharmacy(pharm);
       setReviews(revs);
@@ -43,7 +45,7 @@ export default function PharmacyProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [pharmacyId]);
+  }, [pharmacyId, user]);
 
   useEffect(() => {
     if (!pharmacyId) return;
@@ -51,8 +53,9 @@ export default function PharmacyProfilePage() {
   }, [pharmacyId, loadData]);
 
   const handleToggleFav = async () => {
+    if (!user) return;
     try {
-      const fav = await toggleFavouritePharmacy(pharmacyId);
+      const fav = await toggleFavouritePharmacy(user.id, pharmacyId);
       setIsFavourite(fav);
     } catch {
       // silently fail

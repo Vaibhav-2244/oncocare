@@ -76,6 +76,7 @@ export interface GenericAlternative {
 
 export interface WatchlistItem {
   id: string;
+  user_id: string | null;
   medicine_id: string;
   price_alert_threshold: number | null;
   notify_restock: boolean;
@@ -85,6 +86,7 @@ export interface WatchlistItem {
 
 export interface FavouritePharmacy {
   id: string;
+  user_id: string | null;
   pharmacy_id: string;
   created_at: string;
   pharmacy?: Pharmacy;
@@ -92,6 +94,7 @@ export interface FavouritePharmacy {
 
 export interface RecentlyViewed {
   id: string;
+  user_id: string | null;
   medicine_id: string;
   viewed_at: string;
   medicine?: Medicine;

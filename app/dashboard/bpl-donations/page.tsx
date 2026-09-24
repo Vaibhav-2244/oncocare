@@ -671,7 +671,7 @@ function CampaignsView({
             >
               <div className="relative overflow-hidden bg-slate-100">
                 <img
-                  src={patient.image_url || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80'}
+                  src={patient.image_url || BPL_PATIENT_PLACEHOLDER}
                   alt={patient.name}
                   className="h-48 w-full object-cover"
                 />

@@ -25,8 +25,10 @@ import {
 } from '@/lib/medicine-api';
 import type { Medicine, MedicinePrice, Pharmacy, GenericAlternative, WatchlistItem, RecentlyViewed, FavouritePharmacy } from '@/lib/medicine-types';
 import { popularSearches } from '@/lib/medicine-types';
+import { useAuth } from '@/lib/auth-context';
 
 export default function MedicineFinderPage() {
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Medicine[]>([]);
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
@@ -43,15 +45,15 @@ export default function MedicineFinderPage() {
   // Initial load
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [user]);
 
   const loadInitialData = async () => {
     try {
       const [pharms, wl, rv, favs] = await Promise.all([
         getAllPharmacies(),
-        getWatchlist(),
-        getRecentlyViewed(),
-        getFavouritePharmacies(),
+        user ? getWatchlist(user.id) : Promise.resolve([]),
+        user ? getRecentlyViewed(user.id) : Promise.resolve([]),
+        user ? getFavouritePharmacies(user.id) : Promise.resolve([]),
       ]);
       setPharmacies(pharms);
       setWatchlist(wl);
@@ -89,9 +91,11 @@ export default function MedicineFinderPage() {
       ]);
       setPrices(priceData);
       setGenerics(genericData);
-      await addToRecentlyViewed(medicine.id);
-      const rv = await getRecentlyViewed();
-      setRecentlyViewed(rv);
+      if (user) {
+        await addToRecentlyViewed(user.id, medicine.id);
+        const rv = await getRecentlyViewed(user.id);
+        setRecentlyViewed(rv);
+      }
     } catch {
       // silently fail
     } finally {
@@ -105,9 +109,10 @@ export default function MedicineFinderPage() {
   };
 
   const handleToggleFavourite = async (pharmacyId: string) => {
+    if (!user) return;
     try {
-      await toggleFavouritePharmacy(pharmacyId);
-      const favs = await getFavouritePharmacies();
+      await toggleFavouritePharmacy(user.id, pharmacyId);
+      const favs = await getFavouritePharmacies(user.id);
       setFavouritePharmacies(favs);
     } catch {
       // silently fail

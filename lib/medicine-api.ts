@@ -118,23 +118,25 @@ export async function getPharmacyMedicines(pharmacyId: string): Promise<Medicine
 }
 
 // Watchlist
-export async function getWatchlist(): Promise<WatchlistItem[]> {
+export async function getWatchlist(userId: string): Promise<WatchlistItem[]> {
   const { data, error } = await supabase
     .from('user_watchlist')
     .select(`
       *,
       medicine:medicines(*)
     `)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data || [];
 }
 
-export async function addToWatchlist(medicineId: string, priceAlertThreshold?: number, notifyRestock?: boolean): Promise<void> {
+export async function addToWatchlist(userId: string, medicineId: string, priceAlertThreshold?: number, notifyRestock?: boolean): Promise<void> {
   const { error } = await supabase
     .from('user_watchlist')
     .insert({
+      user_id: userId,
       medicine_id: medicineId,
       price_alert_threshold: priceAlertThreshold || null,
       notify_restock: notifyRestock || false,
@@ -142,60 +144,64 @@ export async function addToWatchlist(medicineId: string, priceAlertThreshold?: n
   if (error) throw error;
 }
 
-export async function removeFromWatchlist(id: string): Promise<void> {
+export async function removeFromWatchlist(userId: string, id: string): Promise<void> {
   const { error } = await supabase
     .from('user_watchlist')
     .delete()
+    .eq('user_id', userId)
     .eq('id', id);
   if (error) throw error;
 }
 
 // Favourite pharmacies
-export async function getFavouritePharmacies(): Promise<FavouritePharmacy[]> {
+export async function getFavouritePharmacies(userId: string): Promise<FavouritePharmacy[]> {
   const { data, error } = await supabase
     .from('user_favourite_pharmacies')
     .select(`
       *,
       pharmacy:pharmacies(*)
     `)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
   if (error) throw error;
   return data || [];
 }
 
-export async function toggleFavouritePharmacy(pharmacyId: string): Promise<boolean> {
+export async function toggleFavouritePharmacy(userId: string, pharmacyId: string): Promise<boolean> {
   const { data: existing } = await supabase
     .from('user_favourite_pharmacies')
     .select('id')
+    .eq('user_id', userId)
     .eq('pharmacy_id', pharmacyId)
     .maybeSingle();
 
   if (existing) {
-    await supabase.from('user_favourite_pharmacies').delete().eq('id', existing.id);
+    await supabase.from('user_favourite_pharmacies').delete().eq('user_id', userId).eq('id', existing.id);
     return false;
   } else {
-    await supabase.from('user_favourite_pharmacies').insert({ pharmacy_id: pharmacyId });
+    await supabase.from('user_favourite_pharmacies').insert({ user_id: userId, pharmacy_id: pharmacyId });
     return true;
   }
 }
 
 // Recently viewed
-export async function addToRecentlyViewed(medicineId: string): Promise<void> {
-  await supabase.from('recently_viewed').delete().eq('medicine_id', medicineId);
+export async function addToRecentlyViewed(userId: string, medicineId: string): Promise<void> {
+  await supabase.from('recently_viewed').delete().eq('user_id', userId).eq('medicine_id', medicineId);
   const { error } = await supabase
     .from('recently_viewed')
-    .insert({ medicine_id: medicineId });
+    .insert({ user_id: userId, medicine_id: medicineId });
   if (error) throw error;
 }
 
-export async function getRecentlyViewed(): Promise<RecentlyViewed[]> {
+export async function getRecentlyViewed(userId: string): Promise<RecentlyViewed[]> {
   const { data, error } = await supabase
     .from('recently_viewed')
     .select(`
       *,
       medicine:medicines(*)
     `)
+    .eq('user_id', userId)
     .order('viewed_at', { ascending: false })
     .limit(8);
 

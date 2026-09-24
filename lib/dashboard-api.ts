@@ -20,7 +20,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
     supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('user_id', userId),
     supabase.from('messages').select('id', { count: 'exact', head: true }).or(`sender_id.eq.${userId},recipient_id.eq.${userId}`),
     supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-    supabase.from('user_watchlist').select('id', { count: 'exact', head: true }).eq('medicine_id', userId),
+    supabase.from('user_watchlist').select('id', { count: 'exact', head: true }).eq('user_id', userId),
   ]);
 
   return {
