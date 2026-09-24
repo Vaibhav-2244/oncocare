@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, BarChart3, FlaskConical } from 'lucide-react';
-import { DashboardLayout, PATIENT_ROLES, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
@@ -35,10 +35,9 @@ const TrendChart = dynamic(async () => {
   };
 }, { ssr: false });
 
-const navItems: NavItem[] = [...commonNavItems.filter((item) => item.href !== '/dashboard/documents'), { label: 'Lab Reports', href: '/dashboard/lab-reports', icon: FlaskConical }];
-
 export default function LabReportsTrendsPage() {
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [values, setValues] = useState<LabValueRow[]>([]);
   const [selected, setSelected] = useState<string>('');
   const [loading, setLoading] = useState(true);

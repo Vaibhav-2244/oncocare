@@ -18,19 +18,8 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
-
-const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Symptoms', href: '/dashboard/symptoms', icon: Activity },
-  { label: 'Treatments', href: '/dashboard/treatments', icon: HeartPulse },
-  { label: 'Medications', href: '/dashboard/medications', icon: Pill },
-  { label: 'Care Team', href: '/dashboard/care-team', icon: Stethoscope },
-  { label: 'Timeline', href: '/dashboard/timeline', icon: Clock },
-  { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Brain },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
+import { useAuth } from '@/lib/auth-context';
 
 const moduleCards: Array<{
   title: string;
@@ -136,6 +125,9 @@ function SymptomOverview() {
 }
 
 export default function SymptomsOverviewPage() {
+  const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
+
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">

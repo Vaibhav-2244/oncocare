@@ -2,18 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlertTriangle, ArrowUpRight, Send, ShieldAlert, Sparkles } from 'lucide-react';
-import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { readStoredProfile, writeStoredProfile } from '@/lib/symptom-monitor';
-
-const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: Activity },
-  { label: 'Symptoms', href: '/dashboard/symptoms', icon: Activity },
-  { label: 'Treatments', href: '/dashboard/treatments', icon: Activity },
-  { label: 'Medications', href: '/dashboard/medications', icon: Activity },
-];
 
 type Message = { id: string; role: 'user' | 'assistant'; text: string };
 
@@ -21,6 +14,7 @@ const STORAGE_KEY = (userId?: string) => `oncocare_symptom_checker_${userId ?? '
 
 export default function SymptomCheckerPage() {
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
     { id: 'welcome', role: 'assistant', text: 'Hi! I’m your OncoCare symptom support assistant. Tell me what you are experiencing, and I’ll help you reflect on urgency, pattern, and next steps.' },

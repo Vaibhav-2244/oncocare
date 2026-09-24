@@ -8,23 +8,11 @@ import {
   Brain, Stethoscope, HeartPulse, Clock, Bell, type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
 import { analyzePrescription } from '@/lib/prescription-analyzer';
-
-const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Symptoms', href: '/dashboard/symptoms', icon: Activity },
-  { label: 'Treatments', href: '/dashboard/treatments', icon: HeartPulse },
-  { label: 'Medications', href: '/dashboard/medications', icon: Pill },
-  { label: 'Care Team', href: '/dashboard/care-team', icon: Stethoscope },
-  { label: 'Timeline', href: '/dashboard/timeline', icon: Clock },
-  { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Brain },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
 
 const FREQUENCIES = [
   { value: 'once daily', label: 'Once Daily', times: 1 },
@@ -719,6 +707,9 @@ function MedicationsContent() {
 }
 
 export default function MedicationsPage() {
+  const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
+
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">

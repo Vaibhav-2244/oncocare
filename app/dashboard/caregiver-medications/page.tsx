@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Bell, Check, Clock3, Pill, RefreshCw, Settings2, Users } from 'lucide-react';
-import { CAREGIVER_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
+import { CAREGIVER_ROLES, DashboardLayout, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -19,13 +19,6 @@ import {
   type CaregiverNotification,
 } from '@/lib/caregiver-medication';
 
-const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: Users },
-  { label: 'Patient Medications', href: '/dashboard/caregiver-medications', icon: Pill },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings2 },
-];
-
 function formatDate(value: string | null) {
   if (!value) return 'Not recorded';
   return new Date(value).toLocaleString('en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -33,6 +26,7 @@ function formatDate(value: string | null) {
 
 export default function CaregiverMedicationsPage() {
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [patients, setPatients] = useState<AssignedPatient[]>([]);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [medications, setMedications] = useState<CaregiverMedication[]>([]);

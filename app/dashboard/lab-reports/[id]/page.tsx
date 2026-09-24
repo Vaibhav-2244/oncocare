@@ -4,13 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Check, FileText, FlaskConical, PencilLine, ShieldCheck, Trash2, X } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { DashboardLayout, PATIENT_ROLES, commonNavItems, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import type { LabReportRow, LabValueRow } from '@/lib/lab-reports';
-
-const navItems: NavItem[] = [...commonNavItems.filter((item) => item.href !== '/dashboard/documents'), { label: 'Lab Reports', href: '/dashboard/lab-reports', icon: FlaskConical }];
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
@@ -22,6 +20,7 @@ export default function LabReportDetailPage() {
   const params = useParams();
   const reportId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [report, setReport] = useState<LabReportRow | null>(null);
   const [values, setValues] = useState<LabValueRow[]>([]);
   const [loading, setLoading] = useState(true);

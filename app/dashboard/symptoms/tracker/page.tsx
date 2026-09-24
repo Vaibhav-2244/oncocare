@@ -2,23 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, ArrowRight, CalendarClock, CheckCircle2, Clock3, PlusCircle, TrendingUp } from 'lucide-react';
-import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { readStoredRecords, writeStoredRecords, type SideEffectRecord } from '@/lib/symptom-monitor';
 import { supabase } from '@/lib/supabase-client';
 
-const navItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: Activity },
-  { label: 'Symptoms', href: '/dashboard/symptoms', icon: Activity },
-  { label: 'Treatments', href: '/dashboard/treatments', icon: Activity },
-  { label: 'Medications', href: '/dashboard/medications', icon: Activity },
-];
-
 const WHAT_HELPED = ['Rest', 'Food', 'Water', 'Walking', 'Relaxation', 'Medication'];
 
 export default function SideEffectTrackerPage() {
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [records, setRecords] = useState<SideEffectRecord[]>([]);
   const [symptom, setSymptom] = useState('Nausea');
   const [severity, setSeverity] = useState(5);

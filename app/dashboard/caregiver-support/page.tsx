@@ -2,19 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, Bell, BookOpen, Check, ChevronRight, ExternalLink, Heart, Loader2, Search, Users } from 'lucide-react';
-import { DashboardLayout, PATIENT_CAREGIVER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
-
-const navItems: NavItem[] = [
-  { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
-  { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
-  { label: 'Patient Medications', href: '/dashboard/caregiver-medications', icon: Activity },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Profile', href: '/dashboard/profile', icon: Users },
-  { label: 'Settings', href: '/dashboard/settings', icon: Users },
-];
 
 type CheckIn = { id: string; mood: string; severity: number; message: string | null; created_at: string };
 type Resource = { id: string; title: string; category: string; description: string; content: string; reading_time: number };
@@ -205,5 +196,8 @@ function Empty({ text }: { text: string }) { return <div className="rounded-2xl 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) { return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" role="dialog" aria-modal="true"><div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between gap-4"><h2 className="text-lg font-bold text-slate-900">{title}</h2><button onClick={onClose} aria-label="Close details" className="text-slate-400 hover:text-slate-700">×</button></div>{children}</div></div>; }
 
 export default function CaregiverSupportPage() {
+  const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
+
   return <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ROLES}><DashboardLayout navItems={navItems} dashboardTitle="Caregiver Dashboard"><CaregiverSupportContent /></DashboardLayout></ProtectedRoute>;
 }

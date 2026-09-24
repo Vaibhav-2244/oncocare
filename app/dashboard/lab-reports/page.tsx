@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Activity, AlertCircle, ArrowRight, CalendarDays, Download, FileText, FlaskConical, Search, ShieldCheck, Sparkles, Trash2, Upload } from 'lucide-react';
-import { DashboardLayout, PATIENT_ROLES, type NavItem, commonNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -17,8 +17,6 @@ import {
 } from '@/lib/lab-reports';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
-
-const navItems: NavItem[] = [...commonNavItems.filter((item) => item.href !== '/dashboard/documents'), { label: 'Lab Reports', href: '/dashboard/lab-reports', icon: FlaskConical }];
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
@@ -41,6 +39,7 @@ function formatBytes(bytes?: number | null) {
 
 export default function LabReportsPage() {
   const { user } = useAuth();
+  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [reports, setReports] = useState<LabReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
