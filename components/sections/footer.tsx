@@ -11,9 +11,8 @@ const footerLinks = {
 
 const socials = [
   { icon: Twitter, href: '#', label: 'Twitter' },
-  { icon: Linkedin, href: '#', label: 'LinkedIn' },
-  { icon: Instagram, href: '#', label: 'Instagram' },
-  { icon: Github, href: '#', label: 'GitHub' },
+  { icon: Linkedin, href: 'https://www.linkedin.com/company/last-minute-engineer/posts/?feedView=all', label: 'LinkedIn' },
+  { icon: Instagram, href: 'https://www.instagram.com/myoncocareplus?stkn=MXJmdGVobzU0aGl4Nw%3D%3D&utm_source=qr', label: 'Instagram' },
 ];
 
 export function Footer() {
@@ -41,15 +40,19 @@ export function Footer() {
             <div className="mt-6 space-y-2">
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <Mail className="h-3.5 w-3.5 text-teal-500" />
-                hello@oncocareplus.com
+                lastminutengineers@gmail.com
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <Phone className="h-3.5 w-3.5 text-teal-500" />
-                +91 80 4567 8900
+                +91 93 1848 7390
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Phone className="h-3.5 w-3.5 text-teal-500" />
+                +91 98 9191 1199
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <MapPin className="h-3.5 w-3.5 text-teal-500" />
-                Bengaluru, Karnataka, India
+                1003, 10th Floor, SS Omnia, Sector 86, Gurugram, Haryana
               </div>
             </div>
 

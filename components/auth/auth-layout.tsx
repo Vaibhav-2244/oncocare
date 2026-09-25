@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { Logo } from '@/components/shared/logo';
 
 export function AuthLayout({
   children,
@@ -23,10 +23,7 @@ export function AuthLayout({
         <div className="absolute -left-20 bottom-20 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
 
         <Link href="/" className="relative flex items-center gap-2 text-white">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-md">
-            <Heart className="h-5 w-5" />
-          </div>
-          <span className="text-xl font-bold">OncoCare+</span>
+          <Logo iconBoxSize="h-10 w-10" iconSize="h-5 w-5" textSize="text-xl" textClassName="text-white" className="gap-2" />
         </Link>
 
         <div className="relative">
@@ -67,10 +64,7 @@ export function AuthLayout({
         >
           {/* Mobile logo */}
           <Link href="/" className="mb-8 flex items-center justify-center gap-2 lg:hidden">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-emerald-600">
-              <Heart className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-slate-900">OncoCare+</span>
+            <Logo iconBoxSize="h-10 w-10" iconSize="h-5 w-5" textSize="text-xl" />
           </Link>
 
           <h1 className="text-2xl font-bold text-foreground">{title}</h1>

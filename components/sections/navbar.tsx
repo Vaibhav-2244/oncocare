@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Activity, ChevronDown, LogOut, LayoutDashboard, User } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut, LayoutDashboard, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { roleConfig } from '@/lib/auth-types';
+import { Logo } from '@/components/shared/logo';
 
 const navLinks = [
   { label: 'Platform', href: '#solution' },
@@ -58,13 +59,7 @@ export function Navbar() {
         )}
       >
         <a href="/" className="flex items-center gap-2.5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-deep to-teal-400 shadow-md shadow-teal-500/30">
-            <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
-            <div className="absolute inset-0 rounded-xl bg-teal-400/30 blur-md -z-10" />
-          </div>
-          <span className="text-lg font-bold tracking-tight text-slate-900">
-            OncoCare<span className="text-emerald-deep">+</span>
-          </span>
+          <Logo />
         </a>
 
         <nav className="hidden items-center gap-1 md:flex">

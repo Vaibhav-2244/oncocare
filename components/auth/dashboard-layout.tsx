@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,6 +15,8 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { roleConfig, type RoleName } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase-client';
+import { Logo } from '@/components/shared/logo';
 
 export const ADMIN_ROLES: RoleName[] = ['super_admin', 'admin'];
 export const PATIENT_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor'];
@@ -46,6 +48,9 @@ export function DashboardLayout({
   const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -59,6 +64,52 @@ export function DashboardLayout({
   const dashboardNavItems = navItems || (user?.primaryRole === 'family_caregiver'
     ? caregiverNavItems
     : patientNavItems);
+  // Full data search across appointments, medications, and documents can be added later.
+  const filteredNavItems = searchQuery.trim()
+    ? dashboardNavItems.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : [];
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadNotificationCount(0);
+      return;
+    }
+
+    const fetchUnreadNotificationCount = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_read', false);
+      setUnreadNotificationCount(count || 0);
+    };
+
+    fetchUnreadNotificationCount();
+    const channel = supabase
+      .channel(`notifications-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, fetchUnreadNotificationCount)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setSearchQuery('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const navigateToSearchResult = (href: string) => {
+    router.push(href);
+    setSearchQuery('');
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -121,20 +172,50 @@ export function DashboardLayout({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="relative hidden sm:block">
+            <div ref={searchContainerRef} className="relative hidden sm:block">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search..."
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && filteredNavItems[0]) {
+                    navigateToSearchResult(filteredNavItems[0].href);
+                  }
+                }}
                 className="w-64 rounded-xl border border-border bg-muted py-2 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-teal-300 focus:bg-card focus:outline-none focus:ring-2 focus:ring-teal-200/30"
               />
+              {searchQuery.trim() && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-xl">
+                  {filteredNavItems.length > 0 ? filteredNavItems.map((item) => (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => navigateToSearchResult(item.href)}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      <item.icon className="h-4 w-4 text-slate-400" />
+                      {item.label}
+                    </button>
+                  )) : (
+                    <p className="px-3 py-2 text-sm text-muted-foreground">No results found</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted">
+            <button
+              onClick={() => router.push('/dashboard/notifications')}
+              aria-label="View notifications"
+              className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted"
+            >
               <Bell className="h-5 w-5" />
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500" />
+              )}
             </button>
 
             {/* User menu */}
@@ -225,10 +306,7 @@ function SidebarContent({
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b border-border px-6">
         <Link href="/" className="flex items-center gap-2" onClick={onNavigate}>
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-emerald-600">
-            <Heart className="h-4 w-4 text-white" />
-          </div>
-          <span className="text-lg font-bold text-foreground">OncoCare+</span>
+          <Logo className="gap-2" textClassName="text-foreground" />
         </Link>
       </div>
 
