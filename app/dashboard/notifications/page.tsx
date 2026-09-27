@@ -88,13 +88,13 @@ function NotificationsContent() {
     if (!user) return;
     setLoading(true);
     setError(null);
-    try {
+    try {               
       const { data, error: queryError } = await supabase
         .from('notifications')
-        .select('*')
+        .select('id, user_id, title, message, type, is_read, created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
-      if (queryError) throw queryError;
+      if (queryError) throw new Error(queryError.message);
       setNotifications((data || []) as Notification[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load notifications');

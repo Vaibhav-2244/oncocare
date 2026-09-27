@@ -90,8 +90,8 @@ function MessagesContent() {
         .from('care_team')
         .select('*')
         .eq('user_id', user.id)
-        .order('name', { ascending: true });
-      if (queryError) throw queryError;
+        .order('member_name', { ascending: true });
+      if (queryError) throw new Error(queryError.message);
       setContacts((data || []) as CareTeamMember[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load care team contacts');
