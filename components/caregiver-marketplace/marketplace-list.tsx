@@ -3,8 +3,10 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { MarketplaceCaregiver } from '@/lib/caregiver-marketplace';
+import { useTranslations } from 'next-intl';
 
 export default function CaregiverMarketplaceList({ caregivers }: { caregivers: MarketplaceCaregiver[] }) {
+  const t = useTranslations('components.caregiverMarketplace.marketplaceList');
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('');
@@ -108,8 +110,8 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div>
-            <p className="text-xs font-bold tracking-wide text-teal-600">ONCOCARE+</p>
-            <h1 className="mt-1 text-xl font-bold text-slate-900">Caregiver Marketplace</h1>
+            <p className="text-xs font-bold tracking-wide text-teal-600">{t('oncocare')}</p>
+            <h1 className="mt-1 text-xl font-bold text-slate-900">{t('caregiverMarketplace')}</h1>
           </div>
 
         </div>
@@ -117,47 +119,46 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
 
       <section className="border-b border-slate-100 bg-white">
         <div className="mx-auto max-w-6xl px-6 py-8">
-          <p className="text-xs font-bold tracking-wide text-teal-600">PATIENT CARE</p>
-          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">Find the right caregiver for your needs</h2>
+          <p className="text-xs font-bold tracking-wide text-teal-600">{t('patientCare')}</p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">{t('findTheRightCaregiverForYourNeeds')}</h2>
           <p className="mt-3 text-sm text-slate-500">
-            Browse verified caregivers based on experience, specialization, language, location and availability.
-          </p>
+            {t('browseVerifiedCaregiversBasedOnExperienceSpecializationLanguageLocationAndAvaila')}{' '}</p>
 
           <div className="mt-7 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr]">
               <div>
-                <label htmlFor="search" className="mb-2 block text-xs font-semibold text-slate-700">Search</label>
+                <label htmlFor="search" className="mb-2 block text-xs font-semibold text-slate-700">{t('search')}</label>
                 <input
                   id="search"
                   type="text"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search caregiver or care type..."
+                  placeholder={t('searchCaregiverOrCareType')}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 />
               </div>
 
               <div>
-                <label htmlFor="location" className="mb-2 block text-xs font-semibold text-slate-700">Location</label>
+                <label htmlFor="location" className="mb-2 block text-xs font-semibold text-slate-700">{t('location')}</label>
                 <input
                   id="location"
                   type="text"
                   value={location}
                   onChange={(event) => setLocation(event.target.value)}
-                  placeholder="City or area"
+                  placeholder={t('cityOrArea')}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 />
               </div>
 
               <div>
-                <label htmlFor="specialization" className="mb-2 block text-xs font-semibold text-slate-700">Specialization</label>
+                <label htmlFor="specialization" className="mb-2 block text-xs font-semibold text-slate-700">{t('specialization')}</label>
                 <select
                   id="specialization"
                   value={specialization}
                   onChange={(event) => setSpecialization(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 >
-                  <option value="all">All Specializations</option>
+                  <option value="all">{t('allSpecializations')}</option>
                   {specializations.map((item) => (
                     <option key={item} value={item}>{item}</option>
                   ))}
@@ -165,14 +166,14 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
               </div>
 
               <div>
-                <label htmlFor="language" className="mb-2 block text-xs font-semibold text-slate-700">Language</label>
+                <label htmlFor="language" className="mb-2 block text-xs font-semibold text-slate-700">{t('language')}</label>
                 <select
                   id="language"
                   value={language}
                   onChange={(event) => setLanguage(event.target.value)}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
                 >
-                  <option value="all">All Languages</option>
+                  <option value="all">{t('allLanguages')}</option>
                   {languages.map((item) => (
                     <option key={item} value={item}>{item}</option>
                   ))}
@@ -188,16 +189,13 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
                   onChange={(event) => setAvailableOnly(event.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                 />
-                Show only currently available caregivers
-              </label>
+                {t('showOnlyCurrentlyAvailableCaregivers')}{' '}</label>
 
               <div className="flex gap-2">
                 <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-                  Clear Filters
-                </button>
+                  {t('clearFilters')}{' '}</button>
                 <button type="button" onClick={() => setSearchPerformed(true)} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">
-                  Search Caregivers
-                </button>
+                  {t('searchCaregivers')}{' '}</button>
               </div>
             </div>
           </div>
@@ -208,10 +206,9 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
         <div className="mx-auto max-w-6xl px-6 py-7">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Verified Caregivers</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('verifiedCaregivers')}</h2>
               <p className="mt-1 text-xs text-slate-500">
-                {displayedCaregivers.length} {displayedCaregivers.length === 1 ? 'caregiver' : 'caregivers'} found
-              </p>
+                {displayedCaregivers.length} {displayedCaregivers.length === 1 ? t('caregiver') : t('caregivers')} {t('found')}{' '}</p>
             </div>
 
             <select
@@ -219,21 +216,20 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
               onChange={(event) => setSortBy(event.target.value)}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
             >
-              <option value="recommended">Recommended</option>
-              <option value="rating">Highest Rated</option>
-              <option value="experience">Most Experienced</option>
-              <option value="price_low">Lowest Price</option>
+              <option value="recommended">{t('recommended')}</option>
+              <option value="rating">{t('highestRated')}</option>
+              <option value="experience">{t('mostExperienced')}</option>
+              <option value="price_low">{t('lowestPrice')}</option>
             </select>
           </div>
 
           {displayedCaregivers.length === 0 ? (
             <div className="mt-5 rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center shadow-sm">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 text-2xl">🔎</div>
-              <h3 className="mt-5 text-lg font-bold text-slate-900">No caregivers found</h3>
-              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">Try changing your search or removing some filters.</p>
+              <h3 className="mt-5 text-lg font-bold text-slate-900">{t('noCaregiversFound')}</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">{t('tryChangingYourSearchOrRemovingSomeFilters')}</p>
               <button type="button" onClick={clearFilters} className="mt-6 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">
-                Clear Filters
-              </button>
+                {t('clearFilters')}{' '}</button>
             </div>
           ) : (
             <div className="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -247,33 +243,32 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
                         </div>
                         <div>
                           <h3 className="font-bold text-slate-900">{caregiver.professional_title}</h3>
-                          <p className="mt-1 text-xs text-slate-500">{caregiver.years_of_experience} years of experience</p>
+                          <p className="mt-1 text-xs text-slate-500">{caregiver.years_of_experience} {t('yearsOfExperience')}</p>
                         </div>
                       </div>
 
-                      <button type="button" aria-label="Save caregiver" className="text-xl text-slate-300 transition hover:text-teal-500">
+                      <button type="button" aria-label={t('saveCaregiver')} className="text-xl text-slate-300 transition hover:text-teal-500">
                         ♡
                       </button>
                     </div>
 
                     {caregiver.verification_status === 'verified' && (
                       <div className="mt-4 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                        ✓ Verified Caregiver
-                      </div>
+                        {t('verifiedCaregiver')}{' '}</div>
                     )}
 
                     <div className="mt-4 grid grid-cols-3 border-y border-slate-100 py-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Rating</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('rating')}</p>
                         <p className="mt-1 text-sm font-bold text-slate-900">★ {caregiver.rating.toFixed(1)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Reviews</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('reviews')}</p>
                         <p className="mt-1 text-sm font-bold text-slate-900">{caregiver.review_count}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Experience</p>
-                        <p className="mt-1 text-sm font-bold text-slate-900">{caregiver.years_of_experience} yrs</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('experience')}</p>
+                        <p className="mt-1 text-sm font-bold text-slate-900">{caregiver.years_of_experience} {t('yrs')}</p>
                       </div>
                     </div>
 
@@ -296,10 +291,10 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
 
                     <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-slate-400">Starting from</p>
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{t('startingFrom')}</p>
                         <p className="mt-1 text-lg font-bold text-slate-900">
-                          {caregiver.hourly_rate ? `₹${caregiver.hourly_rate}` : 'Custom'}
-                          <span className="text-xs font-medium text-slate-500">/hr</span>
+                          {caregiver.hourly_rate ? t('hourlyRateWithCurrency', { amount: caregiver.hourly_rate }) : t('custom')}
+                          <span className="text-xs font-medium text-slate-500">{t('hr')}</span>
                         </p>
                       </div>
                       <button
@@ -307,8 +302,7 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
                         onClick={() => router.push(`/dashboard/caregiver-marketplace/caregivers/${caregiver.id}`)}
                         className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700"
                       >
-                        View Profile
-                      </button>
+                        {t('viewProfile')}{' '}</button>
                     </div>
                   </div>
                 </article>

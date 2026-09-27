@@ -7,9 +7,12 @@ import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucid
 import { useAuth } from '@/lib/auth-context';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { roleConfig } from '@/lib/auth-types';
+import { useTranslations } from 'next-intl';
 
 export default function SignInPage() {
+  const t = useTranslations('auth.signIn');
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, user, loading: authLoading } = useAuth();
@@ -50,20 +53,21 @@ export default function SignInPage() {
   };
 
   return (
-    <AuthLayout title="Welcome back" subtitle="Sign in to your OncoCare+ account">
+    <AuthLayout title={t('welcomeBack')} subtitle="Sign in to your OncoCare+ account">
+      <div className="mb-4 flex justify-end"><LanguageSwitcher /></div>
       {/* OAuth */}
       <OAuthButtons />
 
       <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200" />
-        <span className="text-xs font-medium text-slate-400">or sign in with email</span>
+        <span className="text-xs font-medium text-slate-400">{t('orSignInWithEmail')}</span>
         <div className="h-px flex-1 bg-slate-200" />
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-sm font-semibold text-slate-700">Email Address</label>
+          <label className="text-sm font-semibold text-slate-700">{t('emailAddress')}</label>
           <div className="relative mt-1.5">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -79,12 +83,11 @@ export default function SignInPage() {
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-semibold text-slate-700">Password</label>
+            <label className="text-sm font-semibold text-slate-700">{t('password')}</label>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-slate-400">Use your account password</span>
+              <span className="text-xs font-semibold text-slate-400">{t('useYourAccountPassword')}</span>
               <Link href="/auth/forgot-password" className="text-xs font-semibold text-teal-600 hover:underline">
-                Forgot password?
-              </Link>
+                {t('forgotPassword')}{' '}</Link>
             </div>
           </div>
           <div className="relative mt-1.5">
@@ -94,7 +97,7 @@ export default function SignInPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Enter your password"
+              placeholder={t('enterYourPassword')}
               className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
             />
             <button
@@ -114,7 +117,7 @@ export default function SignInPage() {
             onChange={(e) => setRememberMe(e.target.checked)}
             className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
           />
-          <span className="text-sm text-slate-600">Remember me on this device</span>
+          <span className="text-sm text-slate-600">{t('rememberMeOnThisDevice')}</span>
         </label>
 
         {error && (
@@ -133,18 +136,16 @@ export default function SignInPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Sign In
-              <ArrowRight className="h-4 w-4" />
+              {t('signIn')}{' '}<ArrowRight className="h-4 w-4" />
             </>
           )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        Don&apos;t have an account?{' '}
+        {t('donAposTHaveAnAccount')}{' '}
         <Link href="/auth/sign-up" className="font-semibold text-teal-600 hover:underline">
-          Sign up
-        </Link>
+          {t('signUp')}{' '}</Link>
       </p>
     </AuthLayout>
   );

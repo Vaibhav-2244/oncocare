@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import jsPDF from 'jspdf';
 import type { BplDonation } from '@/lib/bpl-api';
 
-export function generateDonationReceipt(donation: BplDonation & { patientName?: string }) {
+export async function generateDonationReceipt(donation: BplDonation & { patientName?: string }) {
+  const { default: jsPDF } = await import('jspdf');
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

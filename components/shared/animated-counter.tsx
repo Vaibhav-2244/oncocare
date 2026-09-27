@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView, useMotionValue, useSpring } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 export function AnimatedCounter({
   value,
@@ -18,6 +19,7 @@ export function AnimatedCounter({
   sublabel?: string;
   isTarget?: boolean;
 }) {
+  const t = useTranslations('components.shared.animatedCounter');
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, amount: 0.4 });
   const motionValue = useMotionValue(0);
@@ -49,8 +51,7 @@ export function AnimatedCounter({
       {sublabel && <div className="mt-1 text-xs text-slate-400">{sublabel}</div>}
       {isTarget && (
         <span className="mt-2 rounded-full bg-teal-500/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-teal-300 ring-1 ring-teal-400/20">
-          Target
-        </span>
+          {t('target')}{' '}</span>
       )}
     </div>
   );

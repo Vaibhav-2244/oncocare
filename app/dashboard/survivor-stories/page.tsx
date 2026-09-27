@@ -22,6 +22,7 @@ import { survivorStories } from '@/lib/survivor-stories-data';
 import { StoryCard } from '@/components/survivor-stories/StoryCard';
 import { StoryModal } from '@/components/survivor-stories/StoryModal';
 import { HelpModal } from '@/components/survivor-stories/HelpModal';
+import { useTranslations } from 'next-intl';
 
 const cancerFilters = [
   "All",
@@ -46,6 +47,7 @@ const supportFilters = [
 ];
 
 export default function SurvivorStoriesPage() {
+  const t = useTranslations('survivorStories');
   const [selectedCancer, setSelectedCancer] = useState("All");
   const [selectedTopic, setSelectedTopic] = useState("All Topics");
   const [searchTerm, setSearchTerm] = useState("");
@@ -131,18 +133,16 @@ export default function SurvivorStoriesPage() {
       <section className="bg-white border-b border-slate-200 px-6 py-8">
         <div className="max-w-5xl">
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-4">
-            <span>OncoCare+</span>
+            <span>{t('oncocare')}</span>
             <ChevronRight size={14} />
-            <span>Survivor Stories</span>
+            <span>{t('survivorStories')}</span>
           </div>
 
           <h1 className="text-4xl font-bold text-slate-900 mb-3">
-            Cancer Survivor Stories
-          </h1>
+            {t('cancerSurvivorStories')}{' '}</h1>
 
           <p className="text-slate-600 text-lg max-w-2xl">
-            Real experiences from people living through and beyond cancer, curated to help you feel less alone.
-          </p>
+            {t('realExperiencesFromPeopleLivingThroughAndBeyondCancerCuratedToHelpYouFeelLessAlo')}{' '}</p>
         </div>
       </section>
 
@@ -163,8 +163,7 @@ export default function SurvivorStoriesPage() {
                   />
                   <div className="absolute top-3 left-3 bg-teal-600 text-white text-xs font-semibold px-2 py-1 rounded flex items-center gap-1">
                     <Play size={12} fill="currentColor" />
-                    Survivor video
-                  </div>
+                    {t('survivorVideo')}{' '}</div>
                 </>
               ) : (
                 <button
@@ -176,8 +175,7 @@ export default function SurvivorStoriesPage() {
                     <Play size={32} fill="currentColor" />
                   </div>
                   <span className="text-slate-700 font-semibold">
-                    Read survivor story
-                  </span>
+                    {t('readSurvivorStory')}{' '}</span>
                 </button>
               )}
             </div>
@@ -190,8 +188,7 @@ export default function SurvivorStoriesPage() {
                 </span>
                 <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
                   <ShieldCheck size={12} />
-                  Verified Source
-                </span>
+                  {t('verifiedSource')}{' '}</span>
               </div>
 
               <p className="text-sm font-semibold text-teal-600 uppercase tracking-wide">
@@ -203,7 +200,7 @@ export default function SurvivorStoriesPage() {
               </h2>
 
               <p className="text-slate-700">
-                A story from <strong>{featuredStory.name}</strong>
+                {t('aStoryFrom')}{' '}<strong>{featuredStory.name}</strong>
               </p>
 
               <p className="text-slate-600 line-clamp-3">
@@ -224,8 +221,7 @@ export default function SurvivorStoriesPage() {
                   type="button"
                   onClick={() => setSelectedStory(featuredStory)}
                 >
-                  Explore Story
-                  <ChevronRight size={17} />
+                  {t('exploreStory')}{' '}<ChevronRight size={17} />
                 </button>
 
                 <a
@@ -234,8 +230,7 @@ export default function SurvivorStoriesPage() {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Original source
-                  <ExternalLink size={13} />
+                  {t('originalSource')}{' '}<ExternalLink size={13} />
                 </a>
               </div>
             </div>
@@ -249,15 +244,13 @@ export default function SurvivorStoriesPage() {
         <div className="mb-12">
           <div className="mb-6">
             <p className="text-sm font-semibold text-teal-600 uppercase tracking-wide mb-2">
-              Explore by cancer type
-            </p>
+              {t('exploreByCancerType')}{' '}</p>
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-slate-900">
-                Find a story that feels relevant to you
-              </h2>
+                {t('findAStoryThatFeelsRelevantToYou')}{' '}</h2>
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <ShieldCheck size={17} />
-                <span>Stories from verified organizations</span>
+                <span>{t('storiesFromVerifiedOrganizations')}</span>
               </div>
             </div>
           </div>
@@ -283,8 +276,7 @@ export default function SurvivorStoriesPage() {
         {/* Topic Filter */}
         <div className="mb-12">
           <p className="text-slate-900 font-semibold mb-4">
-            Looking for support around
-          </p>
+            {t('lookingForSupportAround')}{' '}</p>
 
           <div className="flex flex-wrap gap-3">
             {supportFilters.map((topic) => (
@@ -311,10 +303,10 @@ export default function SurvivorStoriesPage() {
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400" size={19} />
           <input
             type="search"
-            placeholder="Search survivor stories..."
+            placeholder={t('searchSurvivorStories')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            aria-label="Search survivor stories"
+            aria-label={t('searchSurvivorStories2')}
             className="w-full pl-12 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
           />
         </div>
@@ -325,14 +317,12 @@ export default function SurvivorStoriesPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <p className="text-sm font-semibold text-teal-600 uppercase tracking-wide mb-2">
-              Survivor stories
-            </p>
+              {t('survivorStories2')}{' '}</p>
             <h2 className="text-2xl font-bold text-slate-900">
-              Real experiences. Different journeys.
-            </h2>
+              {t('realExperiencesDifferentJourneys')}{' '}</h2>
           </div>
           <div className="text-slate-600 font-semibold">
-            {filteredStories.length} {filteredStories.length === 1 ? "story" : "stories"}
+            {filteredStories.length} {filteredStories.length === 1 ? t('story') : t('stories')}
           </div>
         </div>
 
@@ -353,17 +343,15 @@ export default function SurvivorStoriesPage() {
                 <Search size={24} className="text-slate-400" />
               </div>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">No stories found</h3>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">{t('noStoriesFound')}</h3>
             <p className="text-slate-600 mb-4">
-              Try another cancer type, support topic, or search term.
-            </p>
+              {t('tryAnotherCancerTypeSupportTopicOrSearchTerm')}{' '}</p>
             <button
               type="button"
               onClick={resetFilters}
               className="bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
             >
-              Clear filters
-            </button>
+              {t('clearFilters')}{' '}</button>
           </div>
         )}
       </section>
@@ -374,19 +362,15 @@ export default function SurvivorStoriesPage() {
           <Heart size={24} className="text-rose-500 flex-shrink-0 mt-1" />
           <div className="flex-1">
             <h3 className="text-lg font-bold text-slate-900 mb-2">
-              You don&apos;t have to go through this alone.
-            </h3>
+              {t('youDonAposTHaveToGoThroughThisAlone')}{' '}</h3>
             <p className="text-slate-700 mb-4">
-              Survivor stories can provide connection and perspective, but your own care team can help
-              with personal medical or emotional concerns.
-            </p>
+              {t('survivorStoriesCanProvideConnectionAndPerspectiveButYourOwnCareTeamCanHelpWithPe')}{' '}</p>
             <button
               type="button"
               onClick={() => setShowHelp(true)}
               className="bg-rose-600 hover:bg-rose-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
             >
-              Talk to Care Team
-            </button>
+              {t('talkToCareTeam')}{' '}</button>
           </div>
         </div>
       </section>
@@ -395,11 +379,9 @@ export default function SurvivorStoriesPage() {
       <footer className="bg-white border-t border-slate-200 px-6 py-8 mt-12">
         <div className="max-w-5xl mx-auto text-center text-slate-600">
           <p className="font-semibold text-slate-900 mb-2">
-            OncoCare+ Survivor Stories
-          </p>
+            {t('oncocareSurvivorStories')}{' '}</p>
           <p>
-            Personal experiences are shared for emotional support and education. They are not medical advice.
-          </p>
+            {t('personalExperiencesAreSharedForEmotionalSupportAndEducationTheyAreNotMedicalAdvi')}{' '}</p>
         </div>
       </footer>
 
@@ -407,7 +389,7 @@ export default function SurvivorStoriesPage() {
       <button
         className="fixed bottom-8 right-8 w-14 h-14 bg-teal-600 hover:bg-teal-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors z-40"
         type="button"
-        aria-label="Open support assistant"
+        aria-label={t('openSupportAssistant')}
         onClick={() => setShowHelp(true)}
       >
         <CircleHelp size={26} />

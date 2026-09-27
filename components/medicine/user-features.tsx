@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Bookmark, Clock, Heart, Bell, TrendingUp, Package, Brain, AlertTriangle, Pill, MapPin } from 'lucide-react';
 import type { WatchlistItem, RecentlyViewed, FavouritePharmacy } from '@/lib/medicine-types';
 import { formatINR } from '@/lib/medicine-types';
+import { useTranslations } from 'next-intl';
 
 export function UserFeaturesPanel({
   watchlist,
@@ -14,6 +15,7 @@ export function UserFeaturesPanel({
   recentlyViewed: RecentlyViewed[];
   favouritePharmacies: FavouritePharmacy[];
 }) {
+  const t = useTranslations('components.medicine.userFeatures');
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       {/* Watchlist */}
@@ -22,7 +24,7 @@ export function UserFeaturesPanel({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-teal-50 to-emerald-50 ring-1 ring-teal-200/40">
             <Bookmark className="h-4 w-4 text-emerald-deep" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">My Watchlist</h3>
+          <h3 className="text-sm font-bold text-slate-900">{t('myWatchlist')}</h3>
           <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
             {watchlist.length}
           </span>
@@ -48,8 +50,7 @@ export function UserFeaturesPanel({
             ))
           ) : (
             <div className="p-6 text-center text-xs text-slate-400">
-              No medicines in your watchlist yet.
-            </div>
+              {t('noMedicinesInYourWatchlistYet')}{' '}</div>
           )}
         </div>
       </div>
@@ -60,7 +61,7 @@ export function UserFeaturesPanel({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 ring-1 ring-blue-200/40">
             <Clock className="h-4 w-4 text-blue-500" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Recently Viewed</h3>
+          <h3 className="text-sm font-bold text-slate-900">{t('recentlyViewed')}</h3>
           <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
             {recentlyViewed.length}
           </span>
@@ -81,8 +82,7 @@ export function UserFeaturesPanel({
             ))
           ) : (
             <div className="p-6 text-center text-xs text-slate-400">
-              No recently viewed medicines.
-            </div>
+              {t('noRecentlyViewedMedicines')}{' '}</div>
           )}
         </div>
       </div>
@@ -93,7 +93,7 @@ export function UserFeaturesPanel({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-50 to-pink-50 ring-1 ring-rose-200/40">
             <Heart className="h-4 w-4 text-rose-500" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Favourite Pharmacies</h3>
+          <h3 className="text-sm font-bold text-slate-900">{t('favouritePharmacies')}</h3>
           <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
             {favouritePharmacies.length}
           </span>
@@ -114,8 +114,7 @@ export function UserFeaturesPanel({
             ))
           ) : (
             <div className="p-6 text-center text-xs text-slate-400">
-              No favourite pharmacies yet.
-            </div>
+              {t('noFavouritePharmaciesYet')}{' '}</div>
           )}
         </div>
       </div>
@@ -124,6 +123,7 @@ export function UserFeaturesPanel({
 }
 
 export function FutureAIFeatures() {
+  const t = useTranslations('components.medicine.userFeatures');
   const features = [
     { icon: TrendingUp, title: 'Medicine Price Prediction', description: 'AI forecasts price trends to help you buy at the optimal time.', color: 'from-teal-500 to-emerald-500' },
     { icon: Package, title: 'Availability Prediction', description: 'Predicts stock levels so you can plan ahead before shortages hit.', color: 'from-blue-500 to-indigo-500' },
@@ -150,8 +150,7 @@ export function FutureAIFeatures() {
           <h3 className="mt-4 text-sm font-bold text-slate-900">{feature.title}</h3>
           <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{feature.description}</p>
           <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-            Coming Soon
-          </span>
+            {t('comingSoon')}{' '}</span>
         </motion.div>
       ))}
     </div>

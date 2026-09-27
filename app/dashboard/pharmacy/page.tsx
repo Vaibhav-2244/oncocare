@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { availabilityConfig, formatINR, type Availability } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const pharmacyNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/pharmacy', icon: TrendingUp },
@@ -23,6 +24,7 @@ const pharmacyNavItems: NavItem[] = [
 ];
 
 function PharmacyDashboardContent() {
+  const t = useTranslations('pharmacy');
   const { user } = useAuth();
   const [pharmacyId, setPharmacyId] = useState<string | null>(null);
   const [medicines, setMedicines] = useState<any[]>([]);
@@ -121,8 +123,8 @@ function PharmacyDashboardContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Pharmacy Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your medicine inventory, prices, and availability</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('pharmacyDashboard')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('manageYourMedicineInventoryPricesAndAvailability')}</p>
       </div>
 
       {/* Stats */}
@@ -148,8 +150,8 @@ function PharmacyDashboardContent() {
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Inventory Management</h2>
-            <p className="text-xs text-slate-500">Update prices, stock levels, and discounts in real-time</p>
+            <h2 className="text-base font-bold text-slate-900">{t('inventoryManagement')}</h2>
+            <p className="text-xs text-slate-500">{t('updatePricesStockLevelsAndDiscountsInRealTime')}</p>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -157,7 +159,7 @@ function PharmacyDashboardContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search medicines..."
+              placeholder={t('searchMedicines')}
               className="rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-teal-300 focus:outline-none"
             />
           </div>
@@ -167,11 +169,11 @@ function PharmacyDashboardContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                <th className="px-5 py-3">Medicine</th>
-                <th className="px-5 py-3">Price</th>
-                <th className="px-5 py-3">Discount</th>
-                <th className="px-5 py-3">Availability</th>
-                <th className="px-5 py-3 text-right">Action</th>
+                <th className="px-5 py-3">{t('medicine')}</th>
+                <th className="px-5 py-3">{t('price')}</th>
+                <th className="px-5 py-3">{t('discount')}</th>
+                <th className="px-5 py-3">{t('availability')}</th>
+                <th className="px-5 py-3 text-right">{t('action')}</th>
               </tr>
             </thead>
             <tbody>
@@ -224,9 +226,9 @@ function PharmacyDashboardContent() {
                           onChange={(e) => setEditAvailability(e.target.value as Availability)}
                           className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:border-teal-300 focus:outline-none"
                         >
-                          <option value="in_stock">In Stock</option>
-                          <option value="low_stock">Low Stock</option>
-                          <option value="out_of_stock">Out of Stock</option>
+                          <option value="in_stock">{t('inStock')}</option>
+                          <option value="low_stock">{t('lowStock')}</option>
+                          <option value="out_of_stock">{t('outOfStock')}</option>
                         </select>
                       ) : (
                         <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold', availabilityConfig[med.availability as Availability].color, availabilityConfig[med.availability as Availability].bg)}>
@@ -248,8 +250,7 @@ function PharmacyDashboardContent() {
                       ) : (
                         <button onClick={() => handleEdit(med)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-teal-100 hover:text-teal-700">
                           <Edit2 className="h-3 w-3" />
-                          Edit
-                        </button>
+                          {t('edit')}{' '}</button>
                       )}
                     </td>
                   </tr>
@@ -258,7 +259,7 @@ function PharmacyDashboardContent() {
                 <tr>
                   <td colSpan={5} className="px-5 py-12 text-center">
                     <Package className="mx-auto h-8 w-8 text-slate-300" />
-                    <p className="mt-2 text-sm text-slate-400">No medicines found</p>
+                    <p className="mt-2 text-sm text-slate-400">{t('noMedicinesFound')}</p>
                   </td>
                 </tr>
               )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { Activity, Twitter, Linkedin, Github, Instagram, Mail, MapPin, Phone } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const footerLinks = {
   Company: ['About Us', 'Our Mission', 'Careers', 'Press Kit', 'Blog'],
@@ -16,6 +17,7 @@ const socials = [
 ];
 
 export function Footer() {
+  const t = useTranslations('components.sections.footer');
   return (
     <footer className="relative overflow-hidden border-t border-slate-100 bg-white">
       <div className="absolute inset-0 -z-10 bg-gradient-to-b from-teal-50/30 to-transparent" />
@@ -29,12 +31,11 @@ export function Footer() {
                 <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
               </div>
               <span className="text-lg font-bold tracking-tight text-slate-900">
-                OncoCare<span className="text-emerald-deep">+</span>
+                {t('oncocare')}<span className="text-emerald-deep">+</span>
               </span>
             </a>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-500">
-              India&apos;s first AI-powered integrated cancer home care platform. Helping patients beyond hospital walls.
-            </p>
+              {t('indiaAposSFirstAiPoweredIntegratedCancerHomeCarePlatformHelpingPatientsBeyondHos')}{' '}</p>
 
             {/* Contact info */}
             <div className="mt-6 space-y-2">
@@ -52,8 +53,7 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <MapPin className="h-3.5 w-3.5 text-teal-500" />
-                1003, 10th Floor, SS Omnia, Sector 86, Gurugram, Haryana
-              </div>
+                {t('text100310thFloorSsOmniaSector86GurugramHaryana')}{' '}</div>
             </div>
 
             {/* Socials */}
@@ -98,12 +98,10 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-slate-100 pt-8 sm:flex-row">
           <p className="text-xs text-slate-400">
-            © 2026 OncoCare+ Technologies Pvt. Ltd. All rights reserved.
-          </p>
+            {t('text2026OncocareTechnologiesPvtLtdAllRightsReserved')}{' '}</p>
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            Made with care in India
-          </div>
+            {t('madeWithCareInIndia')}{' '}</div>
         </div>
       </div>
     </footer>

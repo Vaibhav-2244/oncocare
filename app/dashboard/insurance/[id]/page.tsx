@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
+import { useTranslations } from 'next-intl';
 
 type InsuranceProvider = {
   id: string;
@@ -24,6 +25,7 @@ type InsurancePlan = {
 };
 
 export default function InsurancePlanDetailsPage() {
+  const t = useTranslations('insurance.id');
   const params = useParams();
   const planId = params.id as string;
 
@@ -127,8 +129,7 @@ export default function InsurancePlanDetailsPage() {
         <div className="mx-auto max-w-5xl">
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-12 text-center shadow-sm">
             <p className="text-sm text-[#64748B]">
-              Loading insurance plan details...
-            </p>
+              {t('loadingInsurancePlanDetails')}{' '}</p>
           </div>
         </div>
       </main>
@@ -147,17 +148,15 @@ export default function InsurancePlanDetailsPage() {
             href="/dashboard/insurance"
             className="mb-6 inline-flex items-center text-sm font-medium text-[#0F766E] hover:underline"
           >
-            ← Back to Insurance
-          </Link>
+            {t('backToInsurance')}{' '}</Link>
 
           <div className="rounded-2xl border border-red-200 bg-white p-10 text-center shadow-sm">
             <h1 className="text-xl font-bold text-[#1F2937]">
-              Insurance Plan Not Found
-            </h1>
+              {t('insurancePlanNotFound')}{' '}</h1>
 
             <p className="mt-2 text-sm text-[#64748B]">
               {error ||
-                "The requested insurance plan could not be found."}
+                t('theRequestedInsurancePlanCouldNotBeFound')}
             </p>
           </div>
         </div>
@@ -193,8 +192,7 @@ export default function InsurancePlanDetailsPage() {
           href="/dashboard/insurance"
           className="mb-6 inline-flex items-center text-sm font-medium text-[#0F766E] hover:underline"
         >
-          ← Back to Recommendations
-        </Link>
+          {t('backToRecommendations')}{' '}</Link>
 
         {/* ====================================================== */}
         {/* PLAN HEADER */}
@@ -202,7 +200,7 @@ export default function InsurancePlanDetailsPage() {
 
         <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-7 shadow-sm">
           <p className="text-sm font-medium text-[#0F766E]">
-            {provider?.name || "Insurance Provider"}
+            {provider?.name || t('insuranceProvider')}
           </p>
 
           <h1 className="mt-2 text-3xl font-bold text-[#1F2937]">
@@ -218,8 +216,7 @@ export default function InsurancePlanDetailsPage() {
           {plan.cancer_coverage && (
             <div className="mt-5">
               <span className="inline-flex rounded-full bg-[#E8F8F6] px-4 py-2 text-xs font-semibold text-[#0F766E]">
-                Cancer Coverage
-              </span>
+                {t('cancerCoverage')}{' '}</span>
             </div>
           )}
         </section>
@@ -230,8 +227,7 @@ export default function InsurancePlanDetailsPage() {
 
         <section className="mb-6">
           <h2 className="mb-4 text-xl font-bold">
-            Plan Overview
-          </h2>
+            {t('planOverview')}{' '}</h2>
 
           <div className="grid gap-4 md:grid-cols-2">
 
@@ -239,64 +235,55 @@ export default function InsurancePlanDetailsPage() {
 
             <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
               <p className="text-sm text-[#64748B]">
-                Coverage Amount
-              </p>
+                {t('coverageAmount')}{' '}</p>
 
               <p className="mt-2 text-2xl font-bold">
                 {formatCoverage(plan.coverage_amount)}
               </p>
 
               <p className="mt-1 text-xs text-[#64748B]">
-                Coverage available under this plan.
-              </p>
+                {t('coverageAvailableUnderThisPlan')}{' '}</p>
             </div>
 
             {/* PREMIUM */}
 
             <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
               <p className="text-sm text-[#64748B]">
-                Estimated Premium
-              </p>
+                {t('estimatedPremium')}{' '}</p>
 
               <p className="mt-2 text-2xl font-bold">
                 {formatPremium(plan.estimated_premium)}
               </p>
 
               <p className="mt-1 text-xs text-[#64748B]">
-                Estimated annual premium.
-              </p>
+                {t('estimatedAnnualPremium')}{' '}</p>
             </div>
 
             {/* WAITING PERIOD */}
 
             <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
               <p className="text-sm text-[#64748B]">
-                Waiting Period
-              </p>
+                {t('waitingPeriod')}{' '}</p>
 
               <p className="mt-2 text-2xl font-bold">
-                {plan.waiting_period_months} months
-              </p>
+                {plan.waiting_period_months} {t('months')}{' '}</p>
 
               <p className="mt-1 text-xs text-[#64748B]">
-                Waiting period for cancer coverage.
-              </p>
+                {t('waitingPeriodForCancerCoverage')}{' '}</p>
             </div>
 
             {/* HOSPITAL NETWORK */}
 
             <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
               <p className="text-sm text-[#64748B]">
-                Hospital Network
-              </p>
+                {t('hospitalNetwork')}{' '}</p>
 
               <p className="mt-2 text-2xl font-bold">
                 {plan.hospital_network_size}+
               </p>
 
               <p className="mt-1 text-xs text-[#64748B]">
-                Hospitals in the available network.
-              </p>
+                {t('hospitalsInTheAvailableNetwork')}{' '}</p>
             </div>
 
           </div>
@@ -308,12 +295,10 @@ export default function InsurancePlanDetailsPage() {
 
         <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-7 shadow-sm">
           <h2 className="text-xl font-bold">
-            Plan Benefits
-          </h2>
+            {t('planBenefits')}{' '}</h2>
 
           <p className="mt-1 text-sm text-[#64748B]">
-            Benefits available under this insurance plan.
-          </p>
+            {t('benefitsAvailableUnderThisInsurancePlan')}{' '}</p>
 
           {plan.benefits && plan.benefits.length > 0 ? (
             <div className="mt-6 grid gap-3 md:grid-cols-2">
@@ -334,9 +319,7 @@ export default function InsurancePlanDetailsPage() {
             </div>
           ) : (
             <p className="mt-5 text-sm text-[#64748B]">
-              No additional benefits have been listed for
-              this plan.
-            </p>
+              {t('noAdditionalBenefitsHaveBeenListedForThisPlan')}{' '}</p>
           )}
         </section>
 
@@ -347,8 +330,7 @@ export default function InsurancePlanDetailsPage() {
         {provider && (
           <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-7 shadow-sm">
             <h2 className="text-xl font-bold">
-              Insurance Provider
-            </h2>
+              {t('insuranceProvider')}{' '}</h2>
 
             <h3 className="mt-4 text-lg font-semibold text-[#0F766E]">
               {provider.name}
@@ -368,12 +350,7 @@ export default function InsurancePlanDetailsPage() {
 
         <section className="mb-8 rounded-2xl border border-[#E5E7EB] bg-white p-6">
           <p className="text-xs leading-5 text-[#64748B]">
-            Insurance information shown here is provided for
-            comparison and informational purposes. Estimated
-            premiums, coverage, waiting periods, benefits, and
-            network information should be verified with the
-            insurance provider before making a purchase decision.
-          </p>
+            {t('insuranceInformationShownHereIsProvidedForComparisonAndInformationalPurposesEsti')}{' '}</p>
         </section>
 
         {/* ====================================================== */}
@@ -388,8 +365,7 @@ export default function InsurancePlanDetailsPage() {
             href="/dashboard/insurance"
             className="inline-flex w-full justify-center rounded-xl border border-[#0F766E] bg-white px-7 py-3 text-sm font-semibold text-[#0F766E] transition hover:bg-[#E8F8F6] sm:w-auto"
           >
-            ← Back to Recommendations
-          </Link>
+            {t('backToRecommendations')}{' '}</Link>
 
           {/* APPLY / SUBMIT ENQUIRY */}
 
@@ -397,8 +373,7 @@ export default function InsurancePlanDetailsPage() {
             href={`/dashboard/insurance/apply?plan=${plan.id}`}
             className="inline-flex w-full justify-center rounded-xl border border-[#0F766E] bg-white px-7 py-3 text-sm font-semibold text-[#0F766E] transition hover:bg-[#E8F8F6] sm:w-auto"
           >
-            Apply / Submit Enquiry
-          </Link>
+            {t('applySubmitEnquiry')}{' '}</Link>
 
           {/* COMPARE */}
 
@@ -406,8 +381,7 @@ export default function InsurancePlanDetailsPage() {
             href={`/dashboard/insurance/compare?plan=${plan.id}`}
             className="inline-flex w-full justify-center rounded-xl bg-[#2EC4B6] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#0F766E] sm:w-auto"
           >
-            Compare This Plan
-          </Link>
+            {t('compareThisPlan')}{' '}</Link>
 
         </div>
 

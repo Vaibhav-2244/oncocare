@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { Mail, AlertCircle, CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AuthLayout } from '@/components/auth/auth-layout';
+import { useTranslations } from 'next-intl';
 
 export default function VerifyEmailPage() {
+  const t = useTranslations('auth.verifyEmail');
   const { resendVerification, user } = useAuth();
   const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,7 @@ export default function VerifyEmailPage() {
   };
 
   return (
-    <AuthLayout title="Verify your email" subtitle="Confirm your email address to activate your account">
+    <AuthLayout title={t('verifyYourEmail')} subtitle="Confirm your email address to activate your account">
       <div className="text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal-50">
           <Mail className="h-8 w-8 text-teal-600" />
@@ -39,17 +41,14 @@ export default function VerifyEmailPage() {
           <>
             <div className="mt-6 flex items-center justify-center gap-2 rounded-xl bg-teal-50 p-3">
               <CheckCircle2 className="h-5 w-5 text-teal-600" />
-              <span className="text-sm font-medium text-teal-700">Verification email sent!</span>
+              <span className="text-sm font-medium text-teal-700">{t('verificationEmailSent')}</span>
             </div>
             <p className="mt-4 text-sm text-slate-600">
-              Check your inbox for the verification link. Click it to activate your account.
-            </p>
+              {t('checkYourInboxForTheVerificationLinkClickItToActivateYourAccount')}{' '}</p>
           </>
         ) : (
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
-            We sent a verification link when you signed up. Click the link in the email to verify
-            your account. If you did not receive it, enter your email below to resend.
-          </p>
+            {t('weSentAVerificationLinkWhenYouSignedUpClickTheLinkInTheEmailToVerifyYourAccountI')}{' '}</p>
         )}
 
         {error && (
@@ -80,8 +79,7 @@ export default function VerifyEmailPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <>
-                  Resend Verification Email
-                  <ArrowRight className="h-4 w-4" />
+                  {t('resendVerificationEmail')}{' '}<ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
@@ -92,8 +90,7 @@ export default function VerifyEmailPage() {
           href="/auth/sign-in"
           className="mt-6 block text-sm font-semibold text-teal-600 hover:underline"
         >
-          Back to Sign In
-        </Link>
+          {t('backToSignIn')}{' '}</Link>
       </div>
     </AuthLayout>
   );

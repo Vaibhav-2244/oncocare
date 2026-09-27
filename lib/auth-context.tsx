@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase-client';
+import { usePathname } from 'next/navigation';
+import { migrateLegacyLocalStorageSession, supabase } from '@/lib/supabase-client';
+import { isLocale, setLocaleCookie } from '@/lib/locale';
 import type { AuthUser, Profile, Role, RoleName } from '@/lib/auth-types';
 
 const ROLE_PRIORITY: RoleName[] = [
@@ -33,10 +35,18 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+export function AuthProvider({
+  children,
+  initialUser,
+}: {
+  children: ReactNode;
+  initialUser?: AuthUser | null;
+}) {
+  const pathname = usePathname();
+  const isDashboardRoute = pathname?.startsWith('/dashboard') ?? false;
+  const [user, setUser] = useState<AuthUser | null>(initialUser ?? null);
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialUser === undefined);
 
   const fetchUserData = useCallback(async (authUser: User): Promise<AuthUser> => {
     const [profileRes, rolesRes] = await Promise.all([
@@ -51,6 +61,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (rolesRes.error) throw rolesRes.error;
 
     const profile = profileRes.data as Profile | null;
+    if (profile && isLocale(profile.preferred_language)) {
+      setLocaleCookie(profile.preferred_language);
+    }
     const roles: Role[] = (rolesRes.data || [])
       .map((r: any) => r.role)
       .filter((r: any): r is Role => r !== null && r !== undefined);
@@ -83,10 +96,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
 
     const init = async () => {
+      await migrateLegacyLocalStorageSession();
       const { data: { session: initialSession } } = await supabase.auth.getSession();
       if (!mounted) return;
 
       if (initialSession?.user) {
+        if (initialUser?.id === initialSession.user.id || isDashboardRoute) {
+          setSession(initialSession);
+          setLoading(false);
+          return;
+        }
         try {
           const userData = await fetchUserData(initialSession.user);
           if (mounted) {
@@ -107,9 +126,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       if (!mounted) return;
 
+      if (event === 'INITIAL_SESSION' && (
+        newSession?.user.id === initialUser?.id || isDashboardRoute
+      )) {
+        setSession(newSession);
+        return;
+      }
+
       if (event === 'SIGNED_OUT' || !newSession) {
         setUser(null);
         setSession(null);
+        return;
+      }
+
+      if (isDashboardRoute) {
+        if (initialUser?.id === newSession.user.id) setUser(initialUser);
+        setSession(newSession);
         return;
       }
 
@@ -130,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchUserData]);
+  }, [fetchUserData, initialUser, isDashboardRoute]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });

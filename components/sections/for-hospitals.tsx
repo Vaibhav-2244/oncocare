@@ -13,6 +13,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { Section, SectionHeading, Reveal, StaggerGroup, StaggerItem } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const benefits = [
   {
@@ -38,6 +39,7 @@ const benefits = [
 ];
 
 export function ForHospitals() {
+  const t = useTranslations('components.sections.forHospitals');
   return (
     <section id="hospitals" className="relative overflow-hidden bg-slate-950 py-24 sm:py-32">
       {/* Background */}
@@ -55,8 +57,8 @@ export function ForHospitals() {
               eyebrow="For Hospitals"
               title={
                 <>
-                  Enterprise-grade infrastructure for{' '}
-                  <span className="gradient-text-light">cancer care teams</span>
+                  {t('enterpriseGradeInfrastructureFor')}{' '}
+                  <span className="gradient-text-light">{t('cancerCareTeams')}</span>
                 </>
               }
               subtitle="OncoCare+ for Hospitals is a B2B SaaS platform that extends your oncology department beyond its walls—continuous monitoring, AI risk scoring, and cohort analytics, all in one dashboard."
@@ -83,8 +85,7 @@ export function ForHospitals() {
                 href="#cta"
                 className="group mt-8 inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-sm font-semibold text-slate-900 shadow-lg transition-all hover:shadow-xl hover:shadow-teal-500/20"
               >
-                Request Enterprise Demo
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                {t('requestEnterpriseDemo')}{' '}<ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
               </a>
             </Reveal>
           </div>
@@ -102,14 +103,13 @@ export function ForHospitals() {
                       <Building2 className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white">Hospital Dashboard</div>
-                      <div className="text-[10px] text-slate-400">Tata Memorial · Oncology Dept</div>
+                      <div className="text-sm font-bold text-white">{t('hospitalDashboard')}</div>
+                      <div className="text-[10px] text-slate-400">{t('tataMemorialOncologyDept')}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 rounded-full bg-teal-500/10 px-2.5 py-1 text-[10px] font-semibold text-teal-300 ring-1 ring-teal-400/20">
                     <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                    247 active patients
-                  </div>
+                    {t('text247ActivePatients')}{' '}</div>
                 </div>
 
                 {/* Stats */}
@@ -130,8 +130,8 @@ export function ForHospitals() {
                 {/* Patient list */}
                 <div className="px-5 pb-5">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">Priority Patients</span>
-                    <span className="text-[10px] text-teal-400">View all</span>
+                    <span className="text-xs font-semibold text-slate-300">{t('priorityPatients')}</span>
+                    <span className="text-[10px] text-teal-400">{t('viewAll')}</span>
                   </div>
                   <div className="space-y-2">
                     {[
@@ -141,7 +141,7 @@ export function ForHospitals() {
                     ].map((patient) => (
                       <motion.div
                         key={patient.id}
-                        initial={{ opacity: 0, x: -10 }}
+                        initial={false}
                         whileInView={{ opacity: 1, x: 0 }}
                         viewport={{ once: true }}
                         transition={{ delay: 0.3 }}
@@ -171,9 +171,8 @@ export function ForHospitals() {
                 <div className="flex items-center justify-between border-t border-white/5 px-5 py-3">
                   <div className="flex items-center gap-2 text-[10px] text-slate-400">
                     <FileBarChart className="h-3 w-3 text-teal-400" />
-                    Last sync: 2 min ago
-                  </div>
-                  <div className="text-[10px] text-slate-400">Updated in real-time</div>
+                    {t('lastSync2MinAgo')}{' '}</div>
+                  <div className="text-[10px] text-slate-400">{t('updatedInRealTime')}</div>
                 </div>
               </div>
             </div>

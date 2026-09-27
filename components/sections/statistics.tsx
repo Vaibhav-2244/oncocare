@@ -3,6 +3,7 @@
 import { Users, Building2, Brain, Stethoscope, Heart } from 'lucide-react';
 import { AnimatedCounter } from '@/components/shared/animated-counter';
 import { Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const stats = [
   { icon: Heart, value: 10000, suffix: '+', label: 'Cancer Patients Supported', sublabel: 'Target Year 1', isTarget: true },
@@ -13,6 +14,7 @@ const stats = [
 ];
 
 export function Statistics() {
+  const t = useTranslations('components.sections.statistics');
   return (
     <section className="relative overflow-hidden bg-slate-950 py-24">
       {/* Background */}
@@ -24,15 +26,13 @@ export function Statistics() {
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-300 ring-1 ring-white/15">
               <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-              Our Vision
-            </span>
+              {t('ourVision')}{' '}</span>
             <h2 className="mt-6 text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
-              Building India&apos;s largest{' '}
-              <span className="gradient-text-light">cancer care network</span>
+              {t('buildingIndiaAposSLargest')}{' '}
+              <span className="gradient-text-light">{t('cancerCareNetwork')}</span>
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-slate-400 sm:text-lg">
-              We&apos;re just getting started. Here&apos;s what we&apos;re building toward in our first year.
-            </p>
+              {t('weAposReJustGettingStartedHereAposSWhatWeAposReBuildingTowardInOurFirstYear')}{' '}</p>
           </div>
         </Reveal>
 

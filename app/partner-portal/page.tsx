@@ -7,6 +7,7 @@ import {
   CheckCircle2, Upload, ArrowLeft, Store, TrendingUp, Bell,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const portalFeatures = [
   { icon: ShieldCheck, title: 'Business Verification', description: 'Complete GST and business registration verification online.' },
@@ -25,6 +26,7 @@ const registrationSteps = [
 ];
 
 export default function PartnerPortalPage() {
+  const t = useTranslations('partnerPortal');
   const [showForm, setShowForm] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({
@@ -47,28 +49,24 @@ export default function PartnerPortalPage() {
       <div className="mx-auto max-w-7xl px-6 py-8">
         <a href="/medicine-finder" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-deep">
           <ArrowLeft className="h-4 w-4" />
-          Back to Medicine Finder
-        </a>
+          {t('backToMedicineFinder')}{' '}</a>
 
         {/* Hero */}
         <div className="mt-6 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-teal-200/60 bg-teal-50 px-4 py-1.5 text-xs font-semibold text-emerald-deep">
             <Store className="h-3.5 w-3.5" />
-            Pharmacy Partner Portal
-          </span>
+            {t('pharmacyPartnerPortal')}{' '}</span>
           <h1 className="mt-6 text-balance text-3xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-            Become a <span className="gradient-text">Verified Pharmacy Partner</span>
+            {t('becomeA')}{' '}<span className="gradient-text">{t('verifiedPharmacyPartner')}</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-pretty text-base text-slate-600 sm:text-lg">
-            Join OncoCare+&apos;s network of trusted pharmacies. Reach cancer patients across India, manage your inventory online, and grow your business.
-          </p>
+            {t('joinOncocareAposSNetworkOfTrustedPharmaciesReachCancerPatientsAcrossIndiaManageY')}{' '}</p>
           {!showForm && !submitted && (
             <button
               onClick={() => setShowForm(true)}
               className="mt-8 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-deep to-teal-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition-all hover:shadow-xl hover:shadow-teal-500/40 hover:-translate-y-0.5"
             >
-              Register Your Pharmacy
-              <Building2 className="h-4 w-4" />
+              {t('registerYourPharmacy')}{' '}<Building2 className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -84,28 +82,28 @@ export default function PartnerPortalPage() {
             >
               <form onSubmit={handleSubmit} className="space-y-5 rounded-3xl border border-slate-200/60 bg-white p-8 shadow-lg">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Pharmacy Registration</h2>
-                  <p className="text-sm text-slate-500">Fill in your details to get started</p>
+                  <h2 className="text-xl font-bold text-slate-900">{t('pharmacyRegistration')}</h2>
+                  <p className="text-sm text-slate-500">{t('fillInYourDetailsToGetStarted')}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField label="Pharmacy Name" value={formData.pharmacyName} onChange={(v) => setFormData({ ...formData, pharmacyName: v })} required />
-                  <FormField label="GST Number" value={formData.gstNumber} onChange={(v) => setFormData({ ...formData, gstNumber: v })} required placeholder="GST29XXXXX..." />
-                  <FormField label="License Number" value={formData.licenseNumber} onChange={(v) => setFormData({ ...formData, licenseNumber: v })} required />
-                  <FormField label="Contact Number" value={formData.contactNumber} onChange={(v) => setFormData({ ...formData, contactNumber: v })} required placeholder="+91..." />
-                  <FormField label="City" value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} required />
-                  <FormField label="State" value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} required />
-                  <FormField label="Email" type="email" value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} required />
+                  <FormField label={t('pharmacyName')} value={formData.pharmacyName} onChange={(v) => setFormData({ ...formData, pharmacyName: v })} required />
+                  <FormField label={t('gstNumber')} value={formData.gstNumber} onChange={(v) => setFormData({ ...formData, gstNumber: v })} required placeholder={t('gst29xxxxx')} />
+                  <FormField label={t('licenseNumber')} value={formData.licenseNumber} onChange={(v) => setFormData({ ...formData, licenseNumber: v })} required />
+                  <FormField label={t('contactNumber')} value={formData.contactNumber} onChange={(v) => setFormData({ ...formData, contactNumber: v })} required placeholder="+91..." />
+                  <FormField label={t('city')} value={formData.city} onChange={(v) => setFormData({ ...formData, city: v })} required />
+                  <FormField label={t('state')} value={formData.state} onChange={(v) => setFormData({ ...formData, state: v })} required />
+                  <FormField label={t('email')} type="email" value={formData.email} onChange={(v) => setFormData({ ...formData, email: v })} required />
                 </div>
 
                 {/* License upload */}
                 <div>
-                  <label className="text-sm font-semibold text-slate-700">Upload Pharmacy License</label>
+                  <label className="text-sm font-semibold text-slate-700">{t('uploadPharmacyLicense')}</label>
                   <div className="mt-2 flex items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 transition-colors hover:border-teal-300">
                     <div className="text-center">
                       <Upload className="mx-auto h-8 w-8 text-slate-400" />
-                      <p className="mt-2 text-xs text-slate-500">Click to upload or drag and drop</p>
-                      <p className="text-[10px] text-slate-400">PDF, PNG, JPG up to 5MB</p>
+                      <p className="mt-2 text-xs text-slate-500">{t('clickToUploadOrDragAndDrop')}</p>
+                      <p className="text-[10px] text-slate-400">{t('pdfPngJpgUpTo5mb')}</p>
                     </div>
                   </div>
                 </div>
@@ -114,8 +112,7 @@ export default function PartnerPortalPage() {
                   type="submit"
                   className="w-full rounded-2xl bg-gradient-to-r from-emerald-deep to-teal-500 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition-all hover:shadow-xl"
                 >
-                  Submit Registration
-                </button>
+                  {t('submitRegistration')}{' '}</button>
               </form>
             </motion.div>
           )}
@@ -130,16 +127,14 @@ export default function PartnerPortalPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-emerald-deep to-teal-400 shadow-lg shadow-teal-500/20">
                 <CheckCircle2 className="h-8 w-8 text-white" />
               </div>
-              <h2 className="mt-6 text-2xl font-bold text-slate-900">Registration Submitted!</h2>
+              <h2 className="mt-6 text-2xl font-bold text-slate-900">{t('registrationSubmitted')}</h2>
               <p className="mt-2 text-sm text-slate-600">
-                Thank you for your interest. Our team will verify your details and contact you within 48 hours.
-              </p>
+                {t('thankYouForYourInterestOurTeamWillVerifyYourDetailsAndContactYouWithin48Hours')}{' '}</p>
               <button
                 onClick={() => { setSubmitted(false); setShowForm(false); }}
                 className="mt-6 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-slate-600 hover:border-teal-300 hover:text-emerald-deep"
               >
-                Back to Portal
-              </button>
+                {t('backToPortal')}{' '}</button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -149,7 +144,7 @@ export default function PartnerPortalPage() {
           <>
             <div className="mt-16">
               <h2 className="text-center text-2xl font-bold text-slate-900">
-                Everything you need to <span className="gradient-text">manage your pharmacy</span>
+                {t('everythingYouNeedTo')}{' '}<span className="gradient-text">{t('manageYourPharmacy')}</span>
               </h2>
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {portalFeatures.map((feature, i) => (
@@ -174,7 +169,7 @@ export default function PartnerPortalPage() {
             {/* Registration steps */}
             <div className="mt-16">
               <h2 className="text-center text-2xl font-bold text-slate-900">
-                How to <span className="gradient-text">get started</span>
+                {t('howTo')}{' '}<span className="gradient-text">{t('getStarted')}</span>
               </h2>
               <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {registrationSteps.map((step, i) => (
@@ -199,10 +194,9 @@ export default function PartnerPortalPage() {
             {/* Admin link */}
             <div className="mt-12 rounded-2xl border border-slate-200/60 bg-gradient-to-br from-slate-50 to-teal-50/30 p-6 text-center">
               <p className="text-sm text-slate-600">
-                Already a partner?{' '}
+                {t('alreadyAPartner')}{' '}
                 <a href="/admin" className="font-semibold text-emerald-deep hover:underline">
-                  Access Admin Dashboard →
-                </a>
+                  {t('accessAdminDashboard')}{' '}</a>
               </p>
             </div>
           </>

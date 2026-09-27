@@ -1,6 +1,7 @@
 import { X, CheckCircle } from "lucide-react";
 import type { Doctor } from "@/lib/data/tele-oncology";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from 'next-intl';
 
 interface DoctorProfileProps {
   doctor: Doctor | null;
@@ -9,6 +10,7 @@ interface DoctorProfileProps {
 }
 
 export function DoctorProfile({ doctor, onClose, onBook }: DoctorProfileProps) {
+  const t = useTranslations('components.teleOncology.doctorProfile');
   if (!doctor) return null;
 
   const initials = doctor.name
@@ -49,24 +51,24 @@ export function DoctorProfile({ doctor, onClose, onBook }: DoctorProfileProps) {
 
         <div className="space-y-4 text-sm text-slate-700">
           <div className="flex justify-between">
-            <span className="font-semibold text-slate-900">Experience:</span>
+            <span className="font-semibold text-slate-900">{t('experience')}</span>
             <span>{doctor.experience}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-semibold text-slate-900">Location:</span>
+            <span className="font-semibold text-slate-900">{t('location')}</span>
             <span>{doctor.location}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-semibold text-slate-900">Consultation:</span>
-            <span>Video Consultation</span>
+            <span className="font-semibold text-slate-900">{t('consultation')}</span>
+            <span>{t('videoConsultation')}</span>
           </div>
           <div className="flex justify-between">
-            <span className="font-semibold text-slate-900">Consultation Fee:</span>
+            <span className="font-semibold text-slate-900">{t('consultationFee')}</span>
             <span className="font-bold text-teal-700">₹{doctor.consultationFee}</span>
           </div>
         </div>
 
-        <h3 className="mt-8 font-bold text-slate-900">Areas of Expertise</h3>
+        <h3 className="mt-8 font-bold text-slate-900">{t('areasOfExpertise')}</h3>
         <div className="mt-3 flex flex-wrap gap-2">
           {doctor.expertise.map((item) => (
             <span
@@ -82,8 +84,7 @@ export function DoctorProfile({ doctor, onClose, onBook }: DoctorProfileProps) {
           onClick={() => onBook(doctor)}
           className="mt-8 w-full bg-teal-600 py-6 text-base hover:bg-teal-700 text-white"
         >
-          Book Video Consultation
-        </Button>
+          {t('bookVideoConsultation')}{' '}</Button>
       </div>
     </div>
   );

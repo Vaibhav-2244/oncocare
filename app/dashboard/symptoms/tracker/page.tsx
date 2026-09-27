@@ -7,10 +7,12 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { readStoredRecords, writeStoredRecords, type SideEffectRecord } from '@/lib/symptom-monitor';
 import { supabase } from '@/lib/supabase-client';
+import { useTranslations } from 'next-intl';
 
 const WHAT_HELPED = ['Rest', 'Food', 'Water', 'Walking', 'Relaxation', 'Medication'];
 
 export default function SideEffectTrackerPage() {
+  const t = useTranslations('symptoms.tracker');
   const { user } = useAuth();
   const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [records, setRecords] = useState<SideEffectRecord[]>([]);
@@ -117,29 +119,28 @@ export default function SideEffectTrackerPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Treatment tracking</p>
-              <h1 className="text-2xl font-bold text-slate-900">Side Effect Tracker</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">{t('treatmentTracking')}</p>
+              <h1 className="text-2xl font-bold text-slate-900">{t('sideEffectTracker')}</h1>
             </div>
             <div className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
-              {records.length} tracked entries
-            </div>
+              {records.length} {t('trackedEntries')}{' '}</div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Avg severity</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('avgSeverity')}</p>
               <div className="mt-2 text-3xl font-bold text-slate-900">{weeklyAverage.toFixed(1)}</div>
-              <p className="mt-1 text-xs text-slate-500">Recent severity average</p>
+              <p className="mt-1 text-xs text-slate-500">{t('recentSeverityAverage')}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Due follow-ups</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('dueFollowUps')}</p>
               <div className="mt-2 text-3xl font-bold text-amber-600">{dueRecords.length}</div>
-              <p className="mt-1 text-xs text-slate-500">Needs a check-in</p>
+              <p className="mt-1 text-xs text-slate-500">{t('needsACheckIn')}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Trend</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">{t('trend')}</p>
               <div className="mt-2 text-3xl font-bold text-emerald-600">{records.filter((item) => item.trend === 'Improving').length}</div>
-              <p className="mt-1 text-xs text-slate-500">Improving this period</p>
+              <p className="mt-1 text-xs text-slate-500">{t('improvingThisPeriod')}</p>
             </div>
           </div>
 
@@ -147,36 +148,32 @@ export default function SideEffectTrackerPage() {
             <form onSubmit={handleSubmit} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
                 <PlusCircle className="h-5 w-5 text-teal-600" />
-                Log a side effect
-              </div>
+                {t('logASideEffect')}{' '}</div>
               <div className="space-y-4">
                 <label className="block text-sm text-slate-700">
-                  Symptom / side effect
-                  <input value={symptom} onChange={(e) => setSymptom(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                  {t('symptomSideEffect')}{' '}<input value={symptom} onChange={(e) => setSymptom(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
                 </label>
 
                 <label className="block text-sm text-slate-700">
-                  Severity: {severity}/10
+                  {t('severity')}{' '}{severity}/10
                   <input type="range" min={1} max={10} value={severity} onChange={(e) => setSeverity(Number(e.target.value))} className="mt-2 w-full accent-teal-600" />
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block text-sm text-slate-700">
-                    Trend
-                    <select value={trend} onChange={(e) => setTrend(e.target.value as 'Improving' | 'Stable' | 'Getting worse')} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white">
-                      <option>Stable</option>
-                      <option>Improving</option>
-                      <option>Getting worse</option>
+                    {t('trend')}{' '}<select value={trend} onChange={(e) => setTrend(e.target.value as 'Improving' | 'Stable' | 'Getting worse')} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white">
+                      <option>{t('stable')}</option>
+                      <option>{t('improving')}</option>
+                      <option>{t('gettingWorse')}</option>
                     </select>
                   </label>
                   <label className="block text-sm text-slate-700">
-                    Duration
-                    <input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                    {t('duration')}{' '}<input value={duration} onChange={(e) => setDuration(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
                   </label>
                 </div>
 
                 <div>
-                  <p className="mb-2 text-sm text-slate-700">What helped?</p>
+                  <p className="mb-2 text-sm text-slate-700">{t('whatHelped')}</p>
                   <div className="flex flex-wrap gap-2">
                     {WHAT_HELPED.map((item) => {
                       const selected = whatHelped.includes(item);
@@ -190,15 +187,14 @@ export default function SideEffectTrackerPage() {
                 </div>
 
                 <label className="block text-sm text-slate-700">
-                  Notes
-                  <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" placeholder="Describe symptoms, triggers, or impact on daily life." />
+                  {t('notes')}{' '}<textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" placeholder={t('describeSymptomsTriggersOrImpactOnDailyLife')} />
                 </label>
 
                 {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
                 <button type="submit" disabled={saving || !user} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
                   <ArrowRight className="h-4 w-4" />
-                  {saving ? 'Saving...' : 'Save & schedule follow-up'}
+                  {saving ? t('saving') : t('saveScheduleFollowUp')}
                 </button>
               </div>
             </form>
@@ -206,11 +202,10 @@ export default function SideEffectTrackerPage() {
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
                 <TrendingUp className="h-5 w-5 text-indigo-600" />
-                Recent side effects
-              </div>
+                {t('recentSideEffects')}{' '}</div>
               <div className="space-y-3">
                 {records.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">No side effects logged yet.</div>
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">{t('noSideEffectsLoggedYet')}</div>
                 ) : (
                   records.slice(0, 5).map((record) => (
                     <div key={record.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">

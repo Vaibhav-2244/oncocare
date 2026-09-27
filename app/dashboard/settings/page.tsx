@@ -10,7 +10,9 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type SettingsTab = 'language' | 'notifications' | 'connected';
 
@@ -21,13 +23,11 @@ const tabs: { id: SettingsTab; label: string; icon: typeof Globe }[] = [
 ];
 
 function SettingsContent() {
+  const t = useTranslations('settings');
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<SettingsTab>('language');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-  // Language
-  const [language, setLanguage] = useState('en');
 
   // Notification prefs from DB
   const [emailNotif, setEmailNotif] = useState(true);
@@ -97,22 +97,11 @@ function SettingsContent() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const languages = [
-    { code: 'en', name: 'English', flag: '🇬🇧' },
-    { code: 'hi', name: 'हिन्दी (Hindi)', flag: '🇮🇳' },
-    { code: 'ta', name: 'தமிழ் (Tamil)', flag: '🇮🇳' },
-    { code: 'te', name: 'తెలుగు (Telugu)', flag: '🇮🇳' },
-    { code: 'bn', name: 'বাংলা (Bengali)', flag: '🇮🇳' },
-    { code: 'mr', name: 'मराठी (Marathi)', flag: '🇮🇳' },
-    { code: 'kn', name: 'ಕನ್ನಡ (Kannada)', flag: '🇮🇳' },
-    { code: 'ml', name: 'മലയാളം (Malayalam)', flag: '🇮🇳' },
-  ];
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Customize your experience and preferences</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('settings')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('customizeYourExperienceAndPreferences')}</p>
       </div>
 
       {/* Tabs */}
@@ -143,49 +132,32 @@ function SettingsContent() {
         {saved && (
           <div className="mb-4 flex items-center gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-700">
             <Check className="h-4 w-4" />
-            <span>Settings saved!</span>
+            <span>{t('settingsSaved')}</span>
           </div>
         )}
 
         {/* Language */}
         {activeTab === 'language' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-foreground">Language</h3>
-            <p className="text-sm text-muted-foreground">Select your preferred language</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => setLanguage(lang.code)}
-                  className={cn(
-                    'flex items-center gap-3 rounded-xl border p-3 text-left transition-all',
-                    language === lang.code
-                      ? 'border-teal-500 bg-teal-50'
-                      : 'border-border bg-card hover:border-teal-300'
-                  )}
-                >
-                  <span className="text-xl">{lang.flag}</span>
-                  <span className="text-sm font-medium text-foreground">{lang.name}</span>
-                  {language === lang.code && <Check className="ml-auto h-4 w-4 text-teal-600" />}
-                </button>
-              ))}
-            </div>
+            <h3 className="text-base font-bold text-foreground">{t('language')}</h3>
+            <p className="text-sm text-muted-foreground">{t('selectYourPreferredLanguage')}</p>
+            <LanguageSwitcher />
           </div>
         )}
 
         {/* Notifications */}
         {activeTab === 'notifications' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-foreground">Notification Settings</h3>
-            <p className="text-sm text-muted-foreground">Control what notifications you receive</p>
+            <h3 className="text-base font-bold text-foreground">{t('notificationSettings')}</h3>
+            <p className="text-sm text-muted-foreground">{t('controlWhatNotificationsYouReceive')}</p>
             <div className="space-y-3">
-              <ToggleRow icon={Bell} label="Email Notifications" desc="General email notifications" checked={emailNotif} onChange={setEmailNotif} />
-              <ToggleRow icon={Bell} label="Push Notifications" desc="Browser push notifications" checked={pushNotif} onChange={setPushNotif} />
-              <ToggleRow icon={Bell} label="SMS Notifications" desc="Text message notifications" checked={smsNotif} onChange={setSmsNotif} />
-              <ToggleRow icon={Bell} label="Medicine Reminders" desc="Reminders to take your medication" checked={medicineReminders} onChange={setMedicineReminders} />
-              <ToggleRow icon={Bell} label="Appointment Reminders" desc="Reminders for upcoming appointments" checked={appointmentReminders} onChange={setAppointmentReminders} />
-              <ToggleRow icon={Bell} label="Price Alerts" desc="Alerts when watched medicine prices drop" checked={priceAlerts} onChange={setPriceAlerts} />
-              <ToggleRow icon={Bell} label="Newsletter" desc="Monthly newsletter with updates and tips" checked={newsletter} onChange={setNewsletter} />
+              <ToggleRow icon={Bell} label={t('emailNotifications')} desc="General email notifications" checked={emailNotif} onChange={setEmailNotif} />
+              <ToggleRow icon={Bell} label={t('pushNotifications')} desc="Browser push notifications" checked={pushNotif} onChange={setPushNotif} />
+              <ToggleRow icon={Bell} label={t('smsNotifications')} desc="Text message notifications" checked={smsNotif} onChange={setSmsNotif} />
+              <ToggleRow icon={Bell} label={t('medicineReminders')} desc="Reminders to take your medication" checked={medicineReminders} onChange={setMedicineReminders} />
+              <ToggleRow icon={Bell} label={t('appointmentReminders')} desc="Reminders for upcoming appointments" checked={appointmentReminders} onChange={setAppointmentReminders} />
+              <ToggleRow icon={Bell} label={t('priceAlerts')} desc="Alerts when watched medicine prices drop" checked={priceAlerts} onChange={setPriceAlerts} />
+              <ToggleRow icon={Bell} label={t('newsletter')} desc="Monthly newsletter with updates and tips" checked={newsletter} onChange={setNewsletter} />
             </div>
             <button
               onClick={handleSaveNotifs}
@@ -193,16 +165,15 @@ function SettingsContent() {
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 disabled:opacity-50"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-              Save Notification Settings
-            </button>
+              {t('saveNotificationSettings')}{' '}</button>
           </div>
         )}
 
         {/* Connected Accounts */}
         {activeTab === 'connected' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-foreground">Connected Accounts</h3>
-            <p className="text-sm text-muted-foreground">Manage your linked social accounts</p>
+            <h3 className="text-base font-bold text-foreground">{t('connectedAccounts')}</h3>
+            <p className="text-sm text-muted-foreground">{t('manageYourLinkedSocialAccounts')}</p>
             <div className="space-y-3">
               {[
                 { name: 'Google', icon: 'G', color: 'bg-red-50 text-red-600', connected: user?.email?.includes('@gmail') },
@@ -216,7 +187,7 @@ function SettingsContent() {
                     <div>
                       <div className="text-sm font-semibold text-foreground">{account.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {account.connected ? 'Connected' : 'Not connected'}
+                        {account.connected ? t('connected') : t('notConnected')}
                       </div>
                     </div>
                   </div>
@@ -228,7 +199,7 @@ function SettingsContent() {
                         : 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md shadow-teal-500/20'
                     )}
                   >
-                    {account.connected ? 'Disconnect' : 'Connect'}
+                    {account.connected ? t('disconnect') : t('connect')}
                   </button>
                 </div>
               ))}

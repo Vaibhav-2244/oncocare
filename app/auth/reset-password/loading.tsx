@@ -1,0 +1,1 @@
+export { AuthRouteLoading as default } from '@/components/shared/route-loading';

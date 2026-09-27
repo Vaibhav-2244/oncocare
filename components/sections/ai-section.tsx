@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Section, SectionHeading, Reveal, StaggerGroup, StaggerItem } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const aiCards: {
   icon: LucideIcon;
@@ -50,6 +51,7 @@ const aiCards: {
 ];
 
 export function AISection() {
+  const t = useTranslations('components.sections.aiSection');
   return (
     <section id="ai" className="relative overflow-hidden bg-slate-950 py-24 sm:py-32">
       {/* Background effects */}
@@ -64,8 +66,8 @@ export function AISection() {
           eyebrow="AI Engine"
           title={
             <>
-              Clinical-grade AI,{' '}
-              <span className="gradient-text-light">built for oncology</span>
+              {t('clinicalGradeAi')}{' '}
+              <span className="gradient-text-light">{t('builtForOncology')}</span>
             </>
           }
           subtitle="Our AI doesn't replace doctors—it amplifies them. By continuously analyzing patient data, OncoCare+ AI catches what humans miss, predicts what's coming, and frees clinicians to focus on care."
@@ -136,16 +138,13 @@ export function AISection() {
             <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500">
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                Real-time data ingestion
-              </div>
+                {t('realTimeDataIngestion')}{' '}</div>
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                LLM inference
-              </div>
+                {t('llmInference')}{' '}</div>
               <div className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Clinical validation
-              </div>
+                {t('clinicalValidation')}{' '}</div>
             </div>
           </div>
         </Reveal>

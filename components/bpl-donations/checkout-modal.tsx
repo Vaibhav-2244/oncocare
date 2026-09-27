@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, ShieldCheck } from 'lucide-react';
 import { BPL_PATIENT_PLACEHOLDER, type BplPatient } from '@/lib/bpl-api';
+import { useTranslations } from 'next-intl';
 
 interface CheckoutModalProps {
   patient: BplPatient;
@@ -17,6 +18,7 @@ interface CheckoutModalProps {
 }
 
 export function CheckoutModal({ patient, amount, onComplete, onClose, error }: CheckoutModalProps) {
+  const t = useTranslations('components.bplDonations.checkoutModal');
   const [donorName, setDonorName] = useState('');
   const [donorEmail, setDonorEmail] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('upi');
@@ -53,7 +55,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
             />
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-slate-900">Donate to {patient.name}</h2>
+                <h2 className="font-semibold text-slate-900">{t('donateTo')}{' '}{patient.name}</h2>
                 <ShieldCheck size={16} className="text-teal-600" />
               </div>
               <p className="text-sm text-slate-600">
@@ -65,7 +67,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
 
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <div className="rounded-lg bg-slate-50 p-4">
-            <p className="text-xs font-semibold uppercase text-slate-600">Donation Amount</p>
+            <p className="text-xs font-semibold uppercase text-slate-600">{t('donationAmount')}</p>
             <p className="mt-2 text-2xl font-bold text-teal-600">
               ₹{amount.toLocaleString('en-IN')}
             </p>
@@ -73,19 +75,19 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-slate-900">Your Name</label>
+              <label className="block text-sm font-medium text-slate-900">{t('yourName')}</label>
               <input
                 type="text"
                 required
                 value={donorName}
                 onChange={(e) => setDonorName(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                placeholder="Enter your full name"
+                placeholder={t('enterYourFullName')}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-900">Email Address</label>
+              <label className="block text-sm font-medium text-slate-900">{t('emailAddress')}</label>
               <input
                 type="email"
                 required
@@ -97,15 +99,15 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-900">Payment Method</label>
+              <label className="block text-sm font-medium text-slate-900">{t('paymentMethod')}</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               >
                 <option value="upi">UPI</option>
-                <option value="card">Debit / Credit Card</option>
-                <option value="netbanking">Net Banking</option>
+                <option value="card">{t('debitCreditCard')}</option>
+                <option value="netbanking">{t('netBanking')}</option>
               </select>
             </div>
           </div>
@@ -113,8 +115,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
           <div className="flex gap-3 rounded-lg bg-teal-50 p-3">
             <ShieldCheck size={18} className="flex-shrink-0 text-teal-600" />
             <p className="text-xs text-teal-700">
-              Secure demo checkout. No actual payment will be processed.
-            </p>
+              {t('secureDemoCheckoutNoActualPaymentWillBeProcessed')}{' '}</p>
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -124,7 +125,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose, error }: C
             disabled={loading || !donorName.trim() || !donorEmail.trim()}
             className="w-full rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white transition-colors disabled:opacity-50 hover:bg-teal-700"
           >
-            {loading ? 'Processing...' : 'Complete Donation'}
+            {loading ? t('processing') : t('completeDonation')}
           </button>
         </form>
       </div>

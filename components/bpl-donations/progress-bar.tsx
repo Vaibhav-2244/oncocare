@@ -1,4 +1,5 @@
 'use client';
+import { useTranslations } from 'next-intl';
 
 interface ProgressBarProps {
   raised: number;
@@ -6,6 +7,7 @@ interface ProgressBarProps {
 }
 
 export function ProgressBar({ raised, goal }: ProgressBarProps) {
+  const t = useTranslations('components.bplDonations.progressBar');
   const percentage = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
 
   return (
@@ -20,7 +22,7 @@ export function ProgressBar({ raised, goal }: ProgressBarProps) {
         <strong className="text-slate-700">
           ₹{raised.toLocaleString('en-IN')}
         </strong>
-        <span className="text-slate-500">{percentage}% of goal</span>
+        <span className="text-slate-500">{percentage}{t('ofGoal')}</span>
       </div>
     </div>
   );

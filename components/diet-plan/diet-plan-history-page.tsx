@@ -32,6 +32,7 @@ import type {
   MealPlanItem,
   MealType,
 } from "@/types/diet-plan";
+import { useTranslations } from 'next-intl';
 
 const MEAL_LABELS: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -222,6 +223,7 @@ function FullPlanSheet({
   plan: DietPlan;
   onClose: () => void;
 }) {
+  const t = useTranslations('components.dietPlan.dietPlanHistoryPage');
   useEffect(() => {
     const originalOverflow =
       document.body.style.overflow;
@@ -264,8 +266,7 @@ function FullPlanSheet({
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#167772]">
-              Full diet plan
-            </p>
+              {t('fullDietPlan')}{' '}</p>
 
             <h2
               id="history-full-plan-title"
@@ -278,7 +279,7 @@ function FullPlanSheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close full plan"
+            aria-label={t('closeFullPlan')}
             className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-5 w-5" />
@@ -292,8 +293,7 @@ function FullPlanSheet({
 
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Plan summary
-                </h3>
+                  {t('planSummary')}{' '}</h3>
 
                 <p className="mt-1 text-sm leading-6 text-slate-600">
                   {plan.summary}
@@ -307,8 +307,7 @@ function FullPlanSheet({
               <Droplets className="h-5 w-5 text-[#167772]" />
 
               <h3 className="text-sm font-semibold text-slate-900">
-                Hydration
-              </h3>
+                {t('hydration')}{' '}</h3>
             </div>
 
             <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -353,8 +352,7 @@ function FullPlanSheet({
 
                           <div>
                             <h4 className="text-sm font-semibold text-slate-900">
-                              Why this fits you
-                            </h4>
+                              {t('whyThisFitsYou')}{' '}</h4>
 
                             <p className="mt-1 text-sm leading-6 text-slate-600">
                               {
@@ -373,8 +371,7 @@ function FullPlanSheet({
                         {meal.portionGuidance && (
                           <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
-                              Portion guidance
-                            </p>
+                              {t('portionGuidance')}{' '}</p>
 
                             <p className="mt-2 text-sm leading-5 text-slate-700">
                               {
@@ -388,23 +385,21 @@ function FullPlanSheet({
                           "number" && (
                           <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">
-                              Prep time
-                            </p>
+                              {t('prepTime')}{' '}</p>
 
                             <p className="mt-2 text-sm leading-5 text-slate-700">
-                              About{" "}
+                              {t('about')}{" "}
                               {
                                 meal.estimatedPrepMinutes
                               }{" "}
-                              minutes
-                            </p>
+                              {t('minutes')}{' '}</p>
                           </div>
                         )}
                       </div>
                     )}
 
                     <DetailSection
-                      title="Ingredients"
+                      title={t('ingredients')}
                       icon={
                         <Utensils className="h-4 w-4" />
                       }
@@ -429,7 +424,7 @@ function FullPlanSheet({
 
                     {meal.preparationNotes && (
                       <DetailSection
-                        title="Preparation"
+                        title={t('preparation')}
                         icon={
                           <BookOpen className="h-4 w-4" />
                         }
@@ -447,7 +442,7 @@ function FullPlanSheet({
                         .length >
                         0 && (
                         <DetailSection
-                          title="Nutrition notes"
+                          title={t('nutritionNotes')}
                           icon={
                             <FileText className="h-4 w-4" />
                           }
@@ -482,8 +477,7 @@ function FullPlanSheet({
 
                             <div>
                               <h4 className="text-sm font-semibold text-amber-950">
-                                Safety notes
-                              </h4>
+                                {t('safetyNotes')}{' '}</h4>
 
                               <ul className="mt-2 space-y-1.5 text-sm leading-6 text-amber-900">
                                 {meal.safetyNotes.map(
@@ -520,8 +514,7 @@ function FullPlanSheet({
                 <Info className="h-5 w-5" />
 
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Nutrition notes for the day
-                </h3>
+                  {t('nutritionNotesForTheDay')}{' '}</h3>
               </div>
 
               <ul className="mt-3 space-y-2">
@@ -546,6 +539,7 @@ function FullPlanSheet({
 }
 
 export default function DietPlanHistoryPage() {
+  const t = useTranslations('components.dietPlan.dietPlanHistoryPage');
   const [history, setHistory] =
     useState<DietPlan[]>([]);
 
@@ -662,11 +656,11 @@ export default function DietPlanHistoryPage() {
         <header className="sticky top-3 z-30 flex items-center justify-between gap-4 rounded-[24px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-5">
           <Link
             href="/dashboard/diet-plan"
-            aria-label="OncoCare+ Diet Plans"
+            aria-label={t('oncocareDietPlans')}
           >
             <Image
               src="/brand/oncocare-logo.png"
-              alt="OncoCare+"
+              alt={t('oncocare')}
               width={165}
               height={54}
               className="h-auto w-[132px] sm:w-[145px]"
@@ -679,28 +673,24 @@ export default function DietPlanHistoryPage() {
               href="/dashboard/diet-plan"
               className="rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Diet plans
-            </Link>
+              {t('dietPlans')}{' '}</Link>
 
             <Link
               href="/dashboard/diet-plan/history"
               className="rounded-xl bg-[#eef8f7] px-3.5 py-2 text-sm font-semibold text-[#167772]"
             >
-              History
-            </Link>
+              {t('history')}{' '}</Link>
 
             <Link
               href="/dashboard/diet-plan/preferences"
               className="rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Preferences
-            </Link>
+              {t('preferences')}{' '}</Link>
           </nav>
 
           <div className="hidden items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:flex">
             <History className="h-3.5 w-3.5" />
-            Your nutrition journey
-          </div>
+            {t('yourNutritionJourney')}{' '}</div>
         </header>
 
         <section className="mt-7 overflow-hidden rounded-[28px] border border-[#d7ecea] bg-white shadow-[0_18px_60px_rgba(31,41,55,0.06)]">
@@ -711,8 +701,7 @@ export default function DietPlanHistoryPage() {
                 className="inline-flex items-center gap-2 text-sm font-semibold text-[#167772] hover:text-[#125f5b]"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to today&apos;s plan
-              </Link>
+                {t('backToTodayAposSPlan')}{' '}</Link>
 
               <div className="mt-5 flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#eef8f7] text-[#167772]">
@@ -721,16 +710,13 @@ export default function DietPlanHistoryPage() {
 
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                    Diet plan history
-                  </p>
+                    {t('dietPlanHistory')}{' '}</p>
 
                   <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                    Your saved plans
-                  </h1>
+                    {t('yourSavedPlans')}{' '}</h1>
 
                   <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                    Look back at plans generated from the information available on each day.
-                  </p>
+                    {t('lookBackAtPlansGeneratedFromTheInformationAvailableOnEachDay')}{' '}</p>
                 </div>
               </div>
             </div>
@@ -759,8 +745,7 @@ export default function DietPlanHistoryPage() {
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 font-semibold text-red-800 hover:bg-red-100"
             >
               <RefreshCw className="h-4 w-4" />
-              Retry
-            </button>
+              {t('retry')}{' '}</button>
           </div>
         )}
 
@@ -778,19 +763,16 @@ export default function DietPlanHistoryPage() {
             </div>
 
             <h2 className="mt-5 text-2xl font-semibold text-slate-950">
-              No saved plans yet
-            </h2>
+              {t('noSavedPlansYet')}{' '}</h2>
 
             <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-slate-600">
-              Once a daily nutrition plan has been created, it will appear here so you can review it later.
-            </p>
+              {t('onceADailyNutritionPlanHasBeenCreatedItWillAppearHereSoYouCanReviewItLater')}{' '}</p>
 
             <Link
               href="/dashboard/diet-plan"
               className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#167772] px-5 text-sm font-semibold text-white hover:bg-[#125f5b]"
             >
-              Go to diet plans
-              <ChevronRight className="h-4 w-4" />
+              {t('goToDietPlans')}{' '}<ChevronRight className="h-4 w-4" />
             </Link>
           </section>
         ) : (
@@ -798,16 +780,13 @@ export default function DietPlanHistoryPage() {
             <aside className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 px-5 py-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  Saved plans
-                </p>
+                  {t('savedPlans')}{' '}</p>
 
                 <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                  Choose a day
-                </h2>
+                  {t('chooseADay')}{' '}</h2>
 
                 <p className="mt-1 text-sm leading-5 text-slate-500">
-                  Select a saved date to preview that plan.
-                </p>
+                  {t('selectASavedDateToPreviewThatPlan')}{' '}</p>
               </div>
 
               <div className="max-h-[620px] overflow-y-auto p-3">
@@ -854,7 +833,7 @@ export default function DietPlanHistoryPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="text-sm font-semibold text-slate-900">
                               {today
-                                ? "Today"
+                                ? t('today')
                                 : formatDate(
                                     historyPlan.planDate,
                                   )}
@@ -862,8 +841,7 @@ export default function DietPlanHistoryPage() {
 
                             {today && (
                               <span className="rounded-full bg-[#dff3ee] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#167772]">
-                                Current
-                              </span>
+                                {t('current')}{' '}</span>
                             )}
                           </div>
 
@@ -891,8 +869,7 @@ export default function DietPlanHistoryPage() {
             <section className="min-w-0 overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm">
               {!selectedPlan ? (
                 <div className="flex min-h-[520px] items-center justify-center p-8 text-sm text-slate-500">
-                  Select a saved plan to view its details.
-                </div>
+                  {t('selectASavedPlanToViewItsDetails')}{' '}</div>
               ) : (
                 <>
                   <div className="border-b border-slate-100 px-6 py-6 sm:px-7">
@@ -905,7 +882,7 @@ export default function DietPlanHistoryPage() {
                             {isToday(
                               selectedPlan.planDate,
                             )
-                              ? "Today"
+                              ? t('today')
                               : formatDate(
                                   selectedPlan.planDate,
                                 )}
@@ -915,13 +892,12 @@ export default function DietPlanHistoryPage() {
                             selectedPlan.planDate,
                           ) && (
                             <span className="rounded-full bg-[#dff3ee] px-3 py-1.5 text-xs font-semibold text-[#167772]">
-                              Current plan
-                            </span>
+                              {t('currentPlan')}{' '}</span>
                           )}
                         </div>
 
                         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
-                          Plan for{" "}
+                          {t('planFor')}{" "}
                           {formatDate(
                             selectedPlan.planDate,
                             true,
@@ -945,8 +921,7 @@ export default function DietPlanHistoryPage() {
                         className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#bfe3de] bg-[#f7fcfb] px-4 text-sm font-semibold text-[#167772] hover:bg-[#eef8f7]"
                       >
                         <FileText className="h-4 w-4" />
-                        View full plan
-                      </button>
+                        {t('viewFullPlan')}{' '}</button>
                     </div>
                   </div>
 
@@ -970,8 +945,7 @@ export default function DietPlanHistoryPage() {
                           <FileText className="h-5 w-5" />
 
                           <h3 className="text-sm font-semibold text-slate-900">
-                            Plan summary
-                          </h3>
+                            {t('planSummary')}{' '}</h3>
                         </div>
 
                         <p className="mt-3 text-sm leading-6 text-slate-600">
@@ -986,13 +960,11 @@ export default function DietPlanHistoryPage() {
                           <Utensils className="h-5 w-5" />
 
                           <h3 className="text-sm font-semibold text-slate-900">
-                            Your feedback
-                          </h3>
+                            {t('yourFeedback')}{' '}</h3>
                         </div>
 
                         <p className="mt-3 text-sm leading-6 text-slate-600">
-                          No meal feedback is recorded for this plan yet.
-                        </p>
+                          {t('noMealFeedbackIsRecordedForThisPlanYet')}{' '}</p>
                       </section>
                     </div>
 
@@ -1002,8 +974,7 @@ export default function DietPlanHistoryPage() {
 
                         <div>
                           <h3 className="text-sm font-semibold text-slate-900">
-                            Hydration guidance
-                          </h3>
+                            {t('hydrationGuidance')}{' '}</h3>
 
                           <p className="mt-1 text-sm leading-6 text-slate-600">
                             {
@@ -1022,8 +993,7 @@ export default function DietPlanHistoryPage() {
                           <Sparkles className="h-5 w-5" />
 
                           <h3 className="text-sm font-semibold text-slate-900">
-                            What this plan considered
-                          </h3>
+                            {t('whatThisPlanConsidered')}{' '}</h3>
                         </div>
 
                         <div className="mt-3 flex flex-wrap gap-2">
@@ -1058,16 +1028,14 @@ export default function DietPlanHistoryPage() {
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#167772]" />
 
             <p className="text-sm leading-5 text-slate-600">
-              Saved plans reflect the information available on their respective dates. They do not replace advice from your oncology or nutrition care team.
-            </p>
+              {t('savedPlansReflectTheInformationAvailableOnTheirRespectiveDatesTheyDoNotReplaceAd')}{' '}</p>
           </div>
 
           <Link
               href="/dashboard/diet-plan/preferences"
             className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-[#167772] shadow-sm ring-1 ring-inset ring-[#cfe8e4] hover:bg-[#f8fcfb]"
           >
-            Update preferences
-            <ChevronRight className="h-4 w-4" />
+            {t('updatePreferences')}{' '}<ChevronRight className="h-4 w-4" />
           </Link>
         </div>
       </div>

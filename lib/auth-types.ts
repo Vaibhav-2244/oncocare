@@ -35,6 +35,7 @@ export interface Profile {
   notification_email: boolean;
   notification_push: boolean;
   notification_sms: boolean;
+  preferred_language: 'en' | 'hi';
   privacy_profile_visible: boolean;
   privacy_show_activity: boolean;
   is_email_verified: boolean;

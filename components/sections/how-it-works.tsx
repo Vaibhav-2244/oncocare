@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Section, SectionHeading, Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const steps: {
   icon: LucideIcon;
@@ -57,14 +58,15 @@ const steps: {
 ];
 
 export function HowItWorks() {
+  const t = useTranslations('components.sections.howItWorks');
   return (
     <Section id="how-it-works">
       <SectionHeading
         eyebrow="How It Works"
         title={
           <>
-            From sign-up to recovery in{' '}
-            <span className="gradient-text">six simple steps</span>
+            {t('fromSignUpToRecoveryIn')}{' '}
+            <span className="gradient-text">{t('sixSimpleSteps')}</span>
           </>
         }
         subtitle="No complexity. No friction. Just a guided path from your first login to your last milestone."

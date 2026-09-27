@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import type { LabReportRow, LabValueRow } from '@/lib/lab-reports';
+import { useTranslations } from 'next-intl';
 
 function formatDate(value?: string | null) {
   if (!value) return '—';
@@ -17,6 +18,7 @@ function formatDate(value?: string | null) {
 }
 
 export default function LabReportDetailPage() {
+  const t = useTranslations('labReports.id');
   const params = useParams();
   const reportId = Array.isArray(params?.id) ? params.id[0] : params?.id;
   const { user } = useAuth();
@@ -100,14 +102,13 @@ export default function LabReportDetailPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/dashboard/lab-reports" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
-              <ArrowLeft className="h-4 w-4" /> Back to lab reports
-            </Link>
+              <ArrowLeft className="h-4 w-4" /> {t('backToLabReports')}{' '}</Link>
           </div>
 
           {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
           {loading || !report ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading report…</div>
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">{t('loadingReport')}</div>
           ) : (
             <>
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -118,7 +119,7 @@ export default function LabReportDetailPage() {
                     </div>
                     <div>
                       <h1 className="text-2xl font-bold text-slate-900">{report.report_title}</h1>
-                      <p className="text-sm text-slate-500">{report.laboratory_name || 'Uploaded laboratory'} · {report.file_type}</p>
+                      <p className="text-sm text-slate-500">{report.laboratory_name || t('uploadedLaboratory')} · {report.file_type}</p>
                     </div>
                   </div>
                   <div className="flex gap-2 text-xs font-medium text-slate-600">
@@ -128,22 +129,20 @@ export default function LabReportDetailPage() {
                 </div>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-4">
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">Report date</div><div className="mt-2 text-sm font-semibold text-slate-800">{formatDate(report.report_date)}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">Uploaded</div><div className="mt-2 text-sm font-semibold text-slate-800">{formatDate(report.created_at)}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">File name</div><div className="mt-2 text-sm font-semibold text-slate-800">{report.file_name}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">Storage path</div><div className="mt-2 text-sm font-semibold text-slate-800">{report.storage_path}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">{t('reportDate')}</div><div className="mt-2 text-sm font-semibold text-slate-800">{formatDate(report.report_date)}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">{t('uploaded')}</div><div className="mt-2 text-sm font-semibold text-slate-800">{formatDate(report.created_at)}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">{t('fileName')}</div><div className="mt-2 text-sm font-semibold text-slate-800">{report.file_name}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-xs uppercase tracking-wide text-slate-500">{t('storagePath')}</div><div className="mt-2 text-sm font-semibold text-slate-800">{report.storage_path}</div></div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
-                  <FileText className="h-4 w-4 text-teal-600" /> Extracted lab values
-                </div>
+                  <FileText className="h-4 w-4 text-teal-600" /> {t('extractedLabValues')}{' '}</div>
 
                 {values.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-                    No values were extracted from this report. Please review the upload and try again.
-                  </div>
+                    {t('noValuesWereExtractedFromThisReportPleaseReviewTheUploadAndTryAgain')}{' '}</div>
                 ) : (
                   <div className="space-y-4">
                     {values.map((value) => (
@@ -151,26 +150,25 @@ export default function LabReportDetailPage() {
                         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                           <div>
                             <div className="text-base font-semibold text-slate-900">{value.test_name}</div>
-                            <div className="text-sm text-slate-500">{value.canonical_name} · {value.unit || 'unit not specified'}</div>
+                            <div className="text-sm text-slate-500">{value.canonical_name} · {value.unit || t('unitNotSpecified')}</div>
                           </div>
                           <div className="flex flex-wrap gap-2 text-xs">
-                            <button onClick={() => markReviewed(value, 'confirmed')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-emerald-700"><Check className="h-3.5 w-3.5" /> Confirm</button>
-                            <button onClick={() => markReviewed(value, 'rejected')} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1.5 text-rose-700"><X className="h-3.5 w-3.5" /> Reject</button>
+                            <button onClick={() => markReviewed(value, 'confirmed')} className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1.5 text-emerald-700"><Check className="h-3.5 w-3.5" /> {t('confirm')}</button>
+                            <button onClick={() => markReviewed(value, 'rejected')} className="inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2 py-1.5 text-rose-700"><X className="h-3.5 w-3.5" /> {t('reject')}</button>
                           </div>
                         </div>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-5">
-                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Value</div><div className="mt-1 text-sm font-medium text-slate-800">{value.original_value || '—'}</div></div>
-                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Numeric</div><div className="mt-1 text-sm font-medium text-slate-800">{value.numeric_value ?? '—'}</div></div>
-                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Reference</div><div className="mt-1 text-sm font-medium text-slate-800">{value.reference_text || '—'}</div></div>
-                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Confidence</div><div className="mt-1 text-sm font-medium text-slate-800">{value.extraction_confidence ? `${(value.extraction_confidence * 100).toFixed(0)}%` : '—'}</div></div>
-                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">Reviewed</div><div className="mt-1 text-sm font-medium text-slate-800">{value.reviewed_state || 'pending'}</div></div>
+                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('value')}</div><div className="mt-1 text-sm font-medium text-slate-800">{value.original_value || '—'}</div></div>
+                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('numeric')}</div><div className="mt-1 text-sm font-medium text-slate-800">{value.numeric_value ?? '—'}</div></div>
+                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('reference')}</div><div className="mt-1 text-sm font-medium text-slate-800">{value.reference_text || '—'}</div></div>
+                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('confidence')}</div><div className="mt-1 text-sm font-medium text-slate-800">{value.extraction_confidence ? t('confidencePercent', { percent: (value.extraction_confidence * 100).toFixed(0) }) : '—'}</div></div>
+                          <div><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('reviewed')}</div><div className="mt-1 text-sm font-medium text-slate-800">{value.reviewed_state || t('pending')}</div></div>
                         </div>
 
                         <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center">
                           <label className="flex-1 text-xs font-medium text-slate-600">
-                            Notes
-                            <input defaultValue={value.notes || ''} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-teal-300" onBlur={async (event) => {
+                            {t('notes')}{' '}<input defaultValue={value.notes || ''} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700 outline-none focus:border-teal-300" onBlur={async (event) => {
                               await updateValueState(value.id, { notes: event.target.value || value.notes || 'Reviewed by patient' });
                             }} />
                           </label>

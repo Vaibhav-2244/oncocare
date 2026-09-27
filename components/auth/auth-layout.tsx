@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Logo } from '@/components/shared/logo';
+import { useTranslations } from 'next-intl';
 
 export function AuthLayout({
   children,
@@ -14,6 +15,7 @@ export function AuthLayout({
   title: string;
   subtitle: string;
 }) {
+  const t = useTranslations('components.auth.authLayout');
   return (
     <div className="flex min-h-screen flex-col bg-background lg:flex-row">
       {/* Left panel — branding */}
@@ -28,31 +30,27 @@ export function AuthLayout({
 
         <div className="relative">
           <h2 className="text-3xl font-bold leading-tight text-white">
-            The future of cancer care starts at home.
-          </h2>
+            {t('theFutureOfCancerCareStartsAtHome')}{' '}</h2>
           <p className="mt-4 max-w-md text-teal-50/90">
-            AI-powered care coordination, symptom tracking, verified caregivers, financial support,
-            and personalized guidance — all in one platform.
-          </p>
+            {t('aiPoweredCareCoordinationSymptomTrackingVerifiedCaregiversFinancialSupportAndPer')}{' '}</p>
           <div className="mt-8 flex gap-6">
             <div>
-              <div className="text-2xl font-bold text-white">50K+</div>
-              <div className="text-sm text-teal-100/80">Patients served</div>
+              <div className="text-2xl font-bold text-white">{t('text50k')}</div>
+              <div className="text-sm text-teal-100/80">{t('patientsServed')}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-white">200+</div>
-              <div className="text-sm text-teal-100/80">Partner hospitals</div>
+              <div className="text-sm text-teal-100/80">{t('partnerHospitals')}</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-white">1,500+</div>
-              <div className="text-sm text-teal-100/80">Verified doctors</div>
+              <div className="text-sm text-teal-100/80">{t('verifiedDoctors')}</div>
             </div>
           </div>
         </div>
 
         <p className="relative text-sm text-teal-100/60">
-          © 2026 OncoCare+. All rights reserved.
-        </p>
+          {t('text2026OncocareAllRightsReserved')}{' '}</p>
       </div>
 
       {/* Right panel — form */}

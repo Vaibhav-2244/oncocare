@@ -7,12 +7,14 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { readStoredProfile, writeStoredProfile } from '@/lib/symptom-monitor';
+import { useTranslations } from 'next-intl';
 
 type Message = { id: string; role: 'user' | 'assistant'; text: string };
 
 const STORAGE_KEY = (userId?: string) => `oncocare_symptom_checker_${userId ?? 'guest'}`;
 
 export default function SymptomCheckerPage() {
+  const t = useTranslations('symptoms.checker');
   const { user } = useAuth();
   const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [input, setInput] = useState('');
@@ -155,14 +157,13 @@ export default function SymptomCheckerPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">Symptom assessment</p>
-              <h1 className="text-2xl font-bold text-slate-900">Symptom Checker</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700">{t('symptomAssessment')}</p>
+              <h1 className="text-2xl font-bold text-slate-900">{t('symptomChecker')}</h1>
             </div>
             {emergencyDetected && (
               <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
                 <ShieldAlert className="h-3.5 w-3.5" />
-                Urgent symptoms detected
-              </div>
+                {t('urgentSymptomsDetected')}{' '}</div>
             )}
           </div>
 
@@ -171,8 +172,7 @@ export default function SymptomCheckerPage() {
               <div className="border-b border-slate-200 p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
                   <Sparkles className="h-4 w-4 text-teal-600" />
-                  Symptom conversation
-                </div>
+                  {t('symptomConversation')}{' '}</div>
               </div>
               <div className="max-h-[520px] space-y-4 overflow-y-auto p-4">
                 {messages.map((message) => (
@@ -189,66 +189,61 @@ export default function SymptomCheckerPage() {
                   <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Describe your symptom or ask a question..."
+                    placeholder={t('describeYourSymptomOrAskAQuestion')}
                     className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-300 focus:bg-white"
                   />
                   <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white">
                     <Send className="h-4 w-4" />
-                    Send
-                  </button>
+                    {t('send')}{' '}</button>
                 </div>
               </form>
             </div>
 
             <div className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Assessment details</p>
-                <h2 className="mt-2 text-xl font-semibold text-slate-900">Quick record</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{t('assessmentDetails')}</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900">{t('quickRecord')}</h2>
               </div>
 
               <div className="space-y-4">
                 <label className="block text-sm text-slate-700">
-                  Symptom
-                  <input value={assessment.symptom} onChange={(e) => setAssessment((prev) => ({ ...prev, symptom: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                  {t('symptom')}{' '}<input value={assessment.symptom} onChange={(e) => setAssessment((prev) => ({ ...prev, symptom: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
                 </label>
 
                 <label className="block text-sm text-slate-700">
-                  Severity: {assessment.severity}/10
+                  {t('severity')}{' '}{assessment.severity}/10
                   <input type="range" min={1} max={10} value={assessment.severity} onChange={(e) => setAssessment((prev) => ({ ...prev, severity: Number(e.target.value) }))} className="mt-2 w-full accent-teal-600" />
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block text-sm text-slate-700">
-                    Trend
-                    <select value={assessment.trend} onChange={(e) => setAssessment((prev) => ({ ...prev, trend: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white">
-                      <option>Stable</option>
-                      <option>Improving</option>
-                      <option>Getting worse</option>
+                    {t('trend')}{' '}<select value={assessment.trend} onChange={(e) => setAssessment((prev) => ({ ...prev, trend: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white">
+                      <option>{t('stable')}</option>
+                      <option>{t('improving')}</option>
+                      <option>{t('gettingWorse')}</option>
                     </select>
                   </label>
                   <label className="block text-sm text-slate-700">
-                    Duration
-                    <input value={assessment.duration} onChange={(e) => setAssessment((prev) => ({ ...prev, duration: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                    {t('duration')}{' '}<input value={assessment.duration} onChange={(e) => setAssessment((prev) => ({ ...prev, duration: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
                   </label>
                 </div>
 
                 <label className="block text-sm text-slate-700">
-                  Notes
-                  <textarea rows={3} value={assessment.notes} onChange={(e) => setAssessment((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" placeholder="Any details about severity, triggers, timing, or what helps?" />
+                  {t('notes')}{' '}<textarea rows={3} value={assessment.notes} onChange={(e) => setAssessment((prev) => ({ ...prev, notes: e.target.value }))} className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" placeholder={t('anyDetailsAboutSeverityTriggersTimingOrWhatHelps')} />
                 </label>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input value={assessment.cancerType} onChange={(e) => setAssessment((prev) => ({ ...prev, cancerType: e.target.value }))} placeholder="Cancer type" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
-                  <input value={assessment.treatmentType} onChange={(e) => setAssessment((prev) => ({ ...prev, treatmentType: e.target.value }))} placeholder="Treatment" className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                  <input value={assessment.cancerType} onChange={(e) => setAssessment((prev) => ({ ...prev, cancerType: e.target.value }))} placeholder={t('cancerType')} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                  <input value={assessment.treatmentType} onChange={(e) => setAssessment((prev) => ({ ...prev, treatmentType: e.target.value }))} placeholder={t('treatment')} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
                 </div>
 
-                <input value={assessment.journeyPhase} onChange={(e) => setAssessment((prev) => ({ ...prev, journeyPhase: e.target.value }))} placeholder="Journey phase" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
+                <input value={assessment.journeyPhase} onChange={(e) => setAssessment((prev) => ({ ...prev, journeyPhase: e.target.value }))} placeholder={t('journeyPhase')} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:border-teal-300 focus:bg-white" />
 
                 {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
                 <button type="button" onClick={saveAssessment} disabled={saving || !user} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
                   <ArrowUpRight className="h-4 w-4" />
-                  {saving ? 'Saving...' : 'Save assessment'}
+                  {saving ? t('saving') : t('saveAssessment')}
                 </button>
               </div>
             </div>

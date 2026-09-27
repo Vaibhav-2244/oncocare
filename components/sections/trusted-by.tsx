@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Heart, Building2, GraduationCap, Landmark, Users, Cross } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const partners = [
   { name: 'Tata Memorial', icon: Cross, category: 'Cancer Center' },
@@ -15,24 +16,24 @@ const partners = [
 ];
 
 export function TrustedBy() {
+  const t = useTranslations('components.sections.trustedBy');
   return (
     <section className="relative border-y border-slate-100 bg-white py-16">
       <div className="mx-auto max-w-7xl px-6">
         <motion.p
-          initial={{ opacity: 0 }}
+          initial={false}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
           className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-400"
         >
-          Trusted by leading hospitals, cancer centers & institutions across India
-        </motion.p>
+          {t('trustedByLeadingHospitalsCancerCentersInstitutionsAcrossIndia')}{' '}</motion.p>
 
         <div className="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8">
           {partners.map((partner, i) => (
             <motion.div
               key={partner.name}
-              initial={{ opacity: 0, y: 12 }}
+              initial={false}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.05 }}

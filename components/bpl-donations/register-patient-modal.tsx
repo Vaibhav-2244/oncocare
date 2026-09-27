@@ -2,6 +2,7 @@
 
 import { Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface RegisterPatientModalProps {
   onSubmit: (data: Record<string, string>, imageFile: File | null) => Promise<void>;
@@ -10,6 +11,7 @@ interface RegisterPatientModalProps {
 }
 
 export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatientModalProps) {
+  const t = useTranslations('components.bplDonations.registerPatientModal');
   const [formData, setFormData] = useState({
     name: '',
     age: '',
@@ -87,14 +89,14 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
         <div className="border-b border-slate-200 p-6">
-          <h2 className="text-2xl font-bold text-slate-900">Register New Patient</h2>
-          <p className="mt-1 text-slate-600">Add a patient campaign to the BPL donation platform</p>
+          <h2 className="text-2xl font-bold text-slate-900">{t('registerNewPatient')}</h2>
+          <p className="mt-1 text-slate-600">{t('addAPatientCampaignToTheBplDonationPlatform')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6 p-6 max-h-[80vh] overflow-y-auto">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-slate-900">Full Name *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('fullName')}</label>
               <input
                 type="text"
                 name="name"
@@ -105,7 +107,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Age *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('age')}</label>
               <input
                 type="number"
                 name="age"
@@ -116,7 +118,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Gender *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('gender')}</label>
               <select
                 name="gender"
                 required
@@ -124,14 +126,14 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
                 onChange={handleChange}
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               >
-                <option value="">Select gender</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="">{t('selectGender')}</option>
+                <option value="Male">{t('male')}</option>
+                <option value="Female">{t('female')}</option>
+                <option value="Other">{t('other')}</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Location *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('location')}</label>
               <input
                 type="text"
                 name="location"
@@ -142,7 +144,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Cancer Type *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('cancerType')}</label>
               <input
                 type="text"
                 name="cancer_type"
@@ -153,7 +155,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Stage *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('stage')}</label>
               <input
                 type="text"
                 name="stage"
@@ -164,7 +166,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-900">Treatment *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('treatment')}</label>
               <input
                 type="text"
                 name="treatment"
@@ -175,7 +177,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Funding Goal (₹) *</label>
+              <label className="block text-sm font-medium text-slate-900">{t('fundingGoal')}</label>
               <input
                 type="number"
                 name="goal_amount"
@@ -186,7 +188,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-900">Already Raised (₹)</label>
+              <label className="block text-sm font-medium text-slate-900">{t('alreadyRaised')}</label>
               <input
                 type="number"
                 name="raised_amount"
@@ -196,7 +198,7 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-900">Patient Story</label>
+              <label className="block text-sm font-medium text-slate-900">{t('patientStory')}</label>
               <textarea
                 name="summary"
                 value={formData.summary}
@@ -206,17 +208,17 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               />
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-900">Patient Photo (optional)</label>
+              <label className="block text-sm font-medium text-slate-900">{t('patientPhotoOptional')}</label>
               <input
                 type="file"
                 accept="image/*"
                 onChange={handleImageChange}
                 className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
               />
-              <p className="mt-1 text-xs text-slate-500">JPG, PNG, or WebP up to 5MB.</p>
+              <p className="mt-1 text-xs text-slate-500">{t('jpgPngOrWebpUpTo5mb')}</p>
               {imageError && <p className="mt-1 text-sm text-red-600">{imageError}</p>}
               {imagePreview && (
-                <img src={imagePreview} alt="Selected patient photo preview" className="mt-3 h-24 w-24 rounded-lg object-cover" />
+                <img src={imagePreview} alt={t('selectedPatientPhotoPreview')} className="mt-3 h-24 w-24 rounded-lg object-cover" />
               )}
             </div>
           </div>
@@ -229,14 +231,13 @@ export function RegisterPatientModal({ onSubmit, onClose, error }: RegisterPatie
               onClick={onClose}
               className="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-semibold text-slate-900 hover:bg-slate-50"
             >
-              Cancel
-            </button>
+              {t('cancel')}{' '}</button>
             <button
               type="submit"
               disabled={submitting}
               className="flex-1 rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700"
             >
-              {submitting ? 'Registering...' : 'Register Patient'}
+              {submitting ? t('registering') : t('registerPatient')}
             </button>
           </div>
         </form>

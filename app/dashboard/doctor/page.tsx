@@ -10,6 +10,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DOCTOR_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { useTranslations } from 'next-intl';
 
 const doctorNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/doctor', icon: Activity },
@@ -23,6 +24,7 @@ const doctorNavItems: NavItem[] = [
 ];
 
 function DoctorDashboardContent() {
+  const t = useTranslations('doctor');
   const { user } = useAuth();
   const [stats, setStats] = useState({ patients: 0, appointments: 0, notes: 0, teleconsults: 0 });
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
@@ -81,8 +83,8 @@ function DoctorDashboardContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Doctor Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your patients, appointments, and medical notes</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('doctorDashboard')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('manageYourPatientsAppointmentsAndMedicalNotes')}</p>
       </div>
 
       {/* Stats */}
@@ -109,8 +111,8 @@ function DoctorDashboardContent() {
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Upcoming Appointments</h2>
-              <a href="/dashboard/appointments" className="text-xs font-semibold text-teal-600 hover:underline">View all</a>
+              <h2 className="text-base font-bold text-slate-900">{t('upcomingAppointments')}</h2>
+              <a href="/dashboard/appointments" className="text-xs font-semibold text-teal-600 hover:underline">{t('viewAll')}</a>
             </div>
             <div className="mt-4 space-y-3">
               {loading ? (
@@ -122,9 +124,9 @@ function DoctorDashboardContent() {
                       {apt.type === 'teleconsultation' ? <Video className="h-5 w-5" /> : <Calendar className="h-5 w-5" />}
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-slate-800">{apt.reason || 'Appointment'}</div>
+                      <div className="text-sm font-semibold text-slate-800">{apt.reason || t('appointment')}</div>
                       <div className="text-xs text-slate-500">
-                        {new Date(apt.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at{' '}
+                        {new Date(apt.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {t('at')}{' '}
                         {new Date(apt.appointment_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
@@ -136,7 +138,7 @@ function DoctorDashboardContent() {
               ) : (
                 <div className="flex flex-col items-center py-8 text-center">
                   <Calendar className="h-8 w-8 text-slate-300" />
-                  <p className="mt-2 text-sm text-slate-400">No upcoming appointments</p>
+                  <p className="mt-2 text-sm text-slate-400">{t('noUpcomingAppointments')}</p>
                 </div>
               )}
             </div>
@@ -146,7 +148,7 @@ function DoctorDashboardContent() {
         {/* Recent patients */}
         <div>
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900">Recent Patients</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('recentPatients')}</h2>
             <div className="mt-4 space-y-3">
               {loading ? (
                 [1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-50" />)
@@ -157,7 +159,7 @@ function DoctorDashboardContent() {
                       {patient.full_name?.charAt(0).toUpperCase() || 'P'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-slate-800">{patient.full_name || 'Patient'}</div>
+                      <div className="truncate text-sm font-semibold text-slate-800">{patient.full_name || t('patient')}</div>
                       <div className="truncate text-xs text-slate-500">{patient.email}</div>
                     </div>
                   </div>
@@ -165,7 +167,7 @@ function DoctorDashboardContent() {
               ) : (
                 <div className="py-6 text-center">
                   <Users className="mx-auto h-6 w-6 text-slate-300" />
-                  <p className="mt-2 text-xs text-slate-400">No patients yet</p>
+                  <p className="mt-2 text-xs text-slate-400">{t('noPatientsYet')}</p>
                 </div>
               )}
             </div>

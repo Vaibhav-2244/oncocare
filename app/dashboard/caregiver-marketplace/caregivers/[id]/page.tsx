@@ -3,10 +3,12 @@ import { notFound } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { getMarketplaceCaregiverById } from '@/lib/caregiver-marketplace';
+import { useTranslations } from 'next-intl';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
+  const t = useTranslations('caregiverMarketplace.caregivers.id');
   const { id } = await params;
   const result = await getMarketplaceCaregiverById(id);
 
@@ -22,12 +24,11 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
         <main className="mx-auto max-w-5xl pb-10">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold tracking-wide text-teal-600">ONCOCARE+</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">Caregiver Profile</h1>
+              <p className="text-sm font-bold tracking-wide text-teal-600">{t('oncocare')}</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('caregiverProfile')}</h1>
             </div>
             <Link href="/dashboard/caregiver-marketplace" className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-              Back to Marketplace
-            </Link>
+              {t('backToMarketplace')}{' '}</Link>
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -41,12 +42,11 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
                   <div className="flex flex-col justify-between gap-4 sm:flex-row">
                     <div>
                       <h2 className="text-3xl font-bold text-slate-900">{caregiver.professional_title}</h2>
-                      <p className="mt-2 text-slate-500">{caregiver.years_of_experience} years of experience</p>
+                      <p className="mt-2 text-slate-500">{caregiver.years_of_experience} {t('yearsOfExperience')}</p>
                     </div>
                     <div className="inline-flex h-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
                       <span>✓</span>
-                      Verified Caregiver
-                    </div>
+                      {t('verifiedCaregiver')}{' '}</div>
                   </div>
 
                   {caregiver.service_area && <p className="mt-4 text-sm text-slate-600">📍 {caregiver.service_area}</p>}
@@ -55,29 +55,29 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
 
               <div className="mt-8 grid grid-cols-3 gap-4 border-y border-slate-100 py-6">
                 <div>
-                  <p className="text-sm text-slate-400">Rating</p>
+                  <p className="text-sm text-slate-400">{t('rating')}</p>
                   <p className="mt-1 text-lg font-bold text-slate-900">★ {caregiver.rating.toFixed(1)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Reviews</p>
+                  <p className="text-sm text-slate-400">{t('reviews')}</p>
                   <p className="mt-1 text-lg font-bold text-slate-900">{caregiver.review_count}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-slate-400">Experience</p>
-                  <p className="mt-1 text-lg font-bold text-slate-900">{caregiver.years_of_experience} years</p>
+                  <p className="text-sm text-slate-400">{t('experience')}</p>
+                  <p className="mt-1 text-lg font-bold text-slate-900">{caregiver.years_of_experience} {t('years')}</p>
                 </div>
               </div>
 
               {caregiver.about && (
                 <section className="mt-8">
-                  <h3 className="text-lg font-bold text-slate-900">About</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('about')}</h3>
                   <p className="mt-3 leading-7 text-slate-600">{caregiver.about}</p>
                 </section>
               )}
 
               {caregiver.languages.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-lg font-bold text-slate-900">Languages</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('languages')}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {caregiver.languages.map((language) => (
                       <span key={language} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">{language}</span>
@@ -88,7 +88,7 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
 
               {caregiver.specializations.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-lg font-bold text-slate-900">Specializations</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('specializations')}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {caregiver.specializations.map((specialization) => (
                       <span key={specialization} className="rounded-full bg-teal-50 px-4 py-2 text-sm font-medium text-teal-700">{specialization}</span>
@@ -99,7 +99,7 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
 
               {caregiver.services.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-lg font-bold text-slate-900">Services</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('services')}</h3>
                   <div className="mt-4 space-y-3">
                     {caregiver.services.map((service) => (
                       <div key={service.id} className="flex flex-col justify-between gap-2 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center">
@@ -118,7 +118,7 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
 
               {caregiver.availability.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-lg font-bold text-slate-900">Availability</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{t('availability')}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {caregiver.availability.map((slot) => (
                       <span key={slot.id} className="rounded-full bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
@@ -131,11 +131,9 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link href={`/dashboard/caregiver-marketplace/caregivers/${caregiver.id}/book`} className="inline-flex items-center justify-center rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">
-                  Book this caregiver
-                </Link>
+                  {t('bookThisCaregiver')}{' '}</Link>
                 <Link href="/dashboard/caregiver-marketplace" className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-                  Explore more caregivers
-                </Link>
+                  {t('exploreMoreCaregivers')}{' '}</Link>
               </div>
             </div>
           </div>

@@ -32,8 +32,8 @@ export function Reveal({
       ref={ref}
       className={className}
       variants={variants}
-      initial="hidden"
-      animate={isInView ? 'visible' : 'hidden'}
+      initial={false}
+      animate={isInView ? 'visible' : undefined}
       transition={{ duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
@@ -59,8 +59,8 @@ export function StaggerGroup({
     <motion.div
       ref={ref}
       className={className}
-      initial="hidden"
-      animate={isInView ? 'visible' : 'hidden'}
+      initial={false}
+      animate={isInView ? 'visible' : undefined}
       variants={{
         hidden: {},
         visible: { transition: { staggerChildren: stagger } },

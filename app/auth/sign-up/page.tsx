@@ -8,8 +8,10 @@ import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Check, AlertCircle, Heart, U
 import { useAuth } from '@/lib/auth-context';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
+import { LanguageSwitcher } from '@/components/shared/language-switcher';
 import { signupRoles, roleConfig, type RoleName } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const roleIcons: Record<string, typeof Heart> = {
   patient: Heart,
@@ -21,6 +23,7 @@ const roleIcons: Record<string, typeof Heart> = {
 };
 
 export default function SignUpPage() {
+  const t = useTranslations('auth.signUp');
   const router = useRouter();
   const { signUp } = useAuth();
   const [step, setStep] = useState<'role' | 'details'>('role');
@@ -68,7 +71,8 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <AuthLayout title="Account created" subtitle="Check your email to verify your account">
+      <AuthLayout title={t('accountCreated')} subtitle="Check your email to verify your account">
+        <div className="mb-4 flex justify-end"><LanguageSwitcher /></div>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -78,22 +82,18 @@ export default function SignUpPage() {
             <Mail className="h-8 w-8 text-teal-600" />
           </div>
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
-            A verification email has been sent to <span className="font-semibold text-slate-900">{email}</span>.
-            Click the link in the email to activate your account.
-          </p>
+            {t('aVerificationEmailHasBeenSentTo')}{' '}<span className="font-semibold text-slate-900">{email}</span>{t('clickTheLinkInTheEmailToActivateYourAccount')}{' '}</p>
           <div className="mt-6 space-y-3">
             <Link
               href="/auth/sign-in"
               className="block w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-center text-sm font-semibold text-white shadow-lg shadow-teal-500/20 transition-all hover:shadow-xl"
             >
-              Continue to Sign In
-            </Link>
+              {t('continueToSignIn')}{' '}</Link>
             <button
               onClick={() => router.push('/')}
               className="block w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50"
             >
-              Back to Home
-            </button>
+              {t('backToHome')}{' '}</button>
           </div>
         </motion.div>
       </AuthLayout>
@@ -101,7 +101,8 @@ export default function SignUpPage() {
   }
 
   return (
-    <AuthLayout title="Create your account" subtitle="Join OncoCare+ and start your care journey">
+    <AuthLayout title={t('createYourAccount')} subtitle="Join OncoCare+ and start your care journey">
+      <div className="mb-4 flex justify-end"><LanguageSwitcher /></div>
       {/* Step 1: Role selection */}
       <AnimatePresence mode="wait">
         {step === 'role' && (
@@ -111,7 +112,7 @@ export default function SignUpPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
           >
-            <p className="mb-4 text-sm font-semibold text-slate-700">I am a...</p>
+            <p className="mb-4 text-sm font-semibold text-slate-700">{t('iAmA')}</p>
             <div className="grid gap-3">
               {signupRoles.map((role) => {
                 const config = roleConfig[role];
@@ -143,10 +144,9 @@ export default function SignUpPage() {
               })}
             </div>
             <p className="mt-6 text-center text-sm text-slate-500">
-              Already have an account?{' '}
+              {t('alreadyHaveAnAccount')}{' '}
               <Link href="/auth/sign-in" className="font-semibold text-teal-600 hover:underline">
-                Sign in
-              </Link>
+                {t('signIn')}{' '}</Link>
             </p>
           </motion.div>
         )}
@@ -163,14 +163,13 @@ export default function SignUpPage() {
             <div className="mb-6 flex items-center gap-2 rounded-xl bg-teal-50 px-4 py-2.5">
               <Check className="h-4 w-4 text-teal-600" />
               <span className="text-sm font-medium text-teal-700">
-                Registering as: {selectedRole && roleConfig[selectedRole].displayName}
+                {t('registeringAs')}{' '}{selectedRole && roleConfig[selectedRole].displayName}
               </span>
               <button
                 onClick={() => setStep('role')}
                 className="ml-auto text-xs font-semibold text-teal-600 hover:underline"
               >
-                Change
-              </button>
+                {t('change')}{' '}</button>
             </div>
 
             {/* OAuth */}
@@ -178,14 +177,14 @@ export default function SignUpPage() {
 
             <div className="my-5 flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />
-              <span className="text-xs font-medium text-slate-400">or sign up with email</span>
+              <span className="text-xs font-medium text-slate-400">{t('orSignUpWithEmail')}</span>
               <div className="h-px flex-1 bg-slate-200" />
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700">Full Name</label>
+                <label className="text-sm font-semibold text-slate-700">{t('fullName')}</label>
                 <div className="relative mt-1.5">
                   <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -193,14 +192,14 @@ export default function SignUpPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     required
-                    placeholder="John Doe"
+                    placeholder={t('johnDoe')}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
               </div>
 
               <div>
-<label className="text-sm font-semibold text-slate-700">Email Address</label>
+<label className="text-sm font-semibold text-slate-700">{t('emailAddress')}</label>
               <div className="relative mt-1.5">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
@@ -215,7 +214,7 @@ export default function SignUpPage() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-700">Password</label>
+                <label className="text-sm font-semibold text-slate-700">{t('password')}</label>
                 <div className="relative mt-1.5">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -223,7 +222,7 @@ export default function SignUpPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    placeholder="At least 8 characters"
+                    placeholder={t('atLeast8Characters')}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                   <button
@@ -235,7 +234,7 @@ export default function SignUpPage() {
                   </button>
                 </div>
                 {password.length > 0 && password.length < 8 && (
-                  <p className="mt-1.5 text-xs text-amber-600">Password must be at least 8 characters</p>
+                  <p className="mt-1.5 text-xs text-amber-600">{t('passwordMustBeAtLeast8Characters')}</p>
                 )}
               </div>
 
@@ -247,8 +246,7 @@ export default function SignUpPage() {
                   className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
                 />
                 <span className="text-xs leading-relaxed text-slate-500">
-                  I agree to the OncoCare+ terms of service and privacy policy.
-                </span>
+                  {t('iAgreeToTheOncocareTermsOfServiceAndPrivacyPolicy')}{' '}</span>
               </label>
 
               {error && (
@@ -267,18 +265,16 @@ export default function SignUpPage() {
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                 ) : (
                   <>
-                    Create Account
-                    <ArrowRight className="h-4 w-4" />
+                    {t('createAccount')}{' '}<ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
             </form>
 
             <p className="mt-6 text-center text-sm text-slate-500">
-              Already have an account?{' '}
+              {t('alreadyHaveAnAccount')}{' '}
               <Link href="/auth/sign-in" className="font-semibold text-teal-600 hover:underline">
-                Sign in
-              </Link>
+                {t('signIn')}{' '}</Link>
             </p>
           </motion.div>
         )}

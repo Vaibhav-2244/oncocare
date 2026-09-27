@@ -6,6 +6,7 @@ import { MapPin, Clock, Star, TrendingDown, ArrowUpRight, ShieldCheck } from 'lu
 import type { Medicine, MedicinePrice } from '@/lib/medicine-types';
 import { availabilityConfig, formatINR } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type SortBy = 'price' | 'distance' | 'delivery' | 'rating';
 
@@ -23,6 +24,7 @@ export function PriceComparisonTable({
   medicine: Medicine;
   prices: MedicinePrice[];
 }) {
+  const t = useTranslations('components.medicine.priceComparison');
   const [sortBy, setSortBy] = useState<SortBy>('price');
 
   const sorted = useMemo(() => {
@@ -49,14 +51,13 @@ export function PriceComparisonTable({
       {/* Header */}
       <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Price Comparison</h3>
+          <h3 className="text-lg font-bold text-slate-900">{t('priceComparison')}</h3>
           <p className="text-xs text-slate-500">
-            {sorted.length} pharmacies with this medicine in stock
-          </p>
+            {sorted.length} {t('pharmaciesWithThisMedicineInStock')}{' '}</p>
         </div>
         {/* Sort */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-slate-400">Sort by:</span>
+          <span className="text-xs font-medium text-slate-400">{t('sortBy')}</span>
           <div className="flex flex-wrap gap-1.5">
             {sortOptions.map((option) => (
               <button
@@ -81,15 +82,15 @@ export function PriceComparisonTable({
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-              <th className="px-5 py-3">Pharmacy</th>
-              <th className="px-5 py-3">Current Price</th>
+              <th className="px-5 py-3">{t('pharmacy')}</th>
+              <th className="px-5 py-3">{t('currentPrice')}</th>
               <th className="px-5 py-3">MRP</th>
-              <th className="px-5 py-3">Discount</th>
-              <th className="px-5 py-3">Availability</th>
-              <th className="px-5 py-3">Distance</th>
-              <th className="px-5 py-3">Delivery</th>
-              <th className="px-5 py-3">Rating</th>
-              <th className="px-5 py-3 text-right">Action</th>
+              <th className="px-5 py-3">{t('discount')}</th>
+              <th className="px-5 py-3">{t('availability')}</th>
+              <th className="px-5 py-3">{t('distance')}</th>
+              <th className="px-5 py-3">{t('delivery')}</th>
+              <th className="px-5 py-3">{t('rating')}</th>
+              <th className="px-5 py-3 text-right">{t('action')}</th>
             </tr>
           </thead>
           <tbody>
@@ -130,8 +131,7 @@ export function PriceComparisonTable({
                       </span>
                       {isLowest && (
                         <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                          Best Price
-                        </span>
+                          {t('bestPrice')}{' '}</span>
                       )}
                     </div>
                   </td>
@@ -158,14 +158,12 @@ export function PriceComparisonTable({
                   <td className="px-5 py-4">
                     <span className="flex items-center gap-1 text-xs text-slate-600">
                       <MapPin className="h-3 w-3 text-slate-400" />
-                      {price.distance_km} km
-                    </span>
+                      {price.distance_km} {t('km')}{' '}</span>
                   </td>
                   <td className="px-5 py-4">
                     <span className="flex items-center gap-1 text-xs text-slate-600">
                       <Clock className="h-3 w-3 text-slate-400" />
-                      {price.delivery_time_hours}h
-                    </span>
+                      {price.delivery_time_hours}{t('h')}{' '}</span>
                   </td>
                   <td className="px-5 py-4">
                     <span className="flex items-center gap-1 text-xs font-medium text-slate-700">
@@ -178,8 +176,7 @@ export function PriceComparisonTable({
                       href="#"
                       className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-all hover:bg-teal-100 hover:text-emerald-deep"
                     >
-                      Visit
-                      <ArrowUpRight className="h-3 w-3" />
+                      {t('visit')}{' '}<ArrowUpRight className="h-3 w-3" />
                     </a>
                   </td>
                 </motion.tr>
@@ -217,8 +214,7 @@ export function PriceComparisonTable({
                 </div>
                 {isLowest && (
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
-                    Best Price
-                  </span>
+                    {t('bestPrice')}{' '}</span>
                 )}
               </div>
               <div className="mt-3 flex items-center justify-between">
@@ -230,8 +226,8 @@ export function PriceComparisonTable({
                   <span className={cn('h-1.5 w-1.5 rounded-full', avail.dot)} />
                   {avail.label}
                 </span>
-                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{price.distance_km} km</span>
-                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{price.delivery_time_hours}h</span>
+                <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{price.distance_km} {t('km')}</span>
+                <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{price.delivery_time_hours}{t('h')}</span>
                 <span className="flex items-center gap-1"><Star className="h-3 w-3 fill-amber-400 text-amber-400" />{price.pharmacy?.rating.toFixed(1)}</span>
               </div>
             </div>
@@ -241,8 +237,8 @@ export function PriceComparisonTable({
 
       {sorted.length === 0 && (
         <div className="p-12 text-center">
-          <p className="text-sm font-medium text-slate-500">No pharmacies currently have this medicine in stock.</p>
-          <p className="mt-1 text-xs text-slate-400">Set up a restock alert to be notified when it becomes available.</p>
+          <p className="text-sm font-medium text-slate-500">{t('noPharmaciesCurrentlyHaveThisMedicineInStock')}</p>
+          <p className="mt-1 text-xs text-slate-400">{t('setUpARestockAlertToBeNotifiedWhenItBecomesAvailable')}</p>
         </div>
       )}
     </div>

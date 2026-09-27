@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Quote, Star, Heart, Stethoscope, Users } from 'lucide-react';
 import { Section, SectionHeading, Reveal, StaggerGroup, StaggerItem } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const testimonials = [
   {
@@ -38,14 +39,15 @@ const testimonials = [
 ];
 
 export function Testimonials() {
+  const t = useTranslations('components.sections.testimonials');
   return (
     <Section id="testimonials">
       <SectionHeading
         eyebrow="Testimonials"
         title={
           <>
-            Real stories from{' '}
-            <span className="gradient-text">real journeys</span>
+            {t('realStoriesFrom')}{' '}
+            <span className="gradient-text">{t('realJourneys')}</span>
           </>
         }
         subtitle="Patients, doctors, and caregivers who experienced the difference of continuous, AI-powered cancer care at home."
@@ -76,8 +78,7 @@ export function Testimonials() {
 
               {/* Quote */}
               <p className="mt-4 text-sm leading-relaxed text-slate-700">
-                &ldquo;{testimonial.quote}&rdquo;
-              </p>
+                {t('ldquo')}{testimonial.quote}{t('rdquo')}{' '}</p>
 
               {/* Author */}
               <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-5">

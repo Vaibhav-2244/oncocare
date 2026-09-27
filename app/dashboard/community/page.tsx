@@ -13,6 +13,7 @@ import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } fr
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface CommunityGroup {
   id: string;
@@ -101,6 +102,7 @@ function PostSkeleton() {
 }
 
 function CommunityContent() {
+  const t = useTranslations('community');
   const { user } = useAuth();
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
   const [joinedGroupIds, setJoinedGroupIds] = useState<Set<string>>(new Set());
@@ -413,8 +415,8 @@ function CommunityContent() {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Community Support</h1>
-        <p className="mt-1 text-sm text-slate-500">Connect with others, share experiences, and find support</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('communitySupport')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('connectWithOthersShareExperiencesAndFindSupport')}</p>
       </div>
 
       {/* Error banner */}
@@ -439,8 +441,7 @@ function CommunityContent() {
                   : 'text-slate-500 hover:bg-slate-50',
               )}
             >
-              All Groups
-            </button>
+              {t('allGroups')}{' '}</button>
             <button
               onClick={() => setShowView('joined')}
               className={cn(
@@ -450,7 +451,7 @@ function CommunityContent() {
                   : 'text-slate-500 hover:bg-slate-50',
               )}
             >
-              My Groups ({joinedGroupIds.size})
+              {t('myGroups')}{joinedGroupIds.size})
             </button>
           </div>
 
@@ -464,10 +465,10 @@ function CommunityContent() {
                   <Users className="h-6 w-6" />
                 </div>
                 <p className="mt-3 text-sm font-medium text-slate-700">
-                  {showView === 'joined' ? 'You haven\'t joined any groups yet' : 'No groups available'}
+                  {showView === 'joined' ? t('youHavenTJoinedAnyGroupsYet') : t('noGroupsAvailable')}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {showView === 'joined' && 'Browse all groups to find one to join.'}
+                  {showView === 'joined' && t('browseAllGroupsToFindOneToJoin')}
                 </p>
               </div>
             ) : (
@@ -505,8 +506,7 @@ function CommunityContent() {
                           {group.category}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {group.member_count || 0} members
-                        </span>
+                          {group.member_count || 0} {t('members')}{' '}</span>
                       </div>
                       {!isJoined && (
                         <button
@@ -517,14 +517,13 @@ function CommunityContent() {
                           disabled={joiningId === group.id}
                           className="mt-3 w-full rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md disabled:opacity-60"
                         >
-                          {joiningId === group.id ? 'Joining...' : 'Join Group'}
+                          {joiningId === group.id ? t('joining') : t('joinGroup')}
                         </button>
                       )}
                       {isJoined && (
                         <div className="mt-3 inline-flex items-center gap-1 rounded-lg bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Joined
-                        </div>
+                          {t('joined')}{' '}</div>
                       )}
                     </motion.div>
                   );
@@ -541,10 +540,9 @@ function CommunityContent() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-400">
                 <MessageSquare className="h-7 w-7" />
               </div>
-              <p className="mt-3 text-sm font-medium text-slate-700">Select a group to view posts</p>
+              <p className="mt-3 text-sm font-medium text-slate-700">{t('selectAGroupToViewPosts')}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Join a group and start sharing your experiences with the community.
-              </p>
+                {t('joinAGroupAndStartSharingYourExperiencesWithTheCommunity')}{' '}</p>
             </div>
           ) : (
             <>
@@ -552,11 +550,10 @@ function CommunityContent() {
               <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-bold text-slate-900">
-                    {selectedGroup?.name || 'Group'}
+                    {selectedGroup?.name || t('group')}
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {selectedGroup?.member_count || 0} members · {posts.length} posts
-                  </p>
+                    {selectedGroup?.member_count || 0} {t('members2')}{' '}{posts.length} {t('posts')}{' '}</p>
                 </div>
                 {joinedGroupIds.has(selectedGroupId) && (
                   <button
@@ -564,7 +561,7 @@ function CommunityContent() {
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-teal-700 hover:to-emerald-700"
                   >
                     {showPostForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                    {showPostForm ? 'Cancel' : 'Create Post'}
+                    {showPostForm ? t('cancel') : t('createPost')}
                   </button>
                 )}
               </div>
@@ -582,26 +579,26 @@ function CommunityContent() {
                       onSubmit={handleCreatePost}
                       className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm"
                     >
-                      <h3 className="text-base font-bold text-slate-900">Create a New Post</h3>
+                      <h3 className="text-base font-bold text-slate-900">{t('createANewPost')}</h3>
                       <div className="mt-4 space-y-4">
                         <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-600">Title</label>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('title')}</label>
                           <input
                             type="text"
                             value={postTitle}
                             onChange={(e) => setPostTitle(e.target.value)}
-                            placeholder="Post title..."
+                            placeholder={t('postTitle')}
                             required
                             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                           />
                         </div>
                         <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-600">Content</label>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('content')}</label>
                           <textarea
                             value={postContent}
                             onChange={(e) => setPostContent(e.target.value)}
                             rows={4}
-                            placeholder="Share your thoughts, experiences, or questions..."
+                            placeholder={t('shareYourThoughtsExperiencesOrQuestions')}
                             required
                             className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                           />
@@ -613,8 +610,7 @@ function CommunityContent() {
                             onChange={(e) => setPostAnonymous(e.target.checked)}
                             className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-200"
                           />
-                          Post anonymously
-                        </label>
+                          {t('postAnonymously')}{' '}</label>
                       </div>
                       <div className="mt-5 flex justify-end gap-3">
                         <button
@@ -622,8 +618,7 @@ function CommunityContent() {
                           onClick={() => setShowPostForm(false)}
                           className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                         >
-                          Cancel
-                        </button>
+                          {t('cancel')}{' '}</button>
                         <button
                           type="submit"
                           disabled={submittingPost}
@@ -634,8 +629,7 @@ function CommunityContent() {
                           ) : (
                             <Send className="h-4 w-4" />
                           )}
-                          Post
-                        </button>
+                          {t('post')}{' '}</button>
                       </div>
                     </form>
                   </motion.div>
@@ -650,11 +644,11 @@ function CommunityContent() {
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-400">
                     <MessageSquare className="h-7 w-7" />
                   </div>
-                  <p className="mt-3 text-sm font-medium text-slate-700">No posts in this group yet</p>
+                  <p className="mt-3 text-sm font-medium text-slate-700">{t('noPostsInThisGroupYet')}</p>
                   <p className="mt-1 text-xs text-slate-400">
                     {joinedGroupIds.has(selectedGroupId)
-                      ? 'Be the first to share your story.'
-                      : 'Join the group to start posting.'}
+                      ? t('beTheFirstToShareYourStory')
+                      : t('joinTheGroupToStartPosting')}
                   </p>
                 </div>
               ) : (
@@ -678,7 +672,7 @@ function CommunityContent() {
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-slate-900">
-                              {post.is_anonymous ? 'Anonymous' : post.author_name || 'Member'}
+                              {post.is_anonymous ? t('anonymous') : post.author_name || t('member')}
                             </p>
                             <p className="text-xs text-slate-400">{timeAgo(post.created_at)}</p>
                           </div>
@@ -746,7 +740,7 @@ function CommunityContent() {
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-2">
                                         <span className="text-xs font-semibold text-slate-900">
-                                          {reply.is_anonymous ? 'Anonymous' : reply.author_name || 'Member'}
+                                          {reply.is_anonymous ? t('anonymous') : reply.author_name || t('member')}
                                         </span>
                                         <span className="text-[10px] text-slate-400">{timeAgo(reply.created_at)}</span>
                                       </div>
@@ -755,7 +749,7 @@ function CommunityContent() {
                                   </div>
                                 ))}
                                 {(repliesByPost[post.id] || []).length === 0 && (
-                                  <p className="text-xs text-slate-400">No replies yet. Be the first to respond.</p>
+                                  <p className="text-xs text-slate-400">{t('noRepliesYetBeTheFirstToRespond')}</p>
                                 )}
 
                                 {/* Reply input */}
@@ -766,7 +760,7 @@ function CommunityContent() {
                                     onChange={(e) =>
                                       setReplyContent((prev) => ({ ...prev, [post.id]: e.target.value }))
                                     }
-                                    placeholder="Write a reply..."
+                                    placeholder={t('writeAReply')}
                                     className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                                   />
                                   <button

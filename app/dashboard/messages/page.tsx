@@ -12,6 +12,7 @@ import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } fr
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface CareTeamMember {
   id: string;
@@ -65,6 +66,7 @@ function MessageSkeleton() {
 }
 
 function MessagesContent() {
+  const t = useTranslations('messages');
   const { user } = useAuth();
   const [contacts, setContacts] = useState<CareTeamMember[]>([]);
   const [selectedContact, setSelectedContact] = useState<CareTeamMember | null>(null);
@@ -262,11 +264,9 @@ function MessagesContent() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-sm">
             <MessageCircle className="h-5 w-5" />
           </span>
-          Secure Messages
-        </h1>
+          {t('secureMessages')}{' '}</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Communicate securely with your care team
-        </p>
+          {t('communicateSecurelyWithYourCareTeam')}{' '}</p>
       </div>
 
       {/* Error banner */}
@@ -286,14 +286,13 @@ function MessagesContent() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search contacts..."
+              placeholder={t('searchContacts')}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
             />
           </div>
 
           <h2 className="mb-2 px-1 text-xs font-bold uppercase tracking-wider text-slate-400">
-            Care Team
-          </h2>
+            {t('careTeam')}{' '}</h2>
           <div className="space-y-2 overflow-y-auto lg:max-h-[calc(100vh-320px)]">
             {loadingContacts ? (
               [0, 1, 2, 3].map((i) => <ContactSkeleton key={i} />)
@@ -303,12 +302,12 @@ function MessagesContent() {
                   <Users className="h-6 w-6" />
                 </div>
                 <p className="mt-3 text-sm font-medium text-slate-700">
-                  {search ? 'No contacts found' : 'No care team members'}
+                  {search ? t('noContactsFound') : t('noCareTeamMembers')}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
                   {search
-                    ? 'Try a different search term.'
-                    : 'Add care team members to start messaging.'}
+                    ? t('tryADifferentSearchTerm')
+                    : t('addCareTeamMembersToStartMessaging')}
                 </p>
               </div>
             ) : (
@@ -348,7 +347,7 @@ function MessagesContent() {
                         </p>
                         <p className="truncate text-xs text-slate-400">
                           {contact.role}
-                          {contact.specialty ? ` · ${contact.specialty}` : ''}
+                          {contact.specialty ? t('specialtyWithSeparator', { specialty: contact.specialty }) : ''}
                         </p>
                       </div>
                     </motion.div>
@@ -368,17 +367,15 @@ function MessagesContent() {
                 <Mail className="h-8 w-8" />
               </div>
               <p className="mt-4 text-base font-semibold text-slate-700">
-                No conversation selected
-              </p>
+                {t('noConversationSelected')}{' '}</p>
               <p className="mt-1 max-w-sm text-sm text-slate-400">
                 {contacts.length === 0
-                  ? 'Add care team members to start secure messaging.'
-                  : 'Select a contact from the list to view or start a conversation.'}
+                  ? t('addCareTeamMembersToStartSecureMessaging')
+                  : t('selectAContactFromTheListToViewOrStartAConversation')}
               </p>
               {contacts.length > 0 && (
                 <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-                  💡 Choose a care team member on the left to begin messaging.
-                </div>
+                  {t('chooseACareTeamMemberOnTheLeftToBeginMessaging')}{' '}</div>
               )}
             </div>
           ) : (
@@ -397,7 +394,7 @@ function MessagesContent() {
                   </h3>
                   <p className="truncate text-xs text-slate-400">
                     {selectedContact.role}
-                    {selectedContact.specialty ? ` · ${selectedContact.specialty}` : ''}
+                    {selectedContact.specialty ? t('specialtyWithSeparator', { specialty: selectedContact.specialty }) : ''}
                   </p>
                 </div>
                 {selectedContact.phone && (
@@ -419,11 +416,9 @@ function MessagesContent() {
                       <MessageCircle className="h-6 w-6" />
                     </div>
                     <p className="mt-3 text-sm font-medium text-slate-700">
-                      No messages yet
-                    </p>
+                      {t('noMessagesYet')}{' '}</p>
                     <p className="mt-1 max-w-xs text-xs text-slate-400">
-                      Send your first message to {selectedContact.member_name} below.
-                    </p>
+                      {t('sendYourFirstMessageTo')}{' '}{selectedContact.member_name} {t('below')}{' '}</p>
                   </div>
                 ) : (
                   groupedMessages.map((group) => (
@@ -496,7 +491,7 @@ function MessagesContent() {
                                   onClick={() => handleDeleteMessage(msg.id)}
                                   disabled={deletingId === msg.id}
                                   className="mb-1 rounded-md p-1 text-slate-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 disabled:opacity-50"
-                                  aria-label="Delete message"
+                                  aria-label={t('deleteMessage')}
                                 >
                                   {deletingId === msg.id ? (
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -529,14 +524,14 @@ function MessagesContent() {
                     }}
                     rows={1}
                     disabled={sending}
-                    placeholder={`Message ${selectedContact.member_name}...`}
+                    placeholder={t('messagePlaceholder', { name: selectedContact.member_name })}
                     className="max-h-32 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30 disabled:opacity-60"
                   />
                   <button
                     type="submit"
                     disabled={!input.trim() || sending}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-600 to-emerald-600 text-white shadow-sm transition-all hover:shadow-md disabled:opacity-50 disabled:shadow-none"
-                    aria-label="Send message"
+                    aria-label={t('sendMessage')}
                   >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -546,8 +541,7 @@ function MessagesContent() {
                   </button>
                 </div>
                 <p className="mt-2 px-1 text-[11px] text-slate-400">
-                  🔒 Messages are secure and visible only to you and your care team.
-                </p>
+                  {t('messagesAreSecureAndVisibleOnlyToYouAndYourCareTeam')}{' '}</p>
               </form>
             </>
           )}

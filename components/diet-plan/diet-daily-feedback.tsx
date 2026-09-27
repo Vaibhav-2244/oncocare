@@ -14,6 +14,7 @@ import { dietFetch } from "@/lib/diet-client";
 import type {
   MealFeedbackSentiment,
 } from "@/types/diet-experience";
+import { useTranslations } from 'next-intl';
 
 interface DietDailyFeedbackProps {
   planDate: string;
@@ -46,6 +47,7 @@ export default function DietDailyFeedback({
   planDate,
   existingSentiment = null,
 }: DietDailyFeedbackProps) {
+  const t = useTranslations('components.dietPlan.dietDailyFeedback');
   const [selected, setSelected] =
     useState<MealFeedbackSentiment | null>(
       existingSentiment ?? null,
@@ -223,12 +225,10 @@ export default function DietDailyFeedback({
 
         <div>
           <h2 className="text-xl font-semibold text-slate-900">
-            How did today feel?
-          </h2>
+            {t('howDidTodayFeel')}{' '}</h2>
 
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            A quick check-in helps future plans better reflect your experience.
-          </p>
+            {t('aQuickCheckInHelpsFuturePlansBetterReflectYourExperience')}{' '}</p>
         </div>
       </div>
 
@@ -280,10 +280,8 @@ export default function DietDailyFeedback({
             htmlFor="daily-feedback-note"
             className="text-sm font-semibold text-slate-800"
           >
-            Anything I should know for tomorrow?
-            <span className="ml-1 font-normal text-slate-400">
-              Optional
-            </span>
+            {t('anythingIShouldKnowForTomorrow')}{' '}<span className="ml-1 font-normal text-slate-400">
+              {t('optional')}{' '}</span>
           </label>
 
           <textarea
@@ -297,7 +295,7 @@ export default function DietDailyFeedback({
                 ),
               )
             }
-            placeholder="For example: lunch felt too heavy, or I didn't enjoy the texture."
+            placeholder={t('forExampleLunchFeltTooHeavyOrIDidnTEnjoyTheTexture')}
             className="mt-2 min-h-24 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-[#8ccfc9] focus:ring-4 focus:ring-[#eaf7f5] motion-reduce:transition-none"
             maxLength={500}
             disabled={saving}
@@ -305,8 +303,7 @@ export default function DietDailyFeedback({
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <span className="text-[11px] leading-5 text-slate-400">
-              Your note is used as personalization feedback, not as a diagnosis.
-            </span>
+              {t('yourNoteIsUsedAsPersonalizationFeedbackNotAsADiagnosis')}{' '}</span>
 
             <div className="flex flex-wrap items-center gap-2">
               <button
@@ -323,10 +320,9 @@ export default function DietDailyFeedback({
                 {saving ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                    Saving
-                  </>
+                    {t('saving')}{' '}</>
                 ) : (
-                  "Save feedback"
+                  t('saveFeedback')
                 )}
               </button>
 
@@ -340,8 +336,7 @@ export default function DietDailyFeedback({
                 disabled={saving}
                 className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition motion-reduce:transition-none hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Skip note
-              </button>
+                {t('skipNote')}{' '}</button>
             </div>
           </div>
         </div>
@@ -353,8 +348,7 @@ export default function DietDailyFeedback({
           role="status"
         >
           <CheckCircle2 className="h-4 w-4" />
-          Got it. We&apos;ll use this as feedback for future planning.
-        </div>
+          {t('gotItWeAposLlUseThisAsFeedbackForFuturePlanning')}{' '}</div>
       )}
 
       {error && (

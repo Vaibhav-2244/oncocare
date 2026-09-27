@@ -1,5 +1,6 @@
 import { Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export function Logo({
   iconBoxSize = 'h-9 w-9',
@@ -14,6 +15,7 @@ export function Logo({
   textClassName?: string;
   className?: string;
 }) {
+  const t = useTranslations('components.shared.logo');
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
       <div className={cn('relative flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-deep to-teal-400 shadow-md shadow-teal-500/30', iconBoxSize)}>
@@ -21,7 +23,7 @@ export function Logo({
         <div className="absolute inset-0 -z-10 rounded-xl bg-teal-400/30 blur-md" />
       </div>
       <span className={cn(textSize, 'font-bold tracking-tight', textClassName)}>
-        OncoCare<span className="text-emerald-deep">+</span>
+        {t('oncocare')}<span className="text-emerald-deep">+</span>
       </span>
     </div>
   );

@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { Mail, ArrowRight, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AuthLayout } from '@/components/auth/auth-layout';
+import { useTranslations } from 'next-intl';
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('auth.forgotPassword');
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,36 +33,33 @@ export default function ForgotPasswordPage() {
 
   if (sent) {
     return (
-      <AuthLayout title="Check your email" subtitle="Password reset instructions sent">
+      <AuthLayout title={t('checkYourEmail')} subtitle="Password reset instructions sent">
         <div className="text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-teal-50">
             <CheckCircle2 className="h-8 w-8 text-teal-600" />
           </div>
           <p className="mt-6 text-sm leading-relaxed text-slate-600">
-            We sent a password reset link to <span className="font-semibold text-slate-900">{email}</span>. Click the link in the email to reset your password.
-          </p>
+            {t('weSentAPasswordResetLinkTo')}{' '}<span className="font-semibold text-slate-900">{email}</span>{t('clickTheLinkInTheEmailToResetYourPassword')}{' '}</p>
           <p className="mt-4 text-xs text-slate-400">
-            Did not receive the email? Check your spam folder or{' '}
+            {t('didNotReceiveTheEmailCheckYourSpamFolderOr')}{' '}
             <button onClick={() => setSent(false)} className="font-semibold text-teal-600 hover:underline">
-              try again
-            </button>
+              {t('tryAgain')}{' '}</button>
           </p>
           <Link
             href="/auth/sign-in"
             className="mt-6 block w-full rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50"
           >
-            Back to Sign In
-          </Link>
+            {t('backToSignIn')}{' '}</Link>
         </div>
       </AuthLayout>
     );
   }
 
   return (
-    <AuthLayout title="Forgot password?" subtitle="Enter your email to receive a reset link">
+    <AuthLayout title={t('forgotPassword')} subtitle="Enter your email to receive a reset link">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-sm font-semibold text-slate-700">Email Address</label>
+          <label className="text-sm font-semibold text-slate-700">{t('emailAddress')}</label>
           <div className="relative mt-1.5">
             <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -90,18 +89,16 @@ export default function ForgotPasswordPage() {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              Send Reset Link
-              <ArrowRight className="h-4 w-4" />
+              {t('sendResetLink')}{' '}<ArrowRight className="h-4 w-4" />
             </>
           )}
         </button>
       </form>
 
       <p className="mt-6 text-center text-sm text-slate-500">
-        Remember your password?{' '}
+        {t('rememberYourPassword')}{' '}
         <Link href="/auth/sign-in" className="font-semibold text-teal-600 hover:underline">
-          Sign in
-        </Link>
+          {t('signIn')}{' '}</Link>
       </p>
     </AuthLayout>
   );

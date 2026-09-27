@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Heart, LayoutDashboard, User, Settings, FileText, MessageSquare,
   Calendar, Brain, Bell, LogOut, Menu, X, Search, ChevronDown,
@@ -16,7 +15,9 @@ import { useAuth } from '@/lib/auth-context';
 import { roleConfig, type RoleName } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
+import { getCachedUnreadNotificationCount, loadUnreadNotificationCount } from '@/lib/notification-count-cache';
 import { Logo } from '@/components/shared/logo';
+import { useTranslations } from 'next-intl';
 
 export const ADMIN_ROLES: RoleName[] = ['super_admin', 'admin'];
 export const PATIENT_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor'];
@@ -43,13 +44,16 @@ export function DashboardLayout({
   navItems?: NavItem[];
   dashboardTitle: string;
 }) {
+  const t = useTranslations('components.auth.dashboardLayout');
   const router = useRouter();
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(() =>
+    user ? getCachedUnreadNotificationCount(user.id) || 0 : 0,
+  );
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
@@ -75,22 +79,22 @@ export function DashboardLayout({
       return;
     }
 
-    const fetchUnreadNotificationCount = async () => {
-      const { count } = await supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
-      setUnreadNotificationCount(count || 0);
+    let active = true;
+    const fetchUnreadNotificationCount = async (forceRefresh = false) => {
+      const count = await loadUnreadNotificationCount(user.id, forceRefresh);
+      if (active) setUnreadNotificationCount(count);
     };
 
-    fetchUnreadNotificationCount();
+    void fetchUnreadNotificationCount();
     const channel = supabase
       .channel(`notifications-${user.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, fetchUnreadNotificationCount)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+        void fetchUnreadNotificationCount(true);
+      })
       .subscribe();
 
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -128,23 +132,13 @@ export function DashboardLayout({
       </aside>
 
       {/* Sidebar — mobile */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-slate-900/60 lg:hidden"
+      {sidebarOpen && (
+        <>
+            <div
+              className="dashboard-overlay-enter fixed inset-0 z-40 bg-slate-900/60 lg:hidden"
               onClick={() => setSidebarOpen(false)}
             />
-            <motion.aside
-              initial={{ x: -280 }}
-              animate={{ x: 0 }}
-              exit={{ x: -280 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card lg:hidden"
-            >
+            <aside className="dashboard-sidebar-enter fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card lg:hidden">
               <SidebarContent
                 navItems={dashboardNavItems}
                 dashboardTitle={dashboardTitle}
@@ -156,10 +150,9 @@ export function DashboardLayout({
                 setUserMenuOpen={setUserMenuOpen}
                 onNavigate={() => setSidebarOpen(false)}
               />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+            </aside>
+        </>
+      )}
 
       {/* Main content */}
       <div className="flex flex-1 flex-col lg:pl-64">
@@ -176,7 +169,7 @@ export function DashboardLayout({
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder={t('search')}
                 value={searchQuery}
                 onChange={(event) => setSearchQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -199,7 +192,7 @@ export function DashboardLayout({
                       {item.label}
                     </button>
                   )) : (
-                    <p className="px-3 py-2 text-sm text-muted-foreground">No results found</p>
+                    <p className="px-3 py-2 text-sm text-muted-foreground">{t('noResultsFound')}</p>
                   )}
                 </div>
               )}
@@ -209,7 +202,7 @@ export function DashboardLayout({
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/dashboard/notifications')}
-              aria-label="View notifications"
+              aria-label={t('viewNotifications')}
               className="relative rounded-lg p-2 text-muted-foreground hover:bg-muted"
             >
               <Bell className="h-5 w-5" />
@@ -233,19 +226,13 @@ export function DashboardLayout({
                 <ChevronDown className="hidden h-4 w-4 text-slate-400 sm:block" />
               </button>
 
-              <AnimatePresence>
-                {userMenuOpen && (
-                  <>
+              {userMenuOpen && (
+                <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: -8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                      className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-card shadow-xl"
-                    >
+                    <div className="dashboard-menu-enter absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-card shadow-xl">
                       <div className="border-b border-border p-3">
                         <p className="truncate text-sm font-semibold text-foreground">
-                          {user?.profile?.full_name || 'User'}
+                          {user?.profile?.full_name || t('user')}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">{user?.phone || user?.email}</p>
                         {user?.primaryRole && (
@@ -256,19 +243,15 @@ export function DashboardLayout({
                       </div>
                       <div className="p-1.5">
                         <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
-                          <User className="h-4 w-4" /> Profile
-                        </Link>
+                          <User className="h-4 w-4" /> {t('profile')}{' '}</Link>
                         <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
-                          <Settings className="h-4 w-4" /> Settings
-                        </Link>
+                          <Settings className="h-4 w-4" /> {t('settings')}{' '}</Link>
                         <button onClick={handleSignOut} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                          <LogOut className="h-4 w-4" /> Sign Out
-                        </button>
+                          <LogOut className="h-4 w-4" /> {t('signOut')}{' '}</button>
                       </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+                    </div>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -301,6 +284,7 @@ function SidebarContent({
   setUserMenuOpen: (v: boolean) => void;
   onNavigate?: () => void;
 }) {
+  const t = useTranslations('components.auth.dashboardLayout');
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -348,7 +332,7 @@ function SidebarContent({
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-900">
-              {user?.profile?.full_name || 'User'}
+              {user?.profile?.full_name || t('user')}
             </p>
             <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
           </div>

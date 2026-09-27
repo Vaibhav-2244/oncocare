@@ -4,8 +4,10 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ArrowRight, Building2, Sparkles, Mail, CheckCircle2 } from 'lucide-react';
 import { Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 export function CTA() {
+  const t = useTranslations('components.sections.cta');
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
 
@@ -36,20 +38,17 @@ export function CTA() {
         <Reveal>
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-teal-200 ring-1 ring-white/20 backdrop-blur-md">
             <Sparkles className="h-3.5 w-3.5" />
-            Join the Movement
-          </span>
+            {t('joinTheMovement')}{' '}</span>
         </Reveal>
 
         <Reveal delay={0.1}>
           <h2 className="mt-8 text-balance text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl md:text-6xl">
-            Let&apos;s Transform Cancer Care Together.
-          </h2>
+            {t('letAposSTransformCancerCareTogether')}{' '}</h2>
         </Reveal>
 
         <Reveal delay={0.15}>
           <p className="mx-auto mt-6 max-w-2xl text-pretty text-base leading-relaxed text-teal-50 sm:text-lg">
-            Whether you&apos;re a patient, caregiver, doctor, or hospital—there&apos;s a place for you in the OncoCare+ community. Join our waitlist today and be part of India&apos;s cancer care revolution.
-          </p>
+            {t('whetherYouAposReAPatientCaregiverDoctorOrHospitalThereAposSAPlaceForYouInTheOnco')}{' '}</p>
         </Reveal>
 
         {/* Email input + button */}
@@ -59,7 +58,7 @@ export function CTA() {
               <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder={t('enterYourEmail')}
                 value={email}
                 onChange={(event) => { setEmail(event.target.value); setSubmitted(false); }}
                 required
@@ -67,7 +66,7 @@ export function CTA() {
               />
             </div>
             <button type="submit" className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-6 py-3.5 text-sm font-semibold text-emerald-deep shadow-lg transition-all hover:shadow-xl hover:shadow-black/20 hover:-translate-y-0.5">
-              {submitted ? 'You are on the list' : 'Join Waitlist'}
+              {submitted ? t('youAreOnTheList') : t('joinWaitlist')}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </button>
           </form>
@@ -94,8 +93,7 @@ export function CTA() {
               className="group inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-semibold text-white backdrop-blur-md transition-all hover:bg-white/10 hover:border-white/30"
             >
               <Building2 className="h-4 w-4" />
-              Become a Hospital Partner
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              {t('becomeAHospitalPartner')}{' '}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </a>
           </div>
         </Reveal>

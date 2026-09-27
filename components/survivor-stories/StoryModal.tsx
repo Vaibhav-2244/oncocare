@@ -2,6 +2,7 @@
 
 import { ExternalLink, ShieldCheck, X } from 'lucide-react';
 import type { SurvivorStory } from '@/lib/survivor-stories-data';
+import { useTranslations } from 'next-intl';
 
 interface StoryModalProps {
   story: SurvivorStory;
@@ -9,6 +10,7 @@ interface StoryModalProps {
 }
 
 export function StoryModal({ story, onClose }: StoryModalProps) {
+  const t = useTranslations('components.survivorStories.storymodal');
   const isVideo = Boolean(story.videoId);
 
   return (
@@ -24,7 +26,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
         <button
           className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-lg z-10"
           type="button"
-          aria-label="Close story"
+          aria-label={t('closeStory')}
           onClick={onClose}
         >
           <X size={20} />
@@ -38,14 +40,13 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
             </span>
             <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
               <ShieldCheck size={12} />
-              Verified Source
-            </span>
+              {t('verifiedSource')}{' '}</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
             {story.title}
           </h2>
           <p className="text-slate-600">
-            Story from <strong>{story.name}</strong>
+            {t('storyFrom')}{' '}<strong>{story.name}</strong>
           </p>
         </div>
 
@@ -69,8 +70,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
           {/* About this story */}
           <section>
             <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
-              About this story
-            </h3>
+              {t('aboutThisStory')}{' '}</h3>
             <p className="text-slate-700">
               {story.summary}
             </p>
@@ -79,8 +79,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
           {/* Why this may feel relevant */}
           <section>
             <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-2">
-              Why this may feel relevant
-            </h3>
+              {t('whyThisMayFeelRelevant')}{' '}</h3>
             <p className="text-slate-700">
               {story.supportFocus}
             </p>
@@ -89,32 +88,28 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
           {/* Quote (if available) */}
           {story.quote && (
             <blockquote className="border-l-4 border-teal-500 pl-4 py-2 italic text-slate-700 bg-teal-50">
-              &quot;{story.quote}&quot;
-            </blockquote>
+              {t('quot')}{story.quote}{t('quot')}{' '}</blockquote>
           )}
 
           {/* Story Details */}
           <div className="grid grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg">
             <div>
               <p className="text-xs text-slate-600 uppercase tracking-wide font-semibold">
-                Location
-              </p>
+                {t('location')}{' '}</p>
               <p className="text-sm font-semibold text-slate-900 mt-1">
-                {story.location || "Not specified"}
+                {story.location || t('notSpecified')}
               </p>
             </div>
             <div>
               <p className="text-xs text-slate-600 uppercase tracking-wide font-semibold">
-                Treatment institution
-              </p>
+                {t('treatmentInstitution')}{' '}</p>
               <p className="text-sm font-semibold text-slate-900 mt-1">
-                {story.treatmentInstitution || "Not specified"}
+                {story.treatmentInstitution || t('notSpecified')}
               </p>
             </div>
             <div>
               <p className="text-xs text-slate-600 uppercase tracking-wide font-semibold">
-                Story type
-              </p>
+                {t('storyType')}{' '}</p>
               <p className="text-sm font-semibold text-slate-900 mt-1">
                 {story.format}
               </p>
@@ -133,8 +128,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
           {/* Source Info */}
           <div className="border-t border-slate-200 pt-4">
             <p className="text-xs text-slate-600 uppercase tracking-wide font-semibold mb-2">
-              Original source
-            </p>
+              {t('originalSource')}{' '}</p>
             <p className="text-sm font-semibold text-slate-900 mb-3">
               {story.sourceLabel || story.sourceName}
             </p>
@@ -144,7 +138,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
               rel="noreferrer"
               className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold text-sm"
             >
-              {isVideo ? "Watch original video" : "Read original story"}
+              {isVideo ? t('watchOriginalVideo') : t('readOriginalStory')}
               <ExternalLink size={14} />
             </a>
           </div>
@@ -157,8 +151,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
               target="_blank"
               rel="noreferrer"
             >
-              Video not loading? Open directly on YouTube
-              <ExternalLink size={13} className="inline ml-2" />
+              {t('videoNotLoadingOpenDirectlyOnYoutube')}{' '}<ExternalLink size={13} className="inline ml-2" />
             </a>
           )}
         </div>
@@ -167,9 +160,7 @@ export function StoryModal({ story, onClose }: StoryModalProps) {
         <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex gap-3 text-sm text-slate-700">
           <ShieldCheck size={18} className="flex-shrink-0 text-teal-600 mt-0.5" />
           <p>
-            This is a personal experience shared for emotional support and education. It does not replace medical
-            advice or individual guidance from a qualified healthcare professional.
-          </p>
+            {t('thisIsAPersonalExperienceSharedForEmotionalSupportAndEducationItDoesNotReplaceMe')}{' '}</p>
         </div>
       </div>
     </div>

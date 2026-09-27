@@ -35,10 +35,12 @@ import { PatientProfileModal } from '@/components/bpl-donations/patient-profile-
 import { CheckoutModal } from '@/components/bpl-donations/checkout-modal';
 import { SuccessModal } from '@/components/bpl-donations/success-modal';
 import { RegisterPatientModal } from '@/components/bpl-donations/register-patient-modal';
+import { useTranslations } from 'next-intl';
 
 type ViewMode = 'dashboard' | 'patients' | 'donations' | 'campaigns' | 'notifications';
 
 export default function BplDonationsPage() {
+  const t = useTranslations('bplDonations');
   const { user } = useAuth();
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
 
@@ -221,7 +223,7 @@ export default function BplDonationsPage() {
   };
 
   const handleDownloadReceipt = (donation: BplDonation & { patientName?: string }) => {
-    generateDonationReceipt(donation);
+    void generateDonationReceipt(donation);
   };
 
   const closeDonation = () => {
@@ -237,7 +239,7 @@ export default function BplDonationsPage() {
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-200 border-t-teal-600 mx-auto" />
-            <p className="mt-2 text-slate-600">Loading...</p>
+            <p className="mt-2 text-slate-600">{t('loading')}</p>
           </div>
         </div>
       );
@@ -297,7 +299,7 @@ export default function BplDonationsPage() {
         {error && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
             <span>{error}</span>
-            <button type="button" onClick={() => setError(null)} className="font-semibold">Dismiss</button>
+            <button type="button" onClick={() => setError(null)} className="font-semibold">{t('dismiss')}</button>
           </div>
         )}
         {renderContent()}
@@ -365,23 +367,22 @@ function DashboardView({
   onSearch: (term: string) => void;
   searchTerm: string;
 }) {
+  const t = useTranslations('bplDonations');
   return (
     <main className="space-y-8 p-6 lg:p-8">
       {/* Header */}
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">BPL Donation Platform</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{t('bplDonationPlatform')}</h1>
           <p className="mt-1 text-slate-600">
-            Direct donations to verified cancer patients with transparent treatment goals.
-          </p>
+            {t('directDonationsToVerifiedCancerPatientsWithTransparentTreatmentGoals')}{' '}</p>
         </div>
         <button
           onClick={onRegister}
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700"
         >
           <Plus size={18} />
-          Register Patient
-        </button>
+          {t('registerPatient')}{' '}</button>
       </div>
 
       {/* Hero */}
@@ -389,16 +390,14 @@ function DashboardView({
         <div className="flex items-start gap-4">
           <Heart size={32} fill="currentColor" />
           <div className="flex-1">
-            <h2 className="text-2xl font-bold">Help a cancer patient today</h2>
+            <h2 className="text-2xl font-bold">{t('helpACancerPatientToday')}</h2>
             <p className="mt-2 text-teal-100">
-              Support verified BPL patients with treatment, medicines, and essential care.
-            </p>
+              {t('supportVerifiedBplPatientsWithTreatmentMedicinesAndEssentialCare')}{' '}</p>
             <button
               onClick={() => patients.length > 0 && onDonate(patients[0])}
               className="mt-4 flex items-center gap-2 rounded-lg bg-white px-4 py-2 font-semibold text-teal-600 hover:bg-teal-50"
             >
-              Donate Now
-              <ChevronRight size={18} />
+              {t('donateNow')}{' '}<ChevronRight size={18} />
             </button>
           </div>
         </div>
@@ -412,11 +411,11 @@ function DashboardView({
               <Wallet className="text-teal-600" size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">Total Donations</p>
+              <p className="text-sm font-medium text-slate-600">{t('totalDonations')}</p>
               <p className="text-2xl font-bold text-slate-900">
                 ₹{stats.totalRaised.toLocaleString('en-IN')}
               </p>
-              <small className="text-xs text-slate-500">Raised for BPL patients</small>
+              <small className="text-xs text-slate-500">{t('raisedForBplPatients')}</small>
             </div>
           </div>
         </div>
@@ -427,9 +426,9 @@ function DashboardView({
               <Heart className="text-teal-600" size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">Patients Supported</p>
+              <p className="text-sm font-medium text-slate-600">{t('patientsSupported')}</p>
               <p className="text-2xl font-bold text-slate-900">{stats.uniqueDonors}</p>
-              <small className="text-xs text-slate-500">Patients received assistance</small>
+              <small className="text-xs text-slate-500">{t('patientsReceivedAssistance')}</small>
             </div>
           </div>
         </div>
@@ -440,9 +439,9 @@ function DashboardView({
               <Activity className="text-teal-600" size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">Active Campaigns</p>
+              <p className="text-sm font-medium text-slate-600">{t('activeCampaigns')}</p>
               <p className="text-2xl font-bold text-slate-900">{stats.activeCampaigns}</p>
-              <small className="text-xs text-slate-500">Currently accepting donations</small>
+              <small className="text-xs text-slate-500">{t('currentlyAcceptingDonations')}</small>
             </div>
           </div>
         </div>
@@ -451,7 +450,7 @@ function DashboardView({
       {/* Patients Grid */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Patients Needing Support</h2>
+          <h2 className="text-xl font-bold text-slate-900">{t('patientsNeedingSupport')}</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {patients.map((patient) => (
@@ -484,22 +483,21 @@ function PatientsView({
   onSearch: (term: string) => void;
   searchTerm: string;
 }) {
+  const t = useTranslations('bplDonations');
   return (
     <main className="space-y-6 p-6 lg:p-8">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Patients</h1>
+          <h1 className="text-3xl font-bold text-slate-900">{t('patients')}</h1>
           <p className="mt-1 text-slate-600">
-            View verified patient profiles and treatment campaigns.
-          </p>
+            {t('viewVerifiedPatientProfilesAndTreatmentCampaigns')}{' '}</p>
         </div>
         <button
           onClick={onRegister}
           className="flex items-center gap-2 rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700"
         >
           <Plus size={18} />
-          Register Patient
-        </button>
+          {t('registerPatient')}{' '}</button>
       </div>
 
       {/* Search */}
@@ -507,7 +505,7 @@ function PatientsView({
         <Search size={18} className="text-slate-400" />
         <input
           type="text"
-          placeholder="Search patients, cancers, locations..."
+          placeholder={t('searchPatientsCancersLocations')}
           value={searchTerm}
           onChange={(e) => onSearch(e.target.value)}
           className="flex-1 border-0 outline-none"
@@ -527,8 +525,8 @@ function PatientsView({
         ) : (
           <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
             <Users size={48} className="mx-auto text-slate-400" />
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">No patients found</h3>
-            <p className="mt-1 text-slate-600">Try adjusting your search terms</p>
+            <h3 className="mt-4 text-lg font-semibold text-slate-900">{t('noPatientsFound')}</h3>
+            <p className="mt-1 text-slate-600">{t('tryAdjustingYourSearchTerms')}</p>
           </div>
         )}
       </div>
@@ -547,22 +545,21 @@ function DonationsView({
   donations: BplDonation[];
   onDownloadReceipt: (donation: BplDonation & { patientName?: string }) => void;
 }) {
+  const t = useTranslations('bplDonations');
   return (
     <main className="space-y-6 p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Donation History</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('donationHistory')}</h1>
         <p className="mt-1 text-slate-600">
-          View all donations made through the BPL platform.
-        </p>
+          {t('viewAllDonationsMadeThroughTheBplPlatform')}{' '}</p>
       </div>
 
       {donations.length === 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
           <Wallet size={48} className="mx-auto text-slate-400" />
-          <h3 className="mt-4 text-lg font-semibold text-slate-900">No donations yet</h3>
+          <h3 className="mt-4 text-lg font-semibold text-slate-900">{t('noDonationsYet')}</h3>
           <p className="mt-1 text-slate-600">
-            Completed donations will appear here with their receipts.
-          </p>
+            {t('completedDonationsWillAppearHereWithTheirReceipts')}{' '}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-slate-200">
@@ -570,20 +567,15 @@ function DonationsView({
             <thead className="border-b border-slate-200 bg-slate-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
-                  Receipt ID
-                </th>
+                  {t('receiptId')}{' '}</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
-                  Amount
-                </th>
+                  {t('amount')}{' '}</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
-                  Date
-                </th>
+                  {t('date')}{' '}</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase text-slate-600">
-                  Status
-                </th>
+                  {t('status')}{' '}</th>
                 <th className="px-6 py-3 text-right text-xs font-semibold uppercase text-slate-600">
-                  Action
-                </th>
+                  {t('action')}{' '}</th>
               </tr>
             </thead>
             <tbody>
@@ -603,16 +595,14 @@ function DonationsView({
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                      ✓ Successful
-                    </span>
+                      {t('successful')}{' '}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={() => onDownloadReceipt(donation)}
                       className="text-teal-600 hover:text-teal-700 font-medium text-sm"
                     >
-                      Download
-                    </button>
+                      {t('download')}{' '}</button>
                   </td>
                 </tr>
               ))}
@@ -639,13 +629,13 @@ function CampaignsView({
   onSearch: (term: string) => void;
   searchTerm: string;
 }) {
+  const t = useTranslations('bplDonations');
   return (
     <main className="space-y-6 p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Campaigns</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('campaigns')}</h1>
         <p className="mt-1 text-slate-600">
-          Active treatment funding campaigns.
-        </p>
+          {t('activeTreatmentFundingCampaigns')}{' '}</p>
       </div>
 
       {/* Search */}
@@ -653,7 +643,7 @@ function CampaignsView({
         <Search size={18} className="text-slate-400" />
         <input
           type="text"
-          placeholder="Search campaigns..."
+          placeholder={t('searchCampaigns')}
           value={searchTerm}
           onChange={(e) => onSearch(e.target.value)}
           className="flex-1 border-0 outline-none"
@@ -677,8 +667,7 @@ function CampaignsView({
                 />
                 {patient.urgent && (
                   <span className="absolute top-4 right-4 rounded bg-red-600 px-3 py-1 text-xs font-semibold text-white">
-                    URGENT
-                  </span>
+                    {t('urgent')}{' '}</span>
                 )}
               </div>
               <div className="p-4">
@@ -707,15 +696,14 @@ function CampaignsView({
                     <strong className="text-slate-900">
                       ₹{remaining.toLocaleString('en-IN')}
                     </strong>
-                    <span className="text-slate-500">still needed</span>
+                    <span className="text-slate-500">{t('stillNeeded')}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => onDonate(patient)}
                   className="mt-4 w-full rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
                 >
-                  Donate
-                </button>
+                  {t('donate')}{' '}</button>
               </div>
             </div>
           );
@@ -730,13 +718,13 @@ function CampaignsView({
 // ========================================================================
 
 function NotificationsView({ donations }: { donations: number }) {
+  const t = useTranslations('bplDonations');
   return (
     <main className="space-y-6 p-6 lg:p-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Notifications</h1>
+        <h1 className="text-3xl font-bold text-slate-900">{t('notifications')}</h1>
         <p className="mt-1 text-slate-600">
-          Recent platform and campaign notifications.
-        </p>
+          {t('recentPlatformAndCampaignNotifications')}{' '}</p>
       </div>
 
       <div className="space-y-4">
@@ -745,10 +733,9 @@ function NotificationsView({ donations }: { donations: number }) {
             <Heart size={20} className="text-teal-600" />
           </div>
           <div>
-            <p className="font-semibold text-slate-900">Verified campaign</p>
+            <p className="font-semibold text-slate-900">{t('verifiedCampaign')}</p>
             <p className="text-sm text-slate-600">
-              New patient campaign verification completed.
-            </p>
+              {t('newPatientCampaignVerificationCompleted')}{' '}</p>
           </div>
         </div>
 
@@ -758,10 +745,9 @@ function NotificationsView({ donations }: { donations: number }) {
               <Wallet size={20} className="text-teal-600" />
             </div>
             <div>
-              <p className="font-semibold text-slate-900">Donation recorded</p>
+              <p className="font-semibold text-slate-900">{t('donationRecorded')}</p>
               <p className="text-sm text-slate-600">
-                {donations} donation{donations !== 1 ? 's' : ''} recorded on the platform.
-              </p>
+                {donations} {t('donation')}{donations !== 1 ? t('s') : ''} {t('recordedOnThePlatform')}{' '}</p>
             </div>
           </div>
         )}

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Home, Users, EyeOff, Puzzle, type LucideIcon } from 'lucide-react';
 import { Section, SectionHeading, Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const problems: {
   icon: LucideIcon;
@@ -51,14 +52,15 @@ const problems: {
 ];
 
 export function Problem() {
+  const t = useTranslations('components.sections.problem');
   return (
     <Section id="problem" className="bg-brand-cloud">
       <SectionHeading
         eyebrow="The Problem"
         title={
           <>
-            Cancer care does not end at the{' '}
-            <span className="gradient-text">hospital door</span>
+            {t('cancerCareDoesNotEndAtThe')}{' '}
+            <span className="gradient-text">{t('hospitalDoor')}</span>
           </>
         }
         subtitle="The hardest part of cancer treatment often begins after discharge. Patients and families are sent home with complex regimens, mounting anxiety, and nowhere to turn."

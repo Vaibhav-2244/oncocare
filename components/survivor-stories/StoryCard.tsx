@@ -2,6 +2,7 @@
 
 import { ChevronRight, Play, ShieldCheck } from 'lucide-react';
 import type { SurvivorStory } from '@/lib/survivor-stories-data';
+import { useTranslations } from 'next-intl';
 
 interface StoryCardProps {
   story: SurvivorStory;
@@ -9,6 +10,7 @@ interface StoryCardProps {
 }
 
 export function StoryCard({ story, onOpen }: StoryCardProps) {
+  const t = useTranslations('components.survivorStories.storycard');
   const isVideo = Boolean(story.videoId);
   
   const avatarColors: Record<string, string> = {
@@ -43,12 +45,10 @@ export function StoryCard({ story, onOpen }: StoryCardProps) {
           {isVideo ? (
             <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-1 rounded flex items-center gap-1">
               <Play size={10} fill="currentColor" />
-              Video
-            </span>
+              {t('video')}{' '}</span>
           ) : (
             <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-1 rounded">
-              Written
-            </span>
+              {t('written')}{' '}</span>
           )}
         </div>
 
@@ -80,15 +80,13 @@ export function StoryCard({ story, onOpen }: StoryCardProps) {
         <div className="flex items-center justify-between pt-2 border-t border-slate-100">
           <span className="text-xs text-slate-500 flex items-center gap-1">
             <ShieldCheck size={12} />
-            Verified source
-          </span>
+            {t('verifiedSource')}{' '}</span>
           <button
             type="button"
             onClick={onOpen}
             className="text-xs font-semibold text-teal-600 hover:text-teal-700 flex items-center gap-1"
           >
-            Explore
-            <ChevronRight size={14} />
+            {t('explore')}{' '}<ChevronRight size={14} />
           </button>
         </div>
       </div>

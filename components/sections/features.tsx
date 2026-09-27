@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Section, SectionHeading, Reveal, StaggerGroup, StaggerItem } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const features: {
   icon: LucideIcon;
@@ -144,14 +145,15 @@ const features: {
 ];
 
 export function Features() {
+  const t = useTranslations('components.sections.features');
   return (
     <Section id="features" className="bg-brand-cloud">
       <SectionHeading
         eyebrow="Feature Showcase"
         title={
           <>
-            Everything a cancer patient needs.{' '}
-            <span className="gradient-text">Nothing they do not need.</span>
+            {t('everythingACancerPatientNeeds')}{' '}
+            <span className="gradient-text">{t('nothingTheyDoNotNeed')}</span>
           </>
         }
         subtitle="Fifteen deeply integrated modules—each designed with oncologists, patients, and caregivers. Built for the realities of cancer care at home."
@@ -180,8 +182,7 @@ export function Features() {
 
               {/* Hover arrow */}
               <div className="mt-4 flex items-center gap-1 text-xs font-semibold text-teal-600 opacity-0 transition-all duration-300 group-hover:opacity-100">
-                Learn more
-                <motion.span className="inline-block">→</motion.span>
+                {t('learnMore')}{' '}<motion.span className="inline-block">→</motion.span>
               </div>
 
               {/* Bottom border accent */}

@@ -26,8 +26,10 @@ import {
 import type { Medicine, MedicinePrice, Pharmacy, GenericAlternative, WatchlistItem, RecentlyViewed, FavouritePharmacy } from '@/lib/medicine-types';
 import { popularSearches } from '@/lib/medicine-types';
 import { useAuth } from '@/lib/auth-context';
+import { useTranslations } from 'next-intl';
 
 export default function MedicineFinderPage() {
+  const t = useTranslations('medicineFinder');
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Medicine[]>([]);
@@ -139,8 +141,7 @@ export default function MedicineFinderPage() {
           >
             <span className="inline-flex items-center gap-2 rounded-full border border-teal-200/60 bg-white/80 px-4 py-1.5 text-xs font-semibold text-emerald-deep shadow-sm backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-teal-500" />
-              Medicine Price Intelligence
-            </span>
+              {t('medicinePriceIntelligence')}{' '}</span>
           </motion.div>
 
           {/* Headline */}
@@ -150,8 +151,8 @@ export default function MedicineFinderPage() {
             transition={{ delay: 0.1 }}
             className="mt-8 text-center text-balance text-3xl font-bold leading-tight tracking-tight text-slate-900 sm:text-5xl md:text-6xl"
           >
-            Find Cancer Medicines at the{' '}
-            <span className="gradient-text animate-gradient">Best Available Price</span>
+            {t('findCancerMedicinesAtThe')}{' '}
+            <span className="gradient-text animate-gradient">{t('bestAvailablePrice')}</span>
           </motion.h1>
 
           {/* Subheading */}
@@ -161,8 +162,7 @@ export default function MedicineFinderPage() {
             transition={{ delay: 0.2 }}
             className="mx-auto mt-5 max-w-2xl text-center text-pretty text-base leading-relaxed text-slate-600 sm:text-lg"
           >
-            Search trusted pharmacies, compare prices, check availability, and locate nearby stores—all in one place.
-          </motion.p>
+            {t('searchTrustedPharmaciesComparePricesCheckAvailabilityAndLocateNearbyStoresAllInO')}{' '}</motion.p>
 
           {/* Search bar */}
           <motion.div
@@ -175,7 +175,7 @@ export default function MedicineFinderPage() {
 
             {/* Example searches */}
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-              <span className="text-xs font-medium text-slate-400">Try:</span>
+              <span className="text-xs font-medium text-slate-400">{t('try')}</span>
               {popularSearches.map((med) => (
                 <button
                   key={med}
@@ -195,9 +195,9 @@ export default function MedicineFinderPage() {
             transition={{ delay: 0.4 }}
             className="mt-10 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500"
           >
-            <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-teal-500" /> Verified Pharmacies</span>
-            <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-teal-500" /> Real-Time Prices</span>
-            <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4 text-teal-500" /> {pharmacies.length}+ Partner Stores</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="h-4 w-4 text-teal-500" /> {t('verifiedPharmacies')}</span>
+            <span className="flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-teal-500" /> {t('realTimePrices')}</span>
+            <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4 text-teal-500" /> {pharmacies.length}{t('partnerStores')}</span>
           </motion.div>
         </div>
       </section>
@@ -221,8 +221,7 @@ export default function MedicineFinderPage() {
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-all hover:border-teal-300 hover:text-emerald-deep"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  Back to results
-                </button>
+                  {t('backToResults')}{' '}</button>
 
                 {/* Medicine header */}
                 <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm">
@@ -245,8 +244,7 @@ export default function MedicineFinderPage() {
                           </span>
                           {selectedMedicine.prescription_required && (
                             <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">
-                              Prescription Required
-                            </span>
+                              {t('prescriptionRequired')}{' '}</span>
                           )}
                         </div>
                       </div>
@@ -294,8 +292,8 @@ export default function MedicineFinderPage() {
                   <div>
                     <div className="mb-6 flex items-center justify-between">
                       <h2 className="text-xl font-bold text-slate-900">
-                        {loading ? 'Searching...' : `${searchResults.length} medicines found`}
-                        {searchQuery && <span className="ml-2 text-sm font-normal text-slate-500">for &quot;{searchQuery}&quot;</span>}
+                        {loading ? t('searching') : t('resultsCount', { count: searchResults.length })}
+                        {searchQuery && <span className="ml-2 text-sm font-normal text-slate-500">{t('forQuot')}{searchQuery}{t('quot')}</span>}
                       </h2>
                     </div>
 
@@ -320,8 +318,8 @@ export default function MedicineFinderPage() {
                     ) : (
                       <div className="rounded-2xl border border-slate-200 bg-white p-16 text-center">
                         <Pill className="mx-auto h-10 w-10 text-slate-300" />
-                        <p className="mt-4 text-sm font-medium text-slate-600">No medicines found</p>
-                        <p className="mt-1 text-xs text-slate-400">Try searching by generic name, manufacturer, or category</p>
+                        <p className="mt-4 text-sm font-medium text-slate-600">{t('noMedicinesFound')}</p>
+                        <p className="mt-1 text-xs text-slate-400">{t('trySearchingByGenericNameManufacturerOrCategory')}</p>
                       </div>
                     )}
                   </div>
@@ -329,7 +327,7 @@ export default function MedicineFinderPage() {
 
                 {/* User features panel */}
                 <div>
-                  <h2 className="mb-6 text-xl font-bold text-slate-900">Your Medicine Dashboard</h2>
+                  <h2 className="mb-6 text-xl font-bold text-slate-900">{t('yourMedicineDashboard')}</h2>
                   <UserFeaturesPanel
                     watchlist={watchlist}
                     recentlyViewed={recentlyViewed}
@@ -340,8 +338,8 @@ export default function MedicineFinderPage() {
                 {/* Nearby pharmacies */}
                 <div>
                   <div className="mb-6">
-                    <h2 className="text-xl font-bold text-slate-900">Nearby Verified Pharmacies</h2>
-                    <p className="mt-1 text-sm text-slate-500">Locate trusted pharmacies near you with cancer medicine availability</p>
+                    <h2 className="text-xl font-bold text-slate-900">{t('nearbyVerifiedPharmacies')}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{t('locateTrustedPharmaciesNearYouWithCancerMedicineAvailability')}</p>
                   </div>
                   <NearbyPharmacies
                     pharmacies={pharmacies}
@@ -356,14 +354,11 @@ export default function MedicineFinderPage() {
                   <div className="mb-6">
                     <span className="inline-flex items-center gap-2 rounded-full bg-teal-50 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-deep ring-1 ring-teal-200/60">
                       <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                      Coming Soon
-                    </span>
+                      {t('comingSoon')}{' '}</span>
                     <h2 className="mt-4 text-2xl font-bold text-slate-900">
-                      Future <span className="gradient-text">AI-Powered</span> Features
-                    </h2>
+                      {t('future')}{' '}<span className="gradient-text">{t('aiPowered')}</span> {t('features')}{' '}</h2>
                     <p className="mt-2 text-sm text-slate-500">
-                      We&apos;re building intelligent tools to make medicine discovery even smarter.
-                    </p>
+                      {t('weAposReBuildingIntelligentToolsToMakeMedicineDiscoveryEvenSmarter')}{' '}</p>
                   </div>
                   <FutureAIFeatures />
                 </div>

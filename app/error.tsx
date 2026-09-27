@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Home, RefreshCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export default function Error({
   error,
@@ -11,6 +12,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const t = useTranslations('home');
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-white px-6">
       <motion.div
@@ -25,14 +27,13 @@ export default function Error({
           </div>
         </div>
 
-        <h1 className="mt-8 text-2xl font-bold text-slate-900">Something went wrong</h1>
+        <h1 className="mt-8 text-2xl font-bold text-slate-900">{t('somethingWentWrong')}</h1>
         <p className="mt-2 max-w-md text-sm text-slate-500">
-          An unexpected error occurred. Our team has been notified. Please try again or return home.
-        </p>
+          {t('anUnexpectedErrorOccurredOurTeamHasBeenNotifiedPleaseTryAgainOrReturnHome')}{' '}</p>
 
         {error.digest && (
           <p className="mt-4 rounded-lg bg-slate-50 px-3 py-1.5 text-xs font-mono text-slate-400">
-            Error ID: {error.digest}
+            {t('errorId')}{' '}{error.digest}
           </p>
         )}
 
@@ -42,15 +43,13 @@ export default function Error({
             className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 transition-all hover:shadow-xl"
           >
             <RefreshCw className="h-4 w-4" />
-            Try Again
-          </button>
+            {t('tryAgain')}{' '}</button>
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-50"
           >
             <Home className="h-4 w-4" />
-            Go Home
-          </Link>
+            {t('goHome')}{' '}</Link>
         </div>
       </motion.div>
     </div>

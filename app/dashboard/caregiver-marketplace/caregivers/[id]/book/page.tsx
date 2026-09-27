@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { useTranslations } from 'next-intl';
 
 type Service = {
   id: string;
@@ -25,6 +26,7 @@ type Caregiver = {
 };
 
 export default function CaregiverBookingPage() {
+  const t = useTranslations('caregiverMarketplace.caregivers.id.book');
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
@@ -159,7 +161,7 @@ export default function CaregiverBookingPage() {
           <div className="flex min-h-screen items-center justify-center bg-slate-50">
             <div className="text-center">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-teal-600" />
-              <p className="mt-4 text-sm font-medium text-slate-500">Loading caregiver...</p>
+              <p className="mt-4 text-sm font-medium text-slate-500">{t('loadingCaregiver')}</p>
             </div>
           </div>
         </DashboardLayout>
@@ -174,17 +176,16 @@ export default function CaregiverBookingPage() {
           <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
             <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl text-emerald-600">✓</div>
-              <h1 className="mt-5 text-2xl font-bold text-slate-900">Booking Request Sent</h1>
-              <p className="mt-3 leading-7 text-slate-600">Your booking request has been successfully submitted to the caregiver.</p>
+              <h1 className="mt-5 text-2xl font-bold text-slate-900">{t('bookingRequestSent')}</h1>
+              <p className="mt-3 leading-7 text-slate-600">{t('yourBookingRequestHasBeenSuccessfullySubmittedToTheCaregiver')}</p>
               <div className="mt-6 rounded-xl bg-slate-50 p-5 text-left">
-                <h2 className="font-semibold text-slate-900">Request Details</h2>
-                {caregiver && <p className="mt-3 text-sm text-slate-600">Caregiver: <span className="font-semibold text-slate-900">{caregiver.professional_title}</span></p>}
-                {selectedService && <p className="mt-2 text-sm text-slate-600">Service: <span className="font-semibold text-slate-900">{selectedService.service_name}</span></p>}
-                <p className="mt-2 text-sm text-slate-600">Date: <span className="font-semibold text-slate-900">{bookingDate}</span></p>
+                <h2 className="font-semibold text-slate-900">{t('requestDetails')}</h2>
+                {caregiver && <p className="mt-3 text-sm text-slate-600">{t('caregiver')}{' '}<span className="font-semibold text-slate-900">{caregiver.professional_title}</span></p>}
+                {selectedService && <p className="mt-2 text-sm text-slate-600">{t('service')}{' '}<span className="font-semibold text-slate-900">{selectedService.service_name}</span></p>}
+                <p className="mt-2 text-sm text-slate-600">{t('date')}{' '}<span className="font-semibold text-slate-900">{bookingDate}</span></p>
               </div>
               <button type="button" onClick={() => router.push('/dashboard/caregiver-marketplace')} className="mt-6 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-700">
-                Return to Marketplace
-              </button>
+                {t('returnToMarketplace')}{' '}</button>
             </div>
           </main>
         </DashboardLayout>
@@ -198,12 +199,11 @@ export default function CaregiverBookingPage() {
         <main className="mx-auto max-w-4xl pb-10">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold tracking-wide text-teal-600">ONCOCARE+</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-900">Book Caregiver</h1>
+              <p className="text-sm font-bold tracking-wide text-teal-600">{t('oncocare')}</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-900">{t('bookCaregiver')}</h1>
             </div>
             <button type="button" onClick={() => router.back()} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-              Go back
-            </button>
+              {t('goBack')}{' '}</button>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -214,16 +214,16 @@ export default function CaregiverBookingPage() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">{caregiver.professional_title}</h2>
-                  <p className="text-sm text-slate-500">{caregiver.years_of_experience} years of experience</p>
+                  <p className="text-sm text-slate-500">{caregiver.years_of_experience} {t('yearsOfExperience')}</p>
                 </div>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label htmlFor="service" className="mb-2 block text-sm font-semibold text-slate-700">Service</label>
+                <label htmlFor="service" className="mb-2 block text-sm font-semibold text-slate-700">{t('service2')}</label>
                 <select id="service" value={serviceId} onChange={(event) => setServiceId(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
-                  <option value="">Select a service</option>
+                  <option value="">{t('selectAService')}</option>
                   {(caregiver?.services ?? []).map((service) => (
                     <option key={service.id} value={service.id}>{service.service_name}</option>
                   ))}
@@ -232,44 +232,43 @@ export default function CaregiverBookingPage() {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="bookingDate" className="mb-2 block text-sm font-semibold text-slate-700">Preferred date</label>
+                  <label htmlFor="bookingDate" className="mb-2 block text-sm font-semibold text-slate-700">{t('preferredDate')}</label>
                   <input id="bookingDate" type="date" value={bookingDate} onChange={(event) => setBookingDate(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                 </div>
                 <div>
-                  <label htmlFor="location" className="mb-2 block text-sm font-semibold text-slate-700">Location</label>
-                  <input id="location" type="text" value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Home / clinic / city" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                  <label htmlFor="location" className="mb-2 block text-sm font-semibold text-slate-700">{t('location')}</label>
+                  <input id="location" type="text" value={location} onChange={(event) => setLocation(event.target.value)} placeholder={t('homeClinicCity')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="startTime" className="mb-2 block text-sm font-semibold text-slate-700">Start time</label>
+                  <label htmlFor="startTime" className="mb-2 block text-sm font-semibold text-slate-700">{t('startTime')}</label>
                   <input id="startTime" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                 </div>
                 <div>
-                  <label htmlFor="endTime" className="mb-2 block text-sm font-semibold text-slate-700">End time</label>
+                  <label htmlFor="endTime" className="mb-2 block text-sm font-semibold text-slate-700">{t('endTime')}</label>
                   <input id="endTime" type="time" value={endTime} onChange={(event) => setEndTime(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="requirements" className="mb-2 block text-sm font-semibold text-slate-700">Care requirements</label>
-                <textarea id="requirements" rows={4} value={requirements} onChange={(event) => setRequirements(event.target.value)} placeholder="Describe the patient’s needs, mobility support, medication reminders, or any specific care needs." className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                <label htmlFor="requirements" className="mb-2 block text-sm font-semibold text-slate-700">{t('careRequirements')}</label>
+                <textarea id="requirements" rows={4} value={requirements} onChange={(event) => setRequirements(event.target.value)} placeholder={t('describeThePatientSNeedsMobilitySupportMedicationRemindersOrAnySpecificCareNeeds')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
               </div>
 
               <div>
-                <label htmlFor="notes" className="mb-2 block text-sm font-semibold text-slate-700">Additional notes</label>
-                <textarea id="notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Anything else the caregiver should know?" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                <label htmlFor="notes" className="mb-2 block text-sm font-semibold text-slate-700">{t('additionalNotes')}</label>
+                <textarea id="notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t('anythingElseTheCaregiverShouldKnow')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
               </div>
 
               {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => router.back()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
-                  Cancel
-                </button>
+                  {t('cancel')}{' '}</button>
                 <button type="submit" disabled={submitting} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60">
-                  {submitting ? 'Submitting...' : 'Send Request'}
+                  {submitting ? t('submitting') : t('sendRequest')}
                 </button>
               </div>
             </form>

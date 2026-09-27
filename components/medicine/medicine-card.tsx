@@ -5,6 +5,7 @@ import { Pill, MapPin, Clock, ShieldCheck, FileText, TrendingDown, Star, ArrowRi
 import type { Medicine, MedicinePrice } from '@/lib/medicine-types';
 import { availabilityConfig, formatINR } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export function MedicineCard({
   medicine,
@@ -17,6 +18,7 @@ export function MedicineCard({
   onSelect: (medicine: Medicine) => void;
   index?: number;
 }) {
+  const t = useTranslations('components.medicine.medicineCard');
   const inStockPrices = prices.filter((p) => p.availability !== 'out_of_stock');
   const lowestPrice = inStockPrices.length > 0
     ? Math.min(...inStockPrices.map((p) => p.current_price))
@@ -66,20 +68,17 @@ export function MedicineCard({
         {medicine.prescription_required && (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600 ring-1 ring-blue-200/40">
             <FileText className="h-2.5 w-2.5" />
-            Rx Required
-          </span>
+            {t('rxRequired')}{' '}</span>
         )}
         {bestPriceEntry?.pharmacy?.is_verified && (
           <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-medium text-emerald-deep ring-1 ring-teal-200/40">
             <ShieldCheck className="h-2.5 w-2.5" />
-            Verified Pharmacy
-          </span>
+            {t('verifiedPharmacy')}{' '}</span>
         )}
         {discount > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600 ring-1 ring-emerald-200/40">
             <TrendingDown className="h-2.5 w-2.5" />
-            {discount}% Off
-          </span>
+            {discount}{t('off')}{' '}</span>
         )}
       </div>
 
@@ -104,18 +103,16 @@ export function MedicineCard({
                 {bestPriceEntry && (
                   <span className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {bestPriceEntry.delivery_time_hours}h delivery
-                  </span>
+                    {bestPriceEntry.delivery_time_hours}{t('hDelivery')}{' '}</span>
                 )}
               </div>
             </>
           ) : (
-            <div className="text-sm font-medium text-slate-400">Currently out of stock</div>
+            <div className="text-sm font-medium text-slate-400">{t('currentlyOutOfStock')}</div>
           )}
         </div>
         <div className="flex items-center gap-1 text-xs font-semibold text-teal-600 opacity-0 transition-opacity group-hover:opacity-100">
-          Compare
-          <ArrowRight className="h-3.5 w-3.5" />
+          {t('compare')}{' '}<ArrowRight className="h-3.5 w-3.5" />
         </div>
       </div>
     </motion.div>

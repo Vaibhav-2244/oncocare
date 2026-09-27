@@ -9,8 +9,10 @@ import { DoctorProfile } from '@/components/tele-oncology/doctor-profile';
 import { BookingModal } from '@/components/tele-oncology/booking-modal';
 import { doctors, type Doctor } from '@/lib/data/tele-oncology';
 import { Plus } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 function TeleOncologyContent() {
+  const t = useTranslations('teleOncology');
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("All");
   const [location, setLocation] = useState("All");
@@ -37,8 +39,8 @@ function TeleOncologyContent() {
     <div className="space-y-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tele-Oncology Consultations</h1>
-          <p className="mt-1 text-sm text-slate-500">Consult verified oncologists from the comfort of your home.</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('teleOncologyConsultations')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('consultVerifiedOncologistsFromTheComfortOfYourHome')}</p>
         </div>
       </div>
 
@@ -47,33 +49,30 @@ function TeleOncologyContent() {
           <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-2xl font-bold backdrop-blur-md">
             +
           </div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Expert cancer care, without the travel</h2>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">{t('expertCancerCareWithoutTheTravel')}</h2>
           <p className="mt-4 text-lg text-teal-50">
-            Connect with verified Delhi-NCR oncologists through secure video consultations.
-          </p>
+            {t('connectWithVerifiedDelhiNcrOncologistsThroughSecureVideoConsultations')}{' '}</p>
           <div className="mt-8 flex flex-wrap items-center gap-6 text-sm font-semibold text-teal-100">
-            <span className="flex items-center gap-2">✓ Verified oncologists</span>
+            <span className="flex items-center gap-2">{t('verifiedOncologists')}</span>
             <span className="flex items-center gap-2">✓ ₹399–₹499</span>
-            <span className="flex items-center gap-2">✓ Video consultation</span>
+            <span className="flex items-center gap-2">{t('videoConsultation')}</span>
           </div>
           <button
             onClick={() => document.getElementById("doctor-directory")?.scrollIntoView({ behavior: "smooth" })}
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-bold text-teal-700 shadow-sm transition-all hover:bg-teal-50 hover:shadow-md"
           >
-            Find an Oncologist →
-          </button>
+            {t('findAnOncologist')}{' '}</button>
         </div>
       </section>
 
       <section id="doctor-directory" className="space-y-6 pt-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Find your oncologist</h2>
-            <p className="text-sm text-slate-500">Choose a specialist based on your cancer care needs.</p>
+            <h2 className="text-xl font-bold text-slate-900">{t('findYourOncologist')}</h2>
+            <p className="text-sm text-slate-500">{t('chooseASpecialistBasedOnYourCancerCareNeeds')}</p>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-            {filteredDoctors.length} Specialists
-          </span>
+            {filteredDoctors.length} {t('specialists')}{' '}</span>
         </div>
 
         <SearchFilters
@@ -98,8 +97,8 @@ function TeleOncologyContent() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200/60 bg-white py-16 text-center shadow-sm">
-            <h3 className="text-lg font-bold text-slate-900">No oncologists found</h3>
-            <p className="mt-2 text-sm text-slate-500">Try changing your search or filters.</p>
+            <h3 className="text-lg font-bold text-slate-900">{t('noOncologistsFound')}</h3>
+            <p className="mt-2 text-sm text-slate-500">{t('tryChangingYourSearchOrFilters')}</p>
           </div>
         )}
       </section>

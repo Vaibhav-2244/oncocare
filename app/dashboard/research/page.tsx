@@ -10,6 +10,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, RESEARCH_PARTNER_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { useTranslations } from 'next-intl';
 
 const researchNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/research', icon: Activity },
@@ -21,6 +22,7 @@ const researchNavItems: NavItem[] = [
 ];
 
 function ResearchDashboardContent() {
+  const t = useTranslations('research');
   const { user } = useAuth();
   const [stats, setStats] = useState({ totalUsers: 0, medicines: 0, pharmacies: 0, appointments: 0 });
   const [medicineCategories, setMedicineCategories] = useState<{ category: string; count: number }[]>([]);
@@ -77,17 +79,15 @@ function ResearchDashboardContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Research Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Anonymized platform analytics and research insights</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('researchDashboard')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('anonymizedPlatformAnalyticsAndResearchInsights')}</p>
       </div>
 
       {/* Data disclaimer */}
       <div className="flex items-start gap-3 rounded-2xl border border-blue-200/40 bg-blue-50/50 p-4">
         <FlaskConical className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
         <p className="text-xs leading-relaxed text-blue-700">
-          <span className="font-semibold">Research Access:</span> All data shown here is anonymized and aggregated.
-          No personally identifiable information (PII) is accessible through this dashboard.
-        </p>
+          <span className="font-semibold">{t('researchAccess')}</span> {t('allDataShownHereIsAnonymizedAndAggregatedNoPersonallyIdentifiableInformationPiiI')}{' '}</p>
       </div>
 
       {/* Stats */}
@@ -113,7 +113,7 @@ function ResearchDashboardContent() {
         {/* Medicine categories chart */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Medicine Categories</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('medicineCategories')}</h2>
             <BarChart3 className="h-4 w-4 text-slate-400" />
           </div>
           <div className="mt-4 space-y-3">
@@ -139,7 +139,7 @@ function ResearchDashboardContent() {
             ) : (
               <div className="py-6 text-center">
                 <BarChart3 className="mx-auto h-6 w-6 text-slate-300" />
-                <p className="mt-2 text-xs text-slate-400">No data available</p>
+                <p className="mt-2 text-xs text-slate-400">{t('noDataAvailable')}</p>
               </div>
             )}
           </div>
@@ -148,24 +148,24 @@ function ResearchDashboardContent() {
         {/* Platform overview */}
         <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900">Platform Overview</h2>
+            <h2 className="text-base font-bold text-slate-900">{t('platformOverview')}</h2>
             <TrendingUp className="h-4 w-4 text-slate-400" />
           </div>
           <div className="mt-4 space-y-4">
             <div className="rounded-xl bg-gradient-to-br from-teal-50 to-emerald-50 p-4">
-              <div className="text-xs font-semibold text-teal-700">User Distribution</div>
+              <div className="text-xs font-semibold text-teal-700">{t('userDistribution')}</div>
               <div className="mt-2 text-2xl font-bold text-slate-900">{stats.totalUsers}</div>
-              <div className="text-xs text-slate-500">Total registered users across all roles</div>
+              <div className="text-xs text-slate-500">{t('totalRegisteredUsersAcrossAllRoles')}</div>
             </div>
             <div className="rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-              <div className="text-xs font-semibold text-blue-700">Medicine Coverage</div>
+              <div className="text-xs font-semibold text-blue-700">{t('medicineCoverage')}</div>
               <div className="mt-2 text-2xl font-bold text-slate-900">{stats.medicines}</div>
-              <div className="text-xs text-slate-500">Cancer medicines cataloged with pricing data</div>
+              <div className="text-xs text-slate-500">{t('cancerMedicinesCatalogedWithPricingData')}</div>
             </div>
             <div className="rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 p-4">
-              <div className="text-xs font-semibold text-amber-700">Pharmacy Network</div>
+              <div className="text-xs font-semibold text-amber-700">{t('pharmacyNetwork')}</div>
               <div className="mt-2 text-2xl font-bold text-slate-900">{stats.pharmacies}</div>
-              <div className="text-xs text-slate-500">Verified pharmacy partners across India</div>
+              <div className="text-xs text-slate-500">{t('verifiedPharmacyPartnersAcrossIndia')}</div>
             </div>
           </div>
         </div>

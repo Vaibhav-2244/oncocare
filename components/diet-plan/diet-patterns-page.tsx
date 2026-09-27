@@ -14,6 +14,7 @@ import type {
   DietJourneyEntry,
   DietWeeklyOverview,
 } from "@/types/diet-experience";
+import { useTranslations } from 'next-intl';
 
 interface PatternsResponse {
   success?: boolean;
@@ -61,6 +62,7 @@ function sentimentLabel(
 }
 
 export default function DietPatternsPage() {
+  const t = useTranslations('components.dietPlan.dietPatternsPage');
   const [data, setData] = useState<PatternsResponse["data"]>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -117,8 +119,7 @@ export default function DietPatternsPage() {
               className="inline-flex min-h-11 items-center gap-2 rounded-xl text-sm font-semibold text-[#167772]"
             >
               <ArrowLeft className="h-4 w-4" />
-              Back to today&apos;s plan
-            </a>
+              {t('backToTodayAposSPlan')}{' '}</a>
 
             <div className="mt-5 flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#eaf7f5] text-[#167772]">
@@ -127,11 +128,9 @@ export default function DietPatternsPage() {
 
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                  Your nutrition journey
-                </p>
+                  {t('yourNutritionJourney')}{' '}</p>
                 <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">
-                  A look back at the last 14 days
-                </h1>
+                  {t('aLookBackAtTheLast14Days')}{' '}</h1>
               </div>
             </div>
           </div>
@@ -151,8 +150,7 @@ export default function DietPatternsPage() {
                   : "h-4 w-4"
               }
             />
-            Refresh
-          </button>
+            {t('refresh')}{' '}</button>
         </header>
 
         {loading ? (
@@ -173,48 +171,41 @@ export default function DietPatternsPage() {
             <section className="mt-8 grid gap-4 sm:grid-cols-3">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Plans available
-                </p>
+                  {t('plansAvailable')}{' '}</p>
                 <p className="mt-2 text-3xl font-semibold text-slate-950">
                   {data.overview.plansAvailable}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  saved in this period
-                </p>
+                  {t('savedInThisPeriod')}{' '}</p>
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Daily check-ins
-                </p>
+                  {t('dailyCheckIns')}{' '}</p>
                 <p className="mt-2 text-3xl font-semibold text-slate-950">
                   {data.overview.positiveFeedbackCount +
                     data.overview.neutralFeedbackCount +
                     data.overview.negativeFeedbackCount}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  recorded during this period
-                </p>
+                  {t('recordedDuringThisPeriod')}{' '}</p>
               </div>
 
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Meal swaps
-                </p>
+                  {t('mealSwaps')}{' '}</p>
                 <p className="mt-2 text-3xl font-semibold text-slate-950">
                   {data.overview.replacementCount}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  recorded during this period
-                </p>
+                  {t('recordedDuringThisPeriod')}{' '}</p>
               </div>
             </section>
 
             {data.overview.notablePatterns.length > 0 && (
               <section className="mt-6 rounded-3xl border border-[#d7ecea] bg-[#eef8f7] p-6 sm:p-7">
                 <h2 className="text-lg font-semibold text-slate-900">
-                  A few patterns from what you recorded
-                </h2>
+                  {t('aFewPatternsFromWhatYouRecorded')}{' '}</h2>
 
                 <div className="mt-4 space-y-3">
                   {data.overview.notablePatterns.map(
@@ -236,13 +227,11 @@ export default function DietPatternsPage() {
               <div className="flex items-center gap-2">
                 <CalendarDays className="h-5 w-5 text-[#167772]" />
                 <h2 className="text-xl font-semibold">
-                  Your day-by-day rhythm
-                </h2>
+                  {t('yourDayByDayRhythm')}{' '}</h2>
               </div>
 
               <p className="mt-1 text-sm text-slate-500">
-                This reflects what was actually recorded. A blank day simply means there isn&apos;t enough data to say more.
-              </p>
+                {t('thisReflectsWhatWasActuallyRecordedABlankDaySimplyMeansThereIsnAposTEnoughDataTo')}{' '}</p>
 
               <div className="mt-6 space-y-4">
                 {data.journey.map((entry) => (
@@ -262,7 +251,7 @@ export default function DietPatternsPage() {
 
                         <p className="mt-1 text-sm leading-6 text-slate-600">
                           {entry.summary ??
-                            "No saved meal plan for this day."}
+                            t('noSavedMealPlanForThisDay')}
                         </p>
                       </div>
 
@@ -275,10 +264,9 @@ export default function DietPatternsPage() {
 
                         {entry.mealReplacements > 0 && (
                           <p>
-                            {entry.mealReplacements} meal swap
-                            {entry.mealReplacements === 1
+                            {entry.mealReplacements} {t('mealSwap')}{' '}{entry.mealReplacements === 1
                               ? ""
-                              : "s"}
+                              : t('s')}
                           </p>
                         )}
                       </div>
@@ -291,8 +279,7 @@ export default function DietPatternsPage() {
         ) : null}
 
         <p className="mt-8 pb-8 text-center text-xs leading-5 text-slate-400">
-          Your nutrition journey reflects recorded plans and feedback. It does not diagnose symptoms or replace clinical review.
-        </p>
+          {t('yourNutritionJourneyReflectsRecordedPlansAndFeedbackItDoesNotDiagnoseSymptomsOrR')}{' '}</p>
       </div>
     </main>
   );

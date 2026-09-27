@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase-client";
+import { useTranslations } from 'next-intl';
 
 type InsurancePlan = {
   id: string;
@@ -27,6 +28,7 @@ type PlanWithProvider = InsurancePlan & {
 };
 
 export default function InsuranceComparePage() {
+  const t = useTranslations('insurance.compare');
   const [plans, setPlans] = useState<PlanWithProvider[]>([]);
 
   const [selectedPlanOne, setSelectedPlanOne] =
@@ -520,8 +522,7 @@ export default function InsuranceComparePage() {
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-12 text-center shadow-sm">
 
             <p className="text-sm text-[#64748B]">
-              Loading insurance plans...
-            </p>
+              {t('loadingInsurancePlans')}{' '}</p>
 
           </div>
 
@@ -544,14 +545,12 @@ export default function InsuranceComparePage() {
             href="/dashboard/insurance"
             className="mb-6 inline-flex text-sm font-medium text-[#0F766E] hover:underline"
           >
-            ← Back to Insurance
-          </Link>
+            {t('backToInsurance')}{' '}</Link>
 
           <div className="rounded-2xl border border-red-200 bg-white p-10 text-center shadow-sm">
 
             <h1 className="text-xl font-bold text-[#1F2937]">
-              Unable to Compare Plans
-            </h1>
+              {t('unableToComparePlans')}{' '}</h1>
 
             <p className="mt-2 text-sm text-red-600">
               {error}
@@ -584,23 +583,16 @@ export default function InsuranceComparePage() {
             href="/dashboard/insurance"
             className="mb-5 inline-flex text-sm font-medium text-[#0F766E] hover:underline"
           >
-            ← Back to Insurance
-          </Link>
+            {t('backToInsurance')}{' '}</Link>
 
           <p className="text-sm font-medium text-[#0F766E]">
-            Insurance Support
-          </p>
+            {t('insuranceSupport')}{' '}</p>
 
           <h1 className="mt-1 text-3xl font-bold">
-            Compare Insurance Plans
-          </h1>
+            {t('compareInsurancePlans')}{' '}</h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#64748B]">
-            Select two plans to compare their
-            coverage, premium, waiting period,
-            hospital network, cancer coverage,
-            and benefits.
-          </p>
+            {t('selectTwoPlansToCompareTheirCoveragePremiumWaitingPeriodHospitalNetworkCancerCov')}{' '}</p>
 
         </div>
 
@@ -615,8 +607,7 @@ export default function InsuranceComparePage() {
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
 
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#0F766E]">
-              Plan 1
-            </p>
+              {t('plan1')}{' '}</p>
 
             <select
               value={selectedPlanOne}
@@ -629,8 +620,7 @@ export default function InsuranceComparePage() {
             >
 
               <option value="">
-                Select first plan
-              </option>
+                {t('selectFirstPlan')}{' '}</option>
 
               {plans.map((plan) => (
                 <option
@@ -642,7 +632,7 @@ export default function InsuranceComparePage() {
                   }
                 >
                   {plan.provider?.name ||
-                    "Provider"}{" "}
+                    t('provider')}{" "}
                   — {plan.name}
                 </option>
               ))}
@@ -656,8 +646,7 @@ export default function InsuranceComparePage() {
           <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
 
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#0F766E]">
-              Plan 2
-            </p>
+              {t('plan2')}{' '}</p>
 
             <select
               value={selectedPlanTwo}
@@ -670,8 +659,7 @@ export default function InsuranceComparePage() {
             >
 
               <option value="">
-                Select second plan
-              </option>
+                {t('selectSecondPlan')}{' '}</option>
 
               {plans.map((plan) => (
                 <option
@@ -683,7 +671,7 @@ export default function InsuranceComparePage() {
                   }
                 >
                   {plan.provider?.name ||
-                    "Provider"}{" "}
+                    t('provider')}{" "}
                   — {plan.name}
                 </option>
               ))}
@@ -716,9 +704,7 @@ export default function InsuranceComparePage() {
                         ✓
                       </span>
 
-                      Recommended for You
-
-                    </div>
+                      {t('recommendedForYou')}{' '}</div>
 
                     <h2 className="text-2xl font-bold text-[#1F2937]">
                       {recommendedPlan.name}
@@ -726,7 +712,7 @@ export default function InsuranceComparePage() {
 
                     <p className="mt-1 text-sm font-medium text-[#0F766E]">
                       {recommendedPlan.provider?.name ||
-                        "Insurance Provider"}
+                        t('insuranceProvider')}
                     </p>
 
                     <p className="mt-4 max-w-2xl text-sm leading-6 text-[#64748B]">
@@ -739,8 +725,7 @@ export default function InsuranceComparePage() {
                     href={`/dashboard/insurance/${recommendedPlan.id}`}
                     className="inline-flex shrink-0 justify-center rounded-xl bg-[#0F766E] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#095C57]"
                   >
-                    View Recommended Plan
-                  </Link>
+                    {t('viewRecommendedPlan')}{' '}</Link>
 
                 </div>
 
@@ -753,8 +738,7 @@ export default function InsuranceComparePage() {
                 <div className="bg-white p-5">
 
                   <p className="text-xs text-[#64748B]">
-                    Coverage
-                  </p>
+                    {t('coverage')}{' '}</p>
 
                   <p className="mt-1 text-lg font-bold text-[#1F2937]">
                     {formatCoverage(
@@ -767,8 +751,7 @@ export default function InsuranceComparePage() {
                 <div className="bg-white p-5">
 
                   <p className="text-xs text-[#64748B]">
-                    Estimated Premium
-                  </p>
+                    {t('estimatedPremium')}{' '}</p>
 
                   <p className="mt-1 text-lg font-bold text-[#1F2937]">
                     {formatPremium(
@@ -781,23 +764,20 @@ export default function InsuranceComparePage() {
                 <div className="bg-white p-5">
 
                   <p className="text-xs text-[#64748B]">
-                    Waiting Period
-                  </p>
+                    {t('waitingPeriod')}{' '}</p>
 
                   <p className="mt-1 text-lg font-bold text-[#1F2937]">
                     {
                       recommendedPlan.waiting_period_months
                     }{" "}
-                    months
-                  </p>
+                    {t('months')}{' '}</p>
 
                 </div>
 
                 <div className="bg-white p-5">
 
                   <p className="text-xs text-[#64748B]">
-                    Hospital Network
-                  </p>
+                    {t('hospitalNetwork')}{' '}</p>
 
                   <p className="mt-1 text-lg font-bold text-[#1F2937]">
                     {
@@ -814,14 +794,7 @@ export default function InsuranceComparePage() {
               <div className="border-t border-[#E5E7EB] bg-white px-7 py-4">
 
                 <p className="text-xs leading-5 text-[#64748B]">
-                  This recommendation is based on the
-                  comparison criteria available in
-                  OncoCare+. It is intended for
-                  informational purposes only and should
-                  not replace advice from a qualified
-                  insurance advisor or the insurance
-                  provider.
-                </p>
+                  {t('thisRecommendationIsBasedOnTheComparisonCriteriaAvailableInOncocareItIsIntendedF')}{' '}</p>
 
               </div>
 
@@ -840,12 +813,10 @@ export default function InsuranceComparePage() {
             <div className="border-b border-[#E5E7EB] p-6">
 
               <h2 className="text-xl font-bold">
-                Plan Comparison
-              </h2>
+                {t('planComparison')}{' '}</h2>
 
               <p className="mt-1 text-sm text-[#64748B]">
-                Compare the selected plans side by side.
-              </p>
+                {t('compareTheSelectedPlansSideBySide')}{' '}</p>
 
             </div>
 
@@ -856,8 +827,7 @@ export default function InsuranceComparePage() {
               <div className="p-5">
 
                 <p className="text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                  Feature
-                </p>
+                  {t('feature')}{' '}</p>
 
               </div>
 
@@ -865,7 +835,7 @@ export default function InsuranceComparePage() {
 
                 <p className="text-xs font-medium text-[#0F766E]">
                   {planOne.provider?.name ||
-                    "Provider"}
+                    t('provider')}
                 </p>
 
                 <h3 className="mt-1 font-bold">
@@ -878,7 +848,7 @@ export default function InsuranceComparePage() {
 
                 <p className="text-xs font-medium text-[#0F766E]">
                   {planTwo.provider?.name ||
-                    "Provider"}
+                    t('provider')}
                 </p>
 
                 <h3 className="mt-1 font-bold">
@@ -894,8 +864,7 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3 border-b border-[#E5E7EB]">
 
               <div className="p-5 text-sm font-medium">
-                Coverage
-              </div>
+                {t('coverage')}{' '}</div>
 
               <div
                 className={`border-l border-[#E5E7EB] p-5 text-sm ${
@@ -911,8 +880,7 @@ export default function InsuranceComparePage() {
 
                 {coverageWinner === "one" && (
                   <span className="ml-2 text-xs">
-                    Better
-                  </span>
+                    {t('better')}{' '}</span>
                 )}
 
               </div>
@@ -931,8 +899,7 @@ export default function InsuranceComparePage() {
 
                 {coverageWinner === "two" && (
                   <span className="ml-2 text-xs">
-                    Better
-                  </span>
+                    {t('better')}{' '}</span>
                 )}
 
               </div>
@@ -944,8 +911,7 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3 border-b border-[#E5E7EB]">
 
               <div className="p-5 text-sm font-medium">
-                Estimated Premium
-              </div>
+                {t('estimatedPremium')}{' '}</div>
 
               <div
                 className={`border-l border-[#E5E7EB] p-5 text-sm ${
@@ -961,8 +927,7 @@ export default function InsuranceComparePage() {
 
                 {premiumWinner === "one" && (
                   <span className="ml-2 text-xs">
-                    Lower
-                  </span>
+                    {t('lower')}{' '}</span>
                 )}
 
               </div>
@@ -981,8 +946,7 @@ export default function InsuranceComparePage() {
 
                 {premiumWinner === "two" && (
                   <span className="ml-2 text-xs">
-                    Lower
-                  </span>
+                    {t('lower')}{' '}</span>
                 )}
 
               </div>
@@ -994,8 +958,7 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3 border-b border-[#E5E7EB]">
 
               <div className="p-5 text-sm font-medium">
-                Waiting Period
-              </div>
+                {t('waitingPeriod')}{' '}</div>
 
               <div
                 className={`border-l border-[#E5E7EB] p-5 text-sm ${
@@ -1006,12 +969,9 @@ export default function InsuranceComparePage() {
               >
 
                 {planOne.waiting_period_months}{" "}
-                months
-
-                {waitingWinner === "one" && (
+                {t('months')}{' '}{waitingWinner === "one" && (
                   <span className="ml-2 text-xs">
-                    Shorter
-                  </span>
+                    {t('shorter')}{' '}</span>
                 )}
 
               </div>
@@ -1025,12 +985,9 @@ export default function InsuranceComparePage() {
               >
 
                 {planTwo.waiting_period_months}{" "}
-                months
-
-                {waitingWinner === "two" && (
+                {t('months')}{' '}{waitingWinner === "two" && (
                   <span className="ml-2 text-xs">
-                    Shorter
-                  </span>
+                    {t('shorter')}{' '}</span>
                 )}
 
               </div>
@@ -1042,8 +999,7 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3 border-b border-[#E5E7EB]">
 
               <div className="p-5 text-sm font-medium">
-                Hospital Network
-              </div>
+                {t('hospitalNetwork')}{' '}</div>
 
               <div
                 className={`border-l border-[#E5E7EB] p-5 text-sm ${
@@ -1057,8 +1013,7 @@ export default function InsuranceComparePage() {
 
                 {hospitalWinner === "one" && (
                   <span className="ml-2 text-xs">
-                    Larger
-                  </span>
+                    {t('larger')}{' '}</span>
                 )}
 
               </div>
@@ -1075,8 +1030,7 @@ export default function InsuranceComparePage() {
 
                 {hospitalWinner === "two" && (
                   <span className="ml-2 text-xs">
-                    Larger
-                  </span>
+                    {t('larger')}{' '}</span>
                 )}
 
               </div>
@@ -1088,22 +1042,21 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3 border-b border-[#E5E7EB]">
 
               <div className="p-5 text-sm font-medium">
-                Cancer Coverage
-              </div>
+                {t('cancerCoverage')}{' '}</div>
 
               <div className="border-l border-[#E5E7EB] p-5 text-sm">
 
                 {planOne.cancer_coverage
-                  ? "✓ Covered"
-                  : "✕ Not covered"}
+                  ? t('covered')
+                  : t('notCovered')}
 
               </div>
 
               <div className="border-l border-[#E5E7EB] p-5 text-sm">
 
                 {planTwo.cancer_coverage
-                  ? "✓ Covered"
-                  : "✕ Not covered"}
+                  ? t('covered')
+                  : t('notCovered')}
 
               </div>
 
@@ -1114,8 +1067,7 @@ export default function InsuranceComparePage() {
             <div className="grid grid-cols-3">
 
               <div className="p-5 text-sm font-medium">
-                Benefits
-              </div>
+                {t('benefits')}{' '}</div>
 
               {/* PLAN ONE */}
 
@@ -1152,8 +1104,7 @@ export default function InsuranceComparePage() {
                 ) : (
 
                   <span className="text-sm text-[#64748B]">
-                    No benefits listed.
-                  </span>
+                    {t('noBenefitsListed')}{' '}</span>
 
                 )}
 
@@ -1194,8 +1145,7 @@ export default function InsuranceComparePage() {
                 ) : (
 
                   <span className="text-sm text-[#64748B]">
-                    No benefits listed.
-                  </span>
+                    {t('noBenefitsListed')}{' '}</span>
 
                 )}
 
@@ -1218,14 +1168,10 @@ export default function InsuranceComparePage() {
             </div>
 
             <h2 className="mt-4 text-lg font-bold">
-              Select two plans to compare
-            </h2>
+              {t('selectTwoPlansToCompare')}{' '}</h2>
 
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#64748B]">
-              Choose one plan from each dropdown.
-              The detailed comparison will appear
-              automatically.
-            </p>
+              {t('chooseOnePlanFromEachDropdownTheDetailedComparisonWillAppearAutomatically')}{' '}</p>
 
           </section>
 
@@ -1238,8 +1184,7 @@ export default function InsuranceComparePage() {
         <section className="mb-8">
 
           <h2 className="mb-4 text-xl font-bold">
-            Available Plans
-          </h2>
+            {t('availablePlans')}{' '}</h2>
 
           <div className="grid gap-4 md:grid-cols-3">
 
@@ -1252,7 +1197,7 @@ export default function InsuranceComparePage() {
 
                 <p className="text-sm font-medium text-[#0F766E]">
                   {plan.provider?.name ||
-                    "Insurance Provider"}
+                    t('insuranceProvider')}
                 </p>
 
                 <h3 className="mt-1 font-bold">
@@ -1264,8 +1209,7 @@ export default function InsuranceComparePage() {
                   <div className="flex justify-between gap-4">
 
                     <span className="text-[#64748B]">
-                      Coverage
-                    </span>
+                      {t('coverage')}{' '}</span>
 
                     <strong>
                       {formatCoverage(
@@ -1278,8 +1222,7 @@ export default function InsuranceComparePage() {
                   <div className="flex justify-between gap-4">
 
                     <span className="text-[#64748B]">
-                      Premium
-                    </span>
+                      {t('premium')}{' '}</span>
 
                     <strong>
                       {formatPremium(
@@ -1292,15 +1235,13 @@ export default function InsuranceComparePage() {
                   <div className="flex justify-between gap-4">
 
                     <span className="text-[#64748B]">
-                      Waiting
-                    </span>
+                      {t('waiting')}{' '}</span>
 
                     <strong>
                       {
                         plan.waiting_period_months
                       }{" "}
-                      months
-                    </strong>
+                      {t('months')}{' '}</strong>
 
                   </div>
 
@@ -1321,8 +1262,7 @@ export default function InsuranceComparePage() {
                     }
                     className="flex-1 rounded-xl border border-[#0F766E] px-3 py-2 text-xs font-semibold text-[#0F766E] transition hover:bg-[#E8F8F6] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Use as Plan 1
-                  </button>
+                    {t('useAsPlan1')}{' '}</button>
 
                   <button
                     type="button"
@@ -1337,8 +1277,7 @@ export default function InsuranceComparePage() {
                     }
                     className="flex-1 rounded-xl border border-[#0F766E] px-3 py-2 text-xs font-semibold text-[#0F766E] transition hover:bg-[#E8F8F6] disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Use as Plan 2
-                  </button>
+                    {t('useAsPlan2')}{' '}</button>
 
                 </div>
 
@@ -1346,8 +1285,7 @@ export default function InsuranceComparePage() {
                     href={`/dashboard/insurance/${plan.id}`}
                   className="mt-3 block w-full rounded-xl bg-[#0F766E] px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-[#095C57]"
                 >
-                  View Details
-                </Link>
+                  {t('viewDetails')}{' '}</Link>
 
               </div>
 
@@ -1364,13 +1302,7 @@ export default function InsuranceComparePage() {
         <section className="mb-8 rounded-2xl border border-[#E5E7EB] bg-white p-6">
 
           <p className="text-xs leading-5 text-[#64748B]">
-            Insurance information shown here is provided
-            for comparison and informational purposes.
-            Estimated premiums, coverage, waiting periods,
-            benefits, and network information should be
-            verified with the insurance provider before
-            making a purchase decision.
-          </p>
+            {t('insuranceInformationShownHereIsProvidedForComparisonAndInformationalPurposesEsti')}{' '}</p>
 
         </section>
 

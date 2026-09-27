@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Sparkles, TrendingDown, Info, Stethoscope } from 'lucide-react';
 import type { Medicine, MedicinePrice, GenericAlternative } from '@/lib/medicine-types';
 import { formatINR } from '@/lib/medicine-types';
+import { useTranslations } from 'next-intl';
 
 export function AIInsightsCard({
   medicine,
@@ -14,6 +15,7 @@ export function AIInsightsCard({
   prices: MedicinePrice[];
   generics: GenericAlternative[];
 }) {
+  const t = useTranslations('components.medicine.aiInsights');
   const inStockPrices = prices.filter((p) => p.availability !== 'out_of_stock');
   const lowestPrice = inStockPrices.length > 0
     ? Math.min(...inStockPrices.map((p) => p.current_price))
@@ -42,8 +44,8 @@ export function AIInsightsCard({
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-slate-900">AI Price Insight</h3>
-            <p className="text-xs text-slate-500">Powered by OncoCare+ Intelligence</p>
+            <h3 className="text-base font-bold text-slate-900">{t('aiPriceInsight')}</h3>
+            <p className="text-xs text-slate-500">{t('poweredByOncocareIntelligence')}</p>
           </div>
         </div>
 
@@ -53,11 +55,10 @@ export function AIInsightsCard({
             <div className="flex items-start gap-3 rounded-xl bg-white/60 p-3 backdrop-blur-sm">
               <TrendingDown className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p className="text-sm leading-relaxed text-slate-700">
-                <span className="font-semibold">{medicine.name}</span> is currently available at the lowest price of{' '}
-                <span className="font-bold text-emerald-deep">{formatINR(lowestPrice)}</span> from{' '}
-                <span className="font-semibold">{bestPharmacy.name}</span>, which is{' '}
-                <span className="font-semibold text-emerald-600">{savingsPercent}% below MRP</span>.
-                The average market price is {formatINR(Math.round(avgPrice))}.
+                <span className="font-semibold">{medicine.name}</span> {t('isCurrentlyAvailableAtTheLowestPriceOf')}{' '}
+                <span className="font-bold text-emerald-deep">{formatINR(lowestPrice)}</span> {t('from')}{' '}
+                <span className="font-semibold">{bestPharmacy.name}</span>{t('whichIs')}{' '}
+                <span className="font-semibold text-emerald-600">{savingsPercent}{t('belowMrp')}</span>{t('theAverageMarketPriceIs')}{' '}{formatINR(Math.round(avgPrice))}.
               </p>
             </div>
           )}
@@ -66,9 +67,7 @@ export function AIInsightsCard({
             <div className="flex items-start gap-3 rounded-xl bg-white/60 p-3 backdrop-blur-sm">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
               <p className="text-sm leading-relaxed text-slate-700">
-                A <span className="font-semibold">generic alternative</span> may be available at a lower price.
-                See the generic alternatives section below for details.
-              </p>
+                A <span className="font-semibold">{t('genericAlternative')}</span> {t('mayBeAvailableAtALowerPriceSeeTheGenericAlternativesSectionBelowForDetails')}{' '}</p>
             </div>
           )}
 
@@ -76,10 +75,7 @@ export function AIInsightsCard({
           <div className="flex items-start gap-3 rounded-xl bg-amber-50/80 p-3 ring-1 ring-amber-200/40">
             <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-xs leading-relaxed text-amber-800">
-              <span className="font-semibold">Medical Notice:</span> Never change or switch prescribed medication
-              without consulting your treating oncologist or pharmacist. Price information is for comparison only
-              and does not constitute medical advice.
-            </p>
+              <span className="font-semibold">{t('medicalNotice')}</span> {t('neverChangeOrSwitchPrescribedMedicationWithoutConsultingYourTreatingOncologistOr')}{' '}</p>
           </div>
         </div>
 
@@ -87,15 +83,15 @@ export function AIInsightsCard({
         <div className="mt-5 grid grid-cols-3 gap-3">
           <div className="rounded-xl bg-white/70 p-3 text-center backdrop-blur-sm">
             <div className="text-lg font-bold text-emerald-deep">{formatINR(lowestPrice)}</div>
-            <div className="text-[10px] text-slate-500">Lowest Price</div>
+            <div className="text-[10px] text-slate-500">{t('lowestPrice')}</div>
           </div>
           <div className="rounded-xl bg-white/70 p-3 text-center backdrop-blur-sm">
             <div className="text-lg font-bold text-slate-700">{formatINR(Math.round(avgPrice))}</div>
-            <div className="text-[10px] text-slate-500">Avg. Price</div>
+            <div className="text-[10px] text-slate-500">{t('avgPrice')}</div>
           </div>
           <div className="rounded-xl bg-white/70 p-3 text-center backdrop-blur-sm">
             <div className="text-lg font-bold text-emerald-600">{savingsPercent}%</div>
-            <div className="text-[10px] text-slate-500">Max Savings</div>
+            <div className="text-[10px] text-slate-500">{t('maxSavings')}</div>
           </div>
         </div>
       </div>

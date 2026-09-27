@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from 'next-intl';
 
 interface VideoConsultationProps {
   appointment: {
@@ -13,6 +14,7 @@ interface VideoConsultationProps {
 }
 
 export function VideoConsultation({ appointment, onClose }: VideoConsultationProps) {
+  const t = useTranslations('components.teleOncology.videoConsultation');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -114,13 +116,12 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
       {/* Top Bar */}
       <div className="flex h-16 items-center justify-between bg-slate-800 px-6 shadow-md">
         <div>
-          <h1 className="text-lg font-bold">Video Consultation</h1>
+          <h1 className="text-lg font-bold">{t('videoConsultation')}</h1>
           <p className="text-sm text-slate-400">{doctorName}</p>
         </div>
         <div className="flex items-center gap-2 rounded-full bg-slate-700/50 px-3 py-1 text-sm font-semibold text-emerald-400">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"></span>
-          Consultation in progress
-        </div>
+          {t('consultationInProgress')}{' '}</div>
       </div>
 
       {/* Main Layout */}
@@ -134,7 +135,7 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
               {doctorInitials}
             </div>
             <div className="mt-4 text-xl font-semibold">{doctorName}</div>
-            <div className="text-slate-400">Oncologist</div>
+            <div className="text-slate-400">{t('oncologist')}</div>
             
             <div className="absolute bottom-4 left-4 rounded bg-black/50 px-3 py-1 text-sm backdrop-blur-sm">
               {doctorName}
@@ -146,13 +147,13 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
             {cameraOff ? (
               <div className="flex h-full flex-col items-center justify-center bg-slate-800 text-slate-400">
                 <VideoOff size={32} className="mb-2" />
-                <span className="text-xs">Camera is off</span>
+                <span className="text-xs">{t('cameraIsOff')}</span>
               </div>
             ) : (
               <video ref={videoRef} autoPlay playsInline muted className="h-full w-full object-cover" />
             )}
             <div className="absolute bottom-2 left-2 rounded bg-black/50 px-2 py-0.5 text-xs backdrop-blur-sm">
-              You {muted && "(Muted)"}
+              {t('you')}{' '}{muted && t('muted')}
             </div>
           </div>
 
@@ -196,7 +197,7 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
               className="flex h-12 items-center gap-2 rounded-full bg-rose-600 px-6 font-semibold text-white transition-colors hover:bg-rose-700"
             >
               <PhoneOff size={20} />
-              <span className="hidden sm:inline">End Consultation</span>
+              <span className="hidden sm:inline">{t('endConsultation')}</span>
             </button>
           </div>
         </div>
@@ -205,8 +206,8 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
         {chatOpen && (
           <div className="flex w-80 flex-col border-l border-slate-700 bg-slate-800">
             <div className="border-b border-slate-700 p-4">
-              <h3 className="font-bold">Consultation Chat</h3>
-              <p className="text-xs text-slate-400">With {doctorName}</p>
+              <h3 className="font-bold">{t('consultationChat')}</h3>
+              <p className="text-xs text-slate-400">{t('with')}{' '}{doctorName}</p>
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -231,10 +232,10 @@ export function VideoConsultation({ appointment, onClose }: VideoConsultationPro
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Type a message..."
+                  placeholder={t('typeAMessage')}
                   className="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
                 />
-                <Button onClick={sendMessage} className="bg-teal-600 hover:bg-teal-700 text-white">Send</Button>
+                <Button onClick={sendMessage} className="bg-teal-600 hover:bg-teal-700 text-white">{t('send')}</Button>
               </div>
             </div>
           </div>

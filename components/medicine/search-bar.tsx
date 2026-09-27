@@ -7,6 +7,7 @@ import { searchMedicines } from '@/lib/medicine-api';
 import { popularSearches } from '@/lib/medicine-types';
 import type { Medicine } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface SearchSuggestion {
   type: 'medicine' | 'generic' | 'manufacturer' | 'category';
@@ -24,6 +25,7 @@ export function MedicineSearchBar({
   onSelectMedicine: (medicine: Medicine) => void;
   className?: string;
 }) {
+  const t = useTranslations('components.medicine.searchBar');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -185,7 +187,7 @@ export function MedicineSearchBar({
             }}
             onFocus={() => setShowSuggestions(true)}
             onKeyDown={handleKeyDown}
-            placeholder="Search by Medicine Name..."
+            placeholder={t('searchByMedicineName')}
             className="flex-1 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
           {loading && (
@@ -212,8 +214,7 @@ export function MedicineSearchBar({
             }}
             className="shrink-0 rounded-xl bg-gradient-to-r from-emerald-deep to-teal-500 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-teal-500/20 transition-all hover:shadow-lg hover:shadow-teal-500/30"
           >
-            Search
-          </button>
+            {t('search')}{' '}</button>
         </div>
       </div>
 
@@ -232,8 +233,7 @@ export function MedicineSearchBar({
               <div className="p-4">
                 <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                   <TrendingUp className="h-3.5 w-3.5" />
-                  Popular Medicines
-                </div>
+                  {t('popularMedicines')}{' '}</div>
                 <div className="flex flex-wrap gap-2">
                   {popularSearches.map((med) => (
                     <button
@@ -298,8 +298,8 @@ export function MedicineSearchBar({
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                   <Search className="h-5 w-5 text-slate-400" />
                 </div>
-                <p className="text-sm font-medium text-slate-600">No medicines found</p>
-                <p className="text-xs text-slate-400">Try searching by generic name or manufacturer</p>
+                <p className="text-sm font-medium text-slate-600">{t('noMedicinesFound')}</p>
+                <p className="text-xs text-slate-400">{t('trySearchingByGenericNameOrManufacturer')}</p>
               </div>
             )}
           </motion.div>

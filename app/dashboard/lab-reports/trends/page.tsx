@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { calculateTrendSummary, normalizeUnit, type LabValueRow } from '@/lib/lab-reports';
+import { useTranslations } from 'next-intl';
 
 const TrendChart = dynamic(async () => {
   const recharts = await import('recharts');
@@ -36,6 +37,7 @@ const TrendChart = dynamic(async () => {
 }, { ssr: false });
 
 export default function LabReportsTrendsPage() {
+  const t = useTranslations('labReports.trends');
   const { user } = useAuth();
   const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
   const [values, setValues] = useState<LabValueRow[]>([]);
@@ -98,25 +100,23 @@ export default function LabReportsTrendsPage() {
         <div className="space-y-6">
           <div className="flex items-center justify-between gap-3">
             <Link href="/dashboard/lab-reports" className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
-              <ArrowLeft className="h-4 w-4" /> Back to reports
-            </Link>
+              <ArrowLeft className="h-4 w-4" /> {t('backToReports')}{' '}</Link>
           </div>
 
           {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
-              <BarChart3 className="h-4 w-4 text-teal-600" /> Biomarker trend analysis
-            </div>
+              <BarChart3 className="h-4 w-4 text-teal-600" /> {t('biomarkerTrendAnalysis')}{' '}</div>
 
             {loading ? (
               <div className="h-80 animate-pulse rounded-xl bg-slate-100" />
             ) : grouped.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">No trend data is available yet. Upload a report with extractable values to generate a trend chart.</div>
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">{t('noTrendDataIsAvailableYetUploadAReportWithExtractableValuesToGenerateATrendChart')}</div>
             ) : (
               <>
                 <div className="mb-4">
-                  <label className="text-sm font-medium text-slate-600">Biomarker</label>
+                  <label className="text-sm font-medium text-slate-600">{t('biomarker')}</label>
                   <select value={selected} onChange={(e) => setSelected(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-teal-300 focus:bg-white focus:outline-none">
                     {grouped.map((item) => (
                       <option key={item.name} value={item.name}>{item.name}</option>
@@ -125,11 +125,11 @@ export default function LabReportsTrendsPage() {
                 </div>
 
                 <div className="mb-4 grid gap-3 md:grid-cols-5">
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">Observations</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.count}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">First value</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.firstValue ?? '—'}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">Latest value</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.latestValue ?? '—'}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">Change</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.absoluteChange !== null ? `${trendSummary.absoluteChange.toFixed(2)}` : '—'}</div></div>
-                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">Direction</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.direction}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('observations')}</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.count}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('firstValue')}</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.firstValue ?? '—'}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('latestValue')}</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.latestValue ?? '—'}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('change')}</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.absoluteChange !== null ? t('trendValue', { value: trendSummary.absoluteChange.toFixed(2) }) : '—'}</div></div>
+                  <div className="rounded-xl bg-slate-50 p-3"><div className="text-[11px] uppercase tracking-wide text-slate-500">{t('direction')}</div><div className="mt-1 text-lg font-bold text-slate-900">{trendSummary.direction}</div></div>
                 </div>
 
                 <div className="h-80 w-full">
@@ -137,8 +137,7 @@ export default function LabReportsTrendsPage() {
                 </div>
 
                 <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  This trend is descriptive only. It tracks recorded values over time and does not diagnose disease progression or recommend treatment.
-                </div>
+                  {t('thisTrendIsDescriptiveOnlyItTracksRecordedValuesOverTimeAndDoesNotDiagnoseDiseas')}{' '}</div>
               </>
             )}
           </div>

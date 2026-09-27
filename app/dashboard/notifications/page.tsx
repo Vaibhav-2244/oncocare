@@ -12,6 +12,7 @@ import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } fr
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type NotificationType = 'appointment' | 'medication' | 'community' | 'system' | 'general';
 
@@ -74,6 +75,7 @@ function NotificationSkeleton() {
 }
 
 function NotificationsContent() {
+  const t = useTranslations('notifications');
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,8 +187,8 @@ function NotificationsContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Notifications Center</h1>
-          <p className="mt-1 text-sm text-slate-500">Stay updated on appointments, medications, and community activity</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('notificationsCenter')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('stayUpdatedOnAppointmentsMedicationsAndCommunityActivity')}</p>
         </div>
         {unread > 0 && (
           <button
@@ -199,8 +201,7 @@ function NotificationsContent() {
             ) : (
               <CheckCheck className="h-4 w-4" />
             )}
-            Mark All as Read
-          </button>
+            {t('markAllAsRead')}{' '}</button>
         )}
       </div>
 
@@ -272,14 +273,13 @@ function NotificationsContent() {
               </div>
               <p className="mt-3 text-sm font-medium text-slate-700">
                 {filter === 'unread'
-                  ? 'No unread notifications'
+                  ? t('noUnreadNotifications')
                   : filter === 'read'
-                    ? 'No read notifications'
-                    : 'No notifications yet'}
+                    ? t('noReadNotifications')
+                    : t('noNotificationsYet')}
               </p>
               <p className="mt-1 text-xs text-slate-400">
-                You&apos;re all caught up. New notifications will appear here.
-              </p>
+                {t('youAposReAllCaughtUpNewNotificationsWillAppearHere')}{' '}</p>
             </div>
           ) : (
             <AnimatePresence initial={false}>
@@ -328,7 +328,7 @@ function NotificationsContent() {
                           onClick={() => handleMarkAsRead(notification.id)}
                           disabled={actionId === notification.id}
                           className="rounded-lg p-2 text-slate-300 transition-colors hover:bg-teal-50 hover:text-teal-600 disabled:opacity-50"
-                          aria-label="Mark as read"
+                          aria-label={t('markAsRead')}
                         >
                           {actionId === notification.id ? (
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-teal-500" />
@@ -341,7 +341,7 @@ function NotificationsContent() {
                         onClick={() => handleDelete(notification.id)}
                         disabled={actionId === notification.id}
                         className="rounded-lg p-2 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                        aria-label="Delete notification"
+                        aria-label={t('deleteNotification')}
                       >
                         {actionId === notification.id ? (
                           <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />

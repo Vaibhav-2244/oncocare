@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Bell,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const trustIndicators = [
   { icon: Brain, label: 'AI Powered' },
@@ -62,6 +63,7 @@ const floatCards = [
 ];
 
 export function Hero() {
+  const t = useTranslations('components.sections.hero');
   return (
     <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-28">
       {/* Background layers */}
@@ -74,42 +76,37 @@ export function Hero() {
         <div className="flex flex-col items-center text-center">
           {/* Badge */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="inline-flex items-center gap-2 rounded-full border border-teal-200/60 bg-white/80 px-4 py-1.5 text-xs font-semibold text-emerald-deep shadow-sm backdrop-blur-md"
           >
             <Sparkles className="h-3.5 w-3.5 text-teal-500" />
-            India&apos;s First AI-Powered Integrated Cancer Home Care Platform
-          </motion.div>
+            {t('indiaAposSFirstAiPoweredIntegratedCancerHomeCarePlatform')}{' '}</motion.div>
 
           {/* Headline */}
           <motion.h1
-            initial={{ opacity: 0, y: 30 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
             className="mt-8 max-w-4xl text-balance text-4xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl md:text-7xl"
           >
-            The Future of{' '}
-            <span className="gradient-text animate-gradient">Cancer Care</span>{' '}
-            Starts at Home.
-          </motion.h1>
+            {t('theFutureOf')}{' '}
+            <span className="gradient-text animate-gradient">{t('cancerCare')}</span>{' '}
+            {t('startsAtHome')}{' '}</motion.h1>
 
           {/* Subheading */}
           <motion.p
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mt-6 max-w-2xl text-pretty text-base leading-relaxed text-slate-600 sm:text-lg md:text-xl"
           >
-            AI-powered care coordination, symptom tracking, verified caregivers,
-            financial support and personalized guidance—designed to support
-            cancer patients and families throughout their journey.
-          </motion.p>
+            {t('aiPoweredCareCoordinationSymptomTrackingVerifiedCaregiversFinancialSupportAndPer')}{' '}</motion.p>
 
           {/* CTAs */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.3 }}
             className="mt-10 flex flex-col items-center gap-3 sm:flex-row"
@@ -118,7 +115,7 @@ export function Hero() {
               href="#cta"
               className="group relative inline-flex items-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-deep to-teal-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/30 transition-all hover:shadow-xl hover:shadow-teal-500/40 hover:-translate-y-0.5"
             >
-              <span className="relative z-10">Get Early Access</span>
+              <span className="relative z-10">{t('getEarlyAccess')}</span>
               <ArrowRight className="relative z-10 h-4 w-4 transition-transform group-hover:translate-x-1" />
               <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-blue-500 opacity-0 transition-opacity group-hover:opacity-100" />
             </a>
@@ -126,14 +123,13 @@ export function Hero() {
               href="#hospitals"
               className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-7 py-3.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-md transition-all hover:border-teal-300 hover:text-emerald-deep hover:shadow-md"
             >
-              Partner With Us
-              <Building2 className="h-4 w-4" />
+              {t('partnerWithUs')}{' '}<Building2 className="h-4 w-4" />
             </a>
           </motion.div>
 
           {/* Trust indicators */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
             className="mt-12 flex flex-wrap items-center justify-center gap-3 sm:gap-4"
@@ -157,7 +153,7 @@ export function Hero() {
 
         {/* Hero visual — dashboard mockup with floating cards */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
           className="relative mx-auto mt-16 max-w-5xl"
@@ -174,8 +170,7 @@ export function Hero() {
                 </div>
                 <div className="mx-auto flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1 text-xs text-slate-400">
                   <ShieldCheck className="h-3 w-3 text-teal-500" />
-                  app.oncocareplus.com/dashboard
-                </div>
+                  {t('appOncocareplusComDashboard')}{' '}</div>
               </div>
 
               {/* Dashboard content */}
@@ -186,7 +181,7 @@ export function Hero() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-deep to-teal-400">
                       <Activity className="h-4 w-4 text-white" />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">OncoCare+</span>
+                    <span className="text-sm font-bold text-slate-800">{t('oncocare')}</span>
                   </div>
                   {['Dashboard', 'Care Plan', 'Symptoms', 'Medications', 'Lab Trends', 'Caregivers'].map(
                     (item, i) => (
@@ -210,13 +205,12 @@ export function Hero() {
                   {/* Greeting */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-semibold text-slate-800">Good morning, Priya</div>
-                      <div className="text-xs text-slate-400">Day 42 of treatment · Breast Cancer · Stage II</div>
+                      <div className="text-sm font-semibold text-slate-800">{t('goodMorningPriya')}</div>
+                      <div className="text-xs text-slate-400">{t('day42OfTreatmentBreastCancerStageIi')}</div>
                     </div>
                     <div className="flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600 ring-1 ring-emerald-200/50">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Stable
-                    </div>
+                      {t('stable')}{' '}</div>
                   </div>
 
                   {/* Stat cards */}
@@ -240,15 +234,15 @@ export function Hero() {
                   {/* Chart placeholder */}
                   <div className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-700">Recovery Progress</span>
-                      <span className="text-[10px] text-slate-400">Last 30 days</span>
+                      <span className="text-xs font-semibold text-slate-700">{t('recoveryProgress')}</span>
+                      <span className="text-[10px] text-slate-400">{t('last30Days')}</span>
                     </div>
                     <div className="flex h-24 items-end gap-1.5">
                       {[40, 55, 48, 62, 58, 70, 65, 72, 68, 78, 75, 82, 79, 85, 88, 84, 90, 87, 92, 89, 94, 91, 96, 93, 98, 95, 100, 97, 102, 99].map(
                         (h, i) => (
                           <motion.div
                             key={i}
-                            initial={{ height: 0 }}
+                            initial={false}
                             animate={{ height: `${h}%` }}
                             transition={{ duration: 0.5, delay: 0.8 + i * 0.02 }}
                             className="flex-1 rounded-t bg-gradient-to-t from-teal-400 to-emerald-300"
@@ -266,7 +260,7 @@ export function Hero() {
           {floatCards.map((card) => (
             <motion.div
               key={card.title}
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={false}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: card.delay }}
               className={`absolute ${card.className}`}

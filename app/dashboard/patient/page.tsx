@@ -14,8 +14,10 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { getRecentActivity, getNotifications } from '@/lib/dashboard-api';
 import type { ActivityItem } from '@/lib/dashboard-api';
+import { useTranslations } from 'next-intl';
 
 function PatientDashboardContent() {
+  const t = useTranslations('patient');
   const { user } = useAuth();
   const [stats, setStats] = useState({ appointments: 0, messages: 0, documents: 0, watchlist: 0 });
   const [activity, setActivity] = useState<ActivityItem[]>([]);
@@ -70,9 +72,9 @@ function PatientDashboardContent() {
       {/* Welcome header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
-          Welcome back, {user?.profile?.full_name?.split(' ')[0] || 'there'}
+          {t('welcomeBack')}{' '}{user?.profile?.full_name?.split(' ')[0] || t('there')}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">Here&apos;s an overview of your care journey</p>
+        <p className="mt-1 text-sm text-slate-500">{t('hereAposSAnOverviewOfYourCareJourney')}</p>
       </div>
 
       {/* Stats */}
@@ -101,10 +103,9 @@ function PatientDashboardContent() {
         <div className="lg:col-span-2">
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Upcoming Appointments</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('upcomingAppointments')}</h2>
               <a href="/dashboard/appointments" className="text-xs font-semibold text-teal-600 hover:underline">
-                View all
-              </a>
+                {t('viewAll')}{' '}</a>
             </div>
             <div className="mt-4 space-y-3">
               {loading ? (
@@ -118,24 +119,23 @@ function PatientDashboardContent() {
                       <Calendar className="h-5 w-5" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-slate-800">{apt.reason || 'Appointment'}</div>
+                      <div className="text-sm font-semibold text-slate-800">{apt.reason || t('appointment')}</div>
                       <div className="text-xs text-slate-500">
-                        {new Date(apt.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} at{' '}
+                        {new Date(apt.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {t('at')}{' '}
                         {new Date(apt.appointment_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
                     <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold capitalize text-teal-700">
-                      {apt.type || 'in_person'}
+                      {apt.type || t('inPerson')}
                     </span>
                   </div>
                 ))
               ) : (
                 <div className="flex flex-col items-center py-8 text-center">
                   <Calendar className="h-8 w-8 text-slate-300" />
-                  <p className="mt-2 text-sm text-slate-400">No upcoming appointments</p>
+                  <p className="mt-2 text-sm text-slate-400">{t('noUpcomingAppointments')}</p>
                   <a href="/dashboard/appointments" className="mt-3 text-xs font-semibold text-teal-600 hover:underline">
-                    Schedule one
-                  </a>
+                    {t('scheduleOne')}{' '}</a>
                 </div>
               )}
             </div>
@@ -146,7 +146,7 @@ function PatientDashboardContent() {
         <div>
           <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">Notifications</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('notifications')}</h2>
               <Bell className="h-4 w-4 text-slate-400" />
             </div>
             <div className="mt-4 space-y-3">
@@ -167,7 +167,7 @@ function PatientDashboardContent() {
               ) : (
                 <div className="py-6 text-center">
                   <Bell className="mx-auto h-6 w-6 text-slate-300" />
-                  <p className="mt-2 text-xs text-slate-400">No notifications</p>
+                  <p className="mt-2 text-xs text-slate-400">{t('noNotifications')}</p>
                 </div>
               )}
             </div>
@@ -178,7 +178,7 @@ function PatientDashboardContent() {
       {/* Recent activity */}
       <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-slate-900">Recent Activity</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('recentActivity')}</h2>
           <Activity className="h-4 w-4 text-slate-400" />
         </div>
         <div className="mt-4 space-y-3">
@@ -204,7 +204,7 @@ function PatientDashboardContent() {
           ) : (
             <div className="py-6 text-center">
               <Activity className="mx-auto h-6 w-6 text-slate-300" />
-              <p className="mt-2 text-xs text-slate-400">No recent activity</p>
+              <p className="mt-2 text-xs text-slate-400">{t('noRecentActivity')}</p>
             </div>
           )}
         </div>

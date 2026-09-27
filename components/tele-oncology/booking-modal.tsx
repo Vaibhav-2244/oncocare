@@ -7,6 +7,7 @@ import { doctorAvailability } from "@/lib/data/tele-oncology";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase-client";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from 'next-intl';
 
 interface BookingModalProps {
   doctor: Doctor | null;
@@ -14,6 +15,7 @@ interface BookingModalProps {
 }
 
 export function BookingModal({ doctor, onClose }: BookingModalProps) {
+  const t = useTranslations('components.teleOncology.bookingModal');
   const { user } = useAuth();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -105,19 +107,16 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 text-teal-500">
             <CheckCircle className="h-8 w-8" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">Consultation Booked</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{t('consultationBooked')}</h2>
           <p className="mt-2 text-slate-600">
-            Your video consultation with <strong>{doctor.name}</strong> has been scheduled.
-          </p>
+            {t('yourVideoConsultationWith')}{' '}<strong>{doctor.name}</strong> {t('hasBeenScheduled')}{' '}</p>
           <p className="mt-4 font-semibold text-slate-900">
-            {formattedDate} at {time}
+            {formattedDate} {t('at')}{' '}{time}
           </p>
           <p className="mt-4 text-sm text-slate-500">
-            Your consultation link will be available in your OncoCare appointments.
-          </p>
+            {t('yourConsultationLinkWillBeAvailableInYourOncocareAppointments')}{' '}</p>
           <Button onClick={onClose} className="mt-8 w-full bg-teal-600 hover:bg-teal-700 text-white">
-            Done
-          </Button>
+            {t('done')}{' '}</Button>
         </div>
       </div>
     );
@@ -128,7 +127,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl sm:p-8">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">Book Video Consultation</h2>
+            <h2 className="text-xl font-bold text-slate-900">{t('bookVideoConsultation')}</h2>
             <p className="text-sm text-slate-500">{doctor.name}</p>
           </div>
           <button
@@ -140,7 +139,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
         </div>
 
         <div className="my-6 rounded-xl bg-teal-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">Consultation Fee</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-teal-700">{t('consultationFee')}</p>
           <p className="mt-1 text-2xl font-bold text-teal-600">₹{doctor.consultationFee}</p>
         </div>
 
@@ -152,24 +151,24 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
 
         <form onSubmit={handleBooking} className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Patient Name</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('patientName')}</label>
             <input
               type="text"
               value={patientName}
               onChange={(e) => setPatientName(e.target.value)}
-              placeholder="Enter full name"
+              placeholder={t('enterFullName')}
               required
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
             />
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Mobile Number</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('mobileNumber')}</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="10-digit mobile number"
+              placeholder={t('text10DigitMobileNumber')}
               required
               maxLength={10}
               className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-900 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
@@ -177,7 +176,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Select Date</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('selectDate')}</label>
             <input
               type="date"
               value={date}
@@ -192,9 +191,9 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Available Time Slots</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('availableTimeSlots')}</label>
             {!date ? (
-              <p className="text-sm text-slate-500">Select a date to see available consultation slots.</p>
+              <p className="text-sm text-slate-500">{t('selectADateToSeeAvailableConsultationSlots')}</p>
             ) : (
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {availableSlots.map((slot) => (
@@ -216,7 +215,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Upload Report Document (Optional)</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">{t('uploadReportDocumentOptional')}</label>
             <input
               type="file"
               accept=".pdf,.png,.jpg,.jpeg"
@@ -230,7 +229,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
             disabled={submitting || !date || !time || !patientName.trim() || !phone.trim()}
             className="mt-6 w-full bg-teal-600 py-6 text-base font-semibold hover:bg-teal-700 text-white disabled:opacity-50"
           >
-            {submitting ? "Booking..." : "Confirm Booking"}
+            {submitting ? t('booking') : t('confirmBooking')}
           </Button>
         </form>
       </div>

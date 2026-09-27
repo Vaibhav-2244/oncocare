@@ -14,6 +14,7 @@ import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } fr
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type DocumentCategory =
   | 'lab_report'
@@ -97,6 +98,7 @@ function DocumentSkeleton() {
 }
 
 function DocumentsContent() {
+  const t = useTranslations('documents');
   const { user } = useAuth();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,15 +255,15 @@ function DocumentsContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Documents &amp; Medical Records</h1>
-          <p className="mt-1 text-sm text-slate-500">Upload, organize, and analyze your health documents</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('documentsAmpMedicalRecords')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('uploadOrganizeAndAnalyzeYourHealthDocuments')}</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-teal-700 hover:to-emerald-700"
         >
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? 'Cancel' : 'Upload Document'}
+          {showForm ? t('cancel') : t('uploadDocument')}
         </button>
       </div>
 
@@ -311,42 +313,42 @@ function DocumentsContent() {
               onSubmit={handleSubmit}
               className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm"
             >
-              <h2 className="text-base font-bold text-slate-900">Upload a New Document</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('uploadANewDocument')}</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Title</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('title')}</label>
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Blood Test Report — Jan 2024"
+                    placeholder={t('eGBloodTestReportJan2024')}
                     required
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Category</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('category')}</label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as DocumentCategory)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   >
-                    <option value="lab_report">Lab Report</option>
-                    <option value="prescription">Prescription</option>
-                    <option value="scan">Scan</option>
-                    <option value="discharge_summary">Discharge Summary</option>
-                    <option value="insurance">Insurance</option>
-                    <option value="other">Other</option>
+                    <option value="lab_report">{t('labReport')}</option>
+                    <option value="prescription">{t('prescription')}</option>
+                    <option value="scan">{t('scan')}</option>
+                    <option value="discharge_summary">{t('dischargeSummary')}</option>
+                    <option value="insurance">{t('insurance')}</option>
+                    <option value="other">{t('other')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">File</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('file')}</label>
                 <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center transition-colors hover:border-teal-300 hover:bg-teal-50/30">
                   <Upload className="mx-auto h-8 w-8 text-slate-400" />
                   <p className="mt-2 text-sm text-slate-500">
-                    {file ? file.name : 'Click to select or drag and drop a file'}
+                    {file ? file.name : t('clickToSelectOrDragAndDropAFile')}
                   </p>
                   <input
                     type="file"
@@ -363,8 +365,7 @@ function DocumentsContent() {
                   onClick={() => setShowForm(false)}
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                 >
-                  Cancel
-                </button>
+                  {t('cancel')}{' '}</button>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -375,8 +376,7 @@ function DocumentsContent() {
                   ) : (
                     <Upload className="h-4 w-4" />
                   )}
-                  Upload
-                </button>
+                  {t('upload')}{' '}</button>
               </div>
             </form>
           </motion.div>
@@ -412,17 +412,15 @@ function DocumentsContent() {
             <FileText className="h-7 w-7" />
           </div>
           <p className="mt-3 text-sm font-medium text-slate-700">
-            {filterCategory === 'all' ? 'No documents uploaded yet' : 'No documents in this category'}
+            {filterCategory === 'all' ? t('noDocumentsUploadedYet') : t('noDocumentsInThisCategory')}
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Upload lab reports, prescriptions, scans, and more to keep your records organized.
-          </p>
+            {t('uploadLabReportsPrescriptionsScansAndMoreToKeepYourRecordsOrganized')}{' '}</p>
           <button
             onClick={() => setShowForm(true)}
             className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
           >
-            <Plus className="h-4 w-4" /> Upload your first document
-          </button>
+            <Plus className="h-4 w-4" /> {t('uploadYourFirstDocument')}{' '}</button>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -476,20 +474,18 @@ function DocumentsContent() {
                       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      Download
-                    </button>
+                      {t('download')}{' '}</button>
                     <Link
                       href="/dashboard/ai-engine"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-100"
                     >
                       <Sparkles className="h-3.5 w-3.5" />
-                      Analyze with AI
-                    </Link>
+                      {t('analyzeWithAi')}{' '}</Link>
                     <button
                       onClick={() => handleDelete(doc)}
                       disabled={actionId === doc.id}
                       className="ml-auto rounded-lg p-1.5 text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                      aria-label="Delete document"
+                      aria-label={t('deleteDocument')}
                     >
                       {actionId === doc.id ? (
                         <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />

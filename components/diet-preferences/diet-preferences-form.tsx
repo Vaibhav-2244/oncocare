@@ -21,6 +21,7 @@ import {
   useState,
 } from "react";
 import { dietFetch } from "@/lib/diet-client";
+import { useTranslations } from 'next-intl';
 
 type DietType =
   | "vegetarian"
@@ -164,6 +165,7 @@ function TagField({
   placeholder,
   onChange,
 }: TagFieldProps) {
+  const t = useTranslations('components.dietPreferences.dietPreferencesForm');
   const [input, setInput] =
     useState("");
 
@@ -244,7 +246,7 @@ function TagField({
                   )
                 }
                 className="min-h-6 min-w-6 rounded-full p-1 transition motion-reduce:transition-none hover:bg-black/5"
-                aria-label={`Remove ${value}`}
+                aria-label={t('removeItemLabel', { value: value })}
               >
                 <X className="mx-auto h-3.5 w-3.5" />
               </button>
@@ -263,7 +265,7 @@ function TagField({
             placeholder={
               values.length === 0
                 ? placeholder
-                : "Add another"
+                : t('addAnother')
             }
             className="min-w-[160px] flex-1 bg-transparent px-1 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400"
           />
@@ -271,8 +273,7 @@ function TagField({
       </div>
 
       <p className="text-[11px] text-slate-400">
-        Press Enter or comma after each item.
-      </p>
+        {t('pressEnterOrCommaAfterEachItem')}{' '}</p>
     </div>
   );
 }
@@ -353,6 +354,7 @@ function getAcknowledgement(
 }
 
 export default function DietPreferencesForm() {
+  const t = useTranslations('components.dietPreferences.dietPreferencesForm');
   const [preferences, setPreferences] =
     useState<DietaryPreferences>(
       INITIAL_PREFERENCES,
@@ -733,14 +735,11 @@ export default function DietPreferencesForm() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#167772]">
-                  Current preferences
-                </p>
+                  {t('currentPreferences')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
-                  Your nutrition profile
-                </h2>
+                  {t('yourNutritionProfile')}{' '}</h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                  These are the preferences currently saved and used to personalize your meal plans.
-                </p>
+                  {t('theseAreThePreferencesCurrentlySavedAndUsedToPersonalizeYourMealPlans')}{' '}</p>
               </div>
             </div>
 
@@ -750,16 +749,14 @@ export default function DietPreferencesForm() {
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#8ccfc9] bg-white px-4 py-2.5 text-sm font-semibold text-[#167772] shadow-sm transition hover:bg-[#eef8f7]"
             >
               <Pencil className="h-4 w-4" />
-              Change preferences
-            </button>
+              {t('changePreferences')}{' '}</button>
           </div>
         </div>
 
         <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-7 lg:grid-cols-3">
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Eating pattern
-            </p>
+              {t('eatingPattern')}{' '}</p>
             <p className="mt-2 text-base font-semibold text-slate-900">{dietLabel}</p>
             {preferences.dietType === "other" && preferences.otherDietType ? (
               <p className="mt-1 text-sm leading-5 text-slate-500">{preferences.otherDietType}</p>
@@ -768,11 +765,9 @@ export default function DietPreferencesForm() {
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Meal routine
-            </p>
+              {t('mealRoutine')}{' '}</p>
             <p className="mt-2 text-base font-semibold text-slate-900">
-              {preferences.mealCount ?? 5} meals / occasions
-            </p>
+              {preferences.mealCount ?? 5} {t('mealsOccasions')}{' '}</p>
             <p className="mt-1 text-sm leading-5 text-slate-500">
               {displayList(preferences.mealTiming)}
             </p>
@@ -780,17 +775,15 @@ export default function DietPreferencesForm() {
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Appetite
-            </p>
+              {t('appetite')}{' '}</p>
             <p className="mt-2 text-base font-semibold capitalize text-slate-900">
-              {preferences.appetite ?? "Not specified"}
+              {preferences.appetite ?? t('notSpecified')}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Food allergies
-            </p>
+              {t('foodAllergies')}{' '}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {displayList(preferences.allergies)}
             </p>
@@ -798,8 +791,7 @@ export default function DietPreferencesForm() {
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Intolerances
-            </p>
+              {t('intolerances')}{' '}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {displayList(preferences.intolerances)}
             </p>
@@ -807,8 +799,7 @@ export default function DietPreferencesForm() {
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Severe allergies
-            </p>
+              {t('severeAllergies')}{' '}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {displayList(preferences.severeAllergies ?? [])}
             </p>
@@ -816,23 +807,21 @@ export default function DietPreferencesForm() {
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5 sm:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Foods & cuisine
-            </p>
+              {t('foodsCuisine')}{' '}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              <span className="font-medium text-slate-900">Likes:</span> {displayList(preferences.preferredFoods)}
+              <span className="font-medium text-slate-900">{t('likes')}</span> {displayList(preferences.preferredFoods)}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-700">
-              <span className="font-medium text-slate-900">Avoids:</span> {displayList(preferences.avoidedFoods)}
+              <span className="font-medium text-slate-900">{t('avoids')}</span> {displayList(preferences.avoidedFoods)}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-700">
-              <span className="font-medium text-slate-900">Cuisine:</span> {displayList(preferences.cuisinePreferences)}
+              <span className="font-medium text-slate-900">{t('cuisine')}</span> {displayList(preferences.cuisinePreferences)}
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-              Nutrition goals
-            </p>
+              {t('nutritionGoals')}{' '}</p>
             <p className="mt-2 text-sm leading-6 text-slate-700">
               {displayList(preferences.nutritionGoals)}
             </p>
@@ -849,8 +838,7 @@ export default function DietPreferencesForm() {
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
             <Loader2 className="h-5 w-5 animate-spin text-[#167772] motion-reduce:animate-none" />
             <span className="text-sm font-medium text-slate-600">
-              Loading your preferences...
-            </span>
+              {t('loadingYourPreferences')}{' '}</span>
           </div>
         </div>
       </main>
@@ -866,12 +854,11 @@ export default function DietPreferencesForm() {
             className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#167772]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to your plan
-          </a>
+            {t('backToYourPlan')}{' '}</a>
 
           <Image
             src="/brand/oncocare-logo.png"
-            alt="OncoCare+"
+            alt={t('oncocare')}
             width={165}
             height={54}
             className="h-12 w-32 object-contain object-right sm:h-14 sm:w-40"
@@ -883,16 +870,13 @@ export default function DietPreferencesForm() {
           <div className="max-w-3xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-[#eaf7f5] px-3 py-1.5 text-xs font-semibold text-[#167772]">
               <Sparkles className="h-3.5 w-3.5" />
-              Personalized Nutrition
-            </div>
+              {t('personalizedNutrition')}{' '}</div>
 
             <h1 className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-              Let&apos;s make your meals more personal.
-            </h1>
+              {t('letAposSMakeYourMealsMorePersonal')}{' '}</h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-              I&apos;ll ask a few small questions, one step at a time. You can change these preferences whenever your routine or needs change.
-            </p>
+              {t('iAposLlAskAFewSmallQuestionsOneStepAtATimeYouCanChangeThesePreferencesWheneverYo')}{' '}</p>
           </div>
 
           <Image
@@ -912,11 +896,10 @@ export default function DietPreferencesForm() {
           <div className="mt-7 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-400">
-              Step {step} of {TOTAL_STEPS}
+              {t('step')}{' '}{step} {t('of')}{' '}{TOTAL_STEPS}
             </p>
             <p className="mt-1 text-sm font-medium text-slate-600">
-              A little at a time.
-            </p>
+              {t('aLittleAtATime')}{' '}</p>
           </div>
 
             <div className="flex items-center gap-2">
@@ -951,11 +934,9 @@ export default function DietPreferencesForm() {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              Your preferences guide personalization
-            </p>
+              {t('yourPreferencesGuidePersonalization')}{' '}</p>
             <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-sm">
-              These answers help shape nutrition suggestions. They do not replace treatment-specific advice from your oncology or nutrition care team.
-            </p>
+              {t('theseAnswersHelpShapeNutritionSuggestionsTheyDoNotReplaceTreatmentSpecificAdvice')}{' '}</p>
           </div>
         </div>
 
@@ -977,11 +958,9 @@ export default function DietPreferencesForm() {
               <div className="mb-6 flex items-center justify-between gap-4 border-b border-slate-100 pb-5">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.13em] text-[#167772]">
-                    Editing your profile
-                  </p>
+                    {t('editingYourProfile')}{' '}</p>
                   <p className="mt-1 text-sm text-slate-500">
-                    Update only what has changed.
-                  </p>
+                    {t('updateOnlyWhatHasChanged')}{' '}</p>
                 </div>
                 <button
                   type="button"
@@ -989,8 +968,7 @@ export default function DietPreferencesForm() {
                   className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                 >
                   <X className="h-4 w-4" />
-                  Cancel
-                </button>
+                  {t('cancel')}{' '}</button>
               </div>
             )}
 
@@ -1002,14 +980,11 @@ export default function DietPreferencesForm() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                      Start here
-                    </p>
+                      {t('startHere')}{' '}</p>
                     <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                      How do you usually eat?
-                    </h2>
+                      {t('howDoYouUsuallyEat')}{' '}</h2>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Choose the pattern that best matches your everyday diet.
-                    </p>
+                      {t('chooseThePatternThatBestMatchesYourEverydayDiet')}{' '}</p>
                   </div>
                 </div>
 
@@ -1061,23 +1036,20 @@ export default function DietPreferencesForm() {
             {step === 2 && (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  Safety first
-                </p>
+                  {t('safetyFirst')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  Anything you absolutely need to avoid?
-                </h2>
+                  {t('anythingYouAbsolutelyNeedToAvoid')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Tell us about allergies and intolerances separately. This helps keep the safety checks clear.
-                </p>
+                  {t('tellUsAboutAllergiesAndIntolerancesSeparatelyThisHelpsKeepTheSafetyChecksClear')}{' '}</p>
 
                 <div className="mt-7 space-y-7">
                   <TagField
-                    label="Food allergies"
-                    description="Only add foods you know you are allergic to. These are treated as hard exclusions."
+                    label={t('foodAllergies')}
+                    description={t('onlyAddFoodsYouKnowYouAreAllergicToTheseAreTreatedAsHardExclusions')}
                     values={
                       preferences.allergies
                     }
-                    placeholder="e.g. peanuts"
+                    placeholder={t('eGPeanuts')}
                     onChange={(values) =>
                       updatePreference(
                         "allergies",
@@ -1087,12 +1059,12 @@ export default function DietPreferencesForm() {
                   />
 
                   <TagField
-                    label="Food intolerances"
-                    description="Add foods that your body does not tolerate well."
+                    label={t('foodIntolerances')}
+                    description={t('addFoodsThatYourBodyDoesNotTolerateWell')}
                     values={
                       preferences.intolerances
                     }
-                    placeholder="e.g. lactose"
+                    placeholder={t('eGLactose')}
                     onChange={(values) =>
                       updatePreference(
                         "intolerances",
@@ -1107,23 +1079,20 @@ export default function DietPreferencesForm() {
             {step === 3 && (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  Make it yours
-                </p>
+                  {t('makeItYours')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  What sounds good â€” and what doesn&apos;t?
-                </h2>
+                  {t('whatSoundsGoodÂAndWhatDoesnAposT')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  These are personal preferences, not medical restrictions. You can be as specific as you like.
-                </p>
+                  {t('theseArePersonalPreferencesNotMedicalRestrictionsYouCanBeAsSpecificAsYouLike')}{' '}</p>
 
                 <div className="mt-7 space-y-7">
                   <TagField
-                    label="Foods you avoid"
-                    description="For foods you simply don't want included."
+                    label={t('foodsYouAvoid')}
+                    description={t('forFoodsYouSimplyDonTWantIncluded')}
                     values={
                       preferences.avoidedFoods
                     }
-                    placeholder="e.g. mushrooms"
+                    placeholder={t('eGMushrooms')}
                     onChange={(values) =>
                       updatePreference(
                         "avoidedFoods",
@@ -1133,12 +1102,12 @@ export default function DietPreferencesForm() {
                   />
 
                   <TagField
-                    label="Foods you like"
-                    description="Familiar foods can make a plan easier to actually follow."
+                    label={t('foodsYouLike')}
+                    description={t('familiarFoodsCanMakeAPlanEasierToActuallyFollow')}
                     values={
                       preferences.preferredFoods
                     }
-                    placeholder="e.g. dal, rice"
+                    placeholder={t('eGDalRice')}
                     onChange={(values) =>
                       updatePreference(
                         "preferredFoods",
@@ -1148,12 +1117,12 @@ export default function DietPreferencesForm() {
                   />
 
                   <TagField
-                    label="Cuisine you enjoy"
-                    description="Examples: North Indian, South Indian, Mediterranean, home-style."
+                    label={t('cuisineYouEnjoy')}
+                    description={t('examplesNorthIndianSouthIndianMediterraneanHomeStyle')}
                     values={
                       preferences.cuisinePreferences
                     }
-                    placeholder="e.g. North Indian"
+                    placeholder={t('eGNorthIndian')}
                     onChange={(values) =>
                       updatePreference(
                         "cuisinePreferences",
@@ -1168,19 +1137,15 @@ export default function DietPreferencesForm() {
             {step === 4 && (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  Your routine
-                </p>
+                  {t('yourRoutine')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  What kind of day feels comfortable?
-                </h2>
+                  {t('whatKindOfDayFeelsComfortable')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  We&apos;ll use this to shape the meal rhythm, not to impose a rigid schedule.
-                </p>
+                  {t('weAposLlUseThisToShapeTheMealRhythmNotToImposeARigidSchedule')}{' '}</p>
 
                 <div className="mt-7">
                   <p className="text-sm font-semibold text-slate-900">
-                    Number of meals
-                  </p>
+                    {t('numberOfMeals')}{' '}</p>
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     {[3, 4, 5].map(
@@ -1201,15 +1166,13 @@ export default function DietPreferencesForm() {
                               : "border-slate-200 bg-white text-slate-700 hover:border-[#b8ddda]"
                           }`}
                         >
-                          {count} meals
-                        </button>
+                          {count} {t('meals')}{' '}</button>
                       ),
                     )}
                   </div>
 
                   <p className="mt-6 text-sm font-semibold text-slate-900">
-                    Which meal moments matter to you?
-                  </p>
+                    {t('whichMealMomentsMatterToYou')}{' '}</p>
 
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {MEAL_TIMINGS.map(
@@ -1250,14 +1213,11 @@ export default function DietPreferencesForm() {
             {step === 5 && (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  How today feels
-                </p>
+                  {t('howTodayFeels')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  How is your appetite usually?
-                </h2>
+                  {t('howIsYourAppetiteUsually')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Choose the pattern that feels most like you these days. You can change it later.
-                </p>
+                  {t('chooseThePatternThatFeelsMostLikeYouTheseDaysYouCanChangeItLater')}{' '}</p>
 
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   {APPETITE_OPTIONS.map(
@@ -1306,14 +1266,11 @@ export default function DietPreferencesForm() {
             {step === 6 && (
               <>
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-                  Last question
-                </p>
+                  {t('lastQuestion')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  What would you like your nutrition plan to support?
-                </h2>
+                  {t('whatWouldYouLikeYourNutritionPlanToSupport')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  Select any that feel relevant. These guide the tone and direction of future plans.
-                </p>
+                  {t('selectAnyThatFeelRelevantTheseGuideTheToneAndDirectionOfFuturePlans')}{' '}</p>
 
                 <div className="mt-6 grid gap-2 sm:grid-cols-2">
                   {NUTRITION_GOALS.map(
@@ -1370,8 +1327,7 @@ export default function DietPreferencesForm() {
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition motion-reduce:transition-none hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
+                {t('back')}{' '}</button>
 
               {step < TOTAL_STEPS ? (
                 <button
@@ -1380,8 +1336,7 @@ export default function DietPreferencesForm() {
                   disabled={saving}
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#1f8f8a] px-5 py-2.5 text-sm font-semibold text-white transition motion-reduce:transition-none hover:bg-[#167772] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Continue
-                  <ArrowRight className="h-4 w-4" />
+                  {t('continue')}{' '}<ArrowRight className="h-4 w-4" />
                 </button>
               ) : (
                 <button
@@ -1395,13 +1350,11 @@ export default function DietPreferencesForm() {
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-                      Saving
-                    </>
+                      {t('saving')}{' '}</>
                   ) : (
                     <>
                       <Check className="h-4 w-4" />
-                      Save preferences
-                    </>
+                      {t('savePreferences')}{' '}</>
                   )}
                 </button>
               )}
@@ -1421,17 +1374,15 @@ export default function DietPreferencesForm() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-950">
-                  Your preferences are saved
-                </p>
+                  {t('yourPreferencesAreSaved')}{' '}</p>
                 <p className="mt-1 text-xs leading-5 text-slate-500">
-                  Your next meal plan will use these updated preferences.
-                </p>
+                  {t('yourNextMealPlanWillUseTheseUpdatedPreferences')}{' '}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowSaveToast(false)}
                 className="ml-auto rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                aria-label="Dismiss notification"
+                aria-label={t('dismissNotification')}
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1442,8 +1393,7 @@ export default function DietPreferencesForm() {
         <footer className="mt-8 flex items-start justify-center gap-2 px-4 text-center text-[11px] leading-5 text-slate-400">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            Only dietary preference information belongs to this feature. Clinical information used for personalization remains governed by the existing OncoCare+ data and access controls.
-          </p>
+            {t('onlyDietaryPreferenceInformationBelongsToThisFeatureClinicalInformationUsedForPe')}{' '}</p>
         </footer>
       </div>
     </main>

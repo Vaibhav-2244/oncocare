@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Clock, Star, ShieldCheck, Truck, Syringe, Percent, Navigation, Heart } from 'lucide-react';
 import type { Pharmacy } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface Filter {
   key: keyof Pharmacy;
@@ -31,6 +32,7 @@ export function NearbyPharmacies({
   favouriteIds: Set<string>;
   onToggleFavourite: (pharmacyId: string) => void;
 }) {
+  const t = useTranslations('components.medicine.nearbyPharmacies');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
 
   const toggleFilter = (key: string) => {
@@ -53,7 +55,7 @@ export function NearbyPharmacies({
     <div>
       {/* Filters */}
       <div className="mb-6 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-slate-400">Filters:</span>
+        <span className="text-xs font-semibold text-slate-400">{t('filters')}</span>
         {filters.map((filter) => {
           const isActive = activeFilters.has(filter.key as string);
           return (
@@ -80,7 +82,7 @@ export function NearbyPharmacies({
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-slate-400">
             <Navigation className="h-8 w-8" />
-            <span className="text-xs font-medium">Interactive Map — {filtered.length} pharmacies nearby</span>
+            <span className="text-xs font-medium">{t('interactiveMap')}{' '}{filtered.length} {t('pharmaciesNearby')}</span>
           </div>
         </div>
         {/* Pharmacy pins */}
@@ -152,20 +154,17 @@ export function NearbyPharmacies({
               {pharmacy.is_24x7 && (
                 <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-600">
                   <Clock className="h-2.5 w-2.5" />
-                  24x7
-                </span>
+                  {t('text24x7')}{' '}</span>
               )}
               {pharmacy.home_delivery && (
                 <span className="flex items-center gap-1 rounded-full bg-teal-50 px-2 py-0.5 font-medium text-emerald-deep">
                   <Truck className="h-2.5 w-2.5" />
-                  Delivery
-                </span>
+                  {t('delivery')}{' '}</span>
               )}
               {pharmacy.discount_available && (
                 <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-600">
                   <Percent className="h-2.5 w-2.5" />
-                  Discount
-                </span>
+                  {t('discount')}{' '}</span>
               )}
             </div>
 
@@ -180,7 +179,7 @@ export function NearbyPharmacies({
 
       {filtered.length === 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
-          <p className="text-sm font-medium text-slate-500">No pharmacies match your filters.</p>
+          <p className="text-sm font-medium text-slate-500">{t('noPharmaciesMatchYourFilters')}</p>
         </div>
       )}
     </div>

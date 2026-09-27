@@ -3,6 +3,7 @@
 import { ShieldCheck, ChevronRight } from 'lucide-react';
 import { BPL_PATIENT_PLACEHOLDER, type BplPatient } from '@/lib/bpl-api';
 import { ProgressBar } from './progress-bar';
+import { useTranslations } from 'next-intl';
 
 interface PatientCardProps {
   patient: BplPatient;
@@ -10,6 +11,7 @@ interface PatientCardProps {
 }
 
 export function PatientMiniCard({ patient, onDonate }: PatientCardProps) {
+  const t = useTranslations('components.bplDonations.patientMiniCard');
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md">
       <div className="aspect-square overflow-hidden bg-slate-100">
@@ -36,8 +38,7 @@ export function PatientMiniCard({ patient, onDonate }: PatientCardProps) {
           onClick={() => onDonate(patient)}
           className="w-full flex items-center justify-center gap-2 rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
         >
-          Donate
-          <ChevronRight size={14} />
+          {t('donate')}{' '}<ChevronRight size={14} />
         </button>
       </div>
     </div>

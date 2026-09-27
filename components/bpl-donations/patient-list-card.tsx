@@ -3,6 +3,7 @@
 import { ShieldCheck, ChevronRight } from 'lucide-react';
 import { BPL_PATIENT_PLACEHOLDER, type BplPatient } from '@/lib/bpl-api';
 import { ProgressBar } from './progress-bar';
+import { useTranslations } from 'next-intl';
 
 interface PatientListCardProps {
   patient: BplPatient;
@@ -10,6 +11,7 @@ interface PatientListCardProps {
 }
 
 export function PatientListCard({ patient, onDonate }: PatientListCardProps) {
+  const t = useTranslations('components.bplDonations.patientListCard');
   const remaining = Number(patient.goal_amount) - Number(patient.raised_amount);
 
   return (
@@ -29,8 +31,7 @@ export function PatientListCard({ patient, onDonate }: PatientListCardProps) {
           )}
           {patient.urgent && (
             <span className="inline-block rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-              URGENT
-            </span>
+              {t('urgent')}{' '}</span>
           )}
         </div>
         <p className="text-sm text-slate-600">
@@ -43,14 +44,13 @@ export function PatientListCard({ patient, onDonate }: PatientListCardProps) {
           <strong className="block text-sm text-slate-900">
             ₹{remaining.toLocaleString('en-IN')}
           </strong>
-          <small className="text-xs text-slate-500">still needed</small>
+          <small className="text-xs text-slate-500">{t('stillNeeded')}</small>
         </div>
         <button
           onClick={() => onDonate(patient)}
           className="flex items-center gap-1 rounded-md bg-teal-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-teal-700"
         >
-          Donate
-          <ChevronRight size={14} />
+          {t('donate')}{' '}<ChevronRight size={14} />
         </button>
       </div>
     </div>

@@ -13,6 +13,7 @@ import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNav
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const EVENT_TYPES = [
   { value: 'diagnosis', label: 'Diagnosis', icon: Microscope, color: 'bg-rose-500', ring: 'ring-rose-100', bg: 'bg-rose-50', text: 'text-rose-600' },
@@ -64,6 +65,7 @@ function TimelineSkeleton() {
 }
 
 function HealthTimelineContent() {
+  const tI18n = useTranslations('timeline');
   const { user } = useAuth();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -162,15 +164,15 @@ function HealthTimelineContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Health Timeline</h1>
-          <p className="mt-1 text-sm text-slate-500">Track key events in your care journey</p>
+          <h1 className="text-2xl font-bold text-slate-900">{tI18n('healthTimeline')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{tI18n('trackKeyEventsInYourCareJourney')}</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-teal-700 hover:to-emerald-700"
         >
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? 'Cancel' : 'Add Event'}
+          {showForm ? tI18n('cancel') : tI18n('addEvent')}
         </button>
       </div>
 
@@ -194,10 +196,10 @@ function HealthTimelineContent() {
               onSubmit={handleSubmit}
               className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm"
             >
-              <h2 className="text-base font-bold text-slate-900">Add a Timeline Event</h2>
+              <h2 className="text-base font-bold text-slate-900">{tI18n('addATimelineEvent')}</h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Event Type</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{tI18n('eventType')}</label>
                   <select
                     value={form.event_type}
                     onChange={(e) => setForm((f) => ({ ...f, event_type: e.target.value }))}
@@ -211,7 +213,7 @@ function HealthTimelineContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Date</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{tI18n('date')}</label>
                   <input
                     type="date"
                     required
@@ -223,23 +225,23 @@ function HealthTimelineContent() {
                 </div>
               </div>
               <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Title</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">{tI18n('title')}</label>
                 <input
                   type="text"
                   required
                   value={form.title}
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. First chemotherapy session"
+                  placeholder={tI18n('eGFirstChemotherapySession')}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                 />
               </div>
               <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Description</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">{tI18n('description')}</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   rows={3}
-                  placeholder="Add details about this event..."
+                  placeholder={tI18n('addDetailsAboutThisEvent')}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                 />
               </div>
@@ -249,8 +251,7 @@ function HealthTimelineContent() {
                   onClick={() => setShowForm(false)}
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                 >
-                  Cancel
-                </button>
+                  {tI18n('cancel')}{' '}</button>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -261,8 +262,7 @@ function HealthTimelineContent() {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  Save Event
-                </button>
+                  {tI18n('saveEvent')}{' '}</button>
               </div>
             </form>
           </motion.div>
@@ -281,8 +281,7 @@ function HealthTimelineContent() {
                 : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
             )}
           >
-            All Events
-          </button>
+            {tI18n('allEvents')}{' '}</button>
           {availableTypes.map((t) => {
             const Icon = t.icon;
             const active = filter === t.value;
@@ -317,20 +316,19 @@ function HealthTimelineContent() {
               <Clock className="h-7 w-7" />
             </div>
             <p className="mt-3 text-sm font-medium text-slate-700">
-              {filter === 'all' ? 'No timeline events yet' : 'No events of this type'}
+              {filter === 'all' ? tI18n('noTimelineEventsYet') : tI18n('noEventsOfThisType')}
             </p>
             <p className="mt-1 text-xs text-slate-400">
               {filter === 'all'
-                ? 'Document diagnoses, treatments, scans, and milestones to build your health story.'
-                : 'Try a different filter or add a new event.'}
+                ? tI18n('documentDiagnosesTreatmentsScansAndMilestonesToBuildYourHealthStory')
+                : tI18n('tryADifferentFilterOrAddANewEvent')}
             </p>
             {filter === 'all' && (
               <button
                 onClick={() => setShowForm(true)}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
               >
-                <Plus className="h-4 w-4" /> Add your first event
-              </button>
+                <Plus className="h-4 w-4" /> {tI18n('addYourFirstEvent')}{' '}</button>
             )}
           </div>
         ) : (
@@ -396,7 +394,7 @@ function HealthTimelineContent() {
                           onClick={() => handleDelete(event.id)}
                           disabled={deletingId === event.id}
                           className="rounded-lg p-2 text-slate-300 opacity-0 transition-all hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100 disabled:opacity-50"
-                          aria-label="Delete event"
+                          aria-label={tI18n('deleteEvent')}
                         >
                           {deletingId === event.id ? (
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />

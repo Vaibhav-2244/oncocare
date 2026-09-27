@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { roleConfig } from '@/lib/auth-types';
 import { Logo } from '@/components/shared/logo';
+import { useTranslations } from 'next-intl';
 
 const navLinks = [
   { label: 'Platform', href: '#solution' },
@@ -19,6 +20,7 @@ const navLinks = [
 ];
 
 export function Navbar() {
+  const t = useTranslations('components.sections.navbar');
   const router = useRouter();
   const { user, signOut, loading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
@@ -45,7 +47,7 @@ export function Navbar() {
 
   return (
     <motion.header
-      initial={{ y: -80, opacity: 0 }}
+      initial={false}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="fixed inset-x-0 top-0 z-50"
@@ -101,20 +103,17 @@ export function Navbar() {
                     >
                       <div className="border-b border-slate-100 p-3">
                         <p className="truncate text-sm font-semibold text-slate-900">
-                          {user.profile?.full_name || 'User'}
+                          {user.profile?.full_name || t('user')}
                         </p>
                         <p className="truncate text-xs text-slate-500">{user.email}</p>
                       </div>
                       <div className="p-1.5">
                         <a href={dashboardPath} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                          <LayoutDashboard className="h-4 w-4" /> Dashboard
-                        </a>
+                          <LayoutDashboard className="h-4 w-4" /> {t('dashboard')}{' '}</a>
                         <a href="/dashboard/profile" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
-                          <User className="h-4 w-4" /> Profile
-                        </a>
+                          <User className="h-4 w-4" /> {t('profile')}{' '}</a>
                         <button onClick={handleSignOut} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                          <LogOut className="h-4 w-4" /> Sign Out
-                        </button>
+                          <LogOut className="h-4 w-4" /> {t('signOut')}{' '}</button>
                       </div>
                     </motion.div>
                   </>
@@ -127,13 +126,12 @@ export function Navbar() {
                 href="/auth/sign-in"
                 className="text-sm font-semibold text-slate-700 transition-colors hover:text-emerald-deep"
               >
-                Sign in
-              </a>
+                {t('signIn')}{' '}</a>
               <a
                 href="/auth/sign-up"
                 className="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r from-emerald-deep to-teal-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/25 transition-all hover:shadow-lg hover:shadow-teal-500/40"
               >
-                <span className="relative z-10">Get Started</span>
+                <span className="relative z-10">{t('getStarted')}</span>
                 <ChevronDown className="h-3.5 w-3.5 rotate-[-90deg] transition-transform group-hover:translate-x-0.5" />
                 <div className="absolute inset-0 bg-gradient-to-r from-teal-400 to-blue-500 opacity-0 transition-opacity group-hover:opacity-100" />
               </a>
@@ -144,7 +142,7 @@ export function Navbar() {
         <button
           onClick={() => setOpen(!open)}
           className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/80 text-slate-700 md:hidden"
-          aria-label="Toggle menu"
+          aria-label={t('toggleMenu')}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -177,14 +175,12 @@ export function Navbar() {
                     onClick={() => setOpen(false)}
                     className="mt-2 rounded-xl bg-gradient-to-r from-emerald-deep to-teal-500 px-4 py-3 text-center text-sm font-semibold text-white"
                   >
-                    Dashboard
-                  </a>
+                    {t('dashboard')}{' '}</a>
                   <button
                     onClick={() => { handleSignOut(); setOpen(false); }}
                     className="mt-1 rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-rose-600"
                   >
-                    Sign Out
-                  </button>
+                    {t('signOut')}{' '}</button>
                 </>
               ) : (
                 <>
@@ -193,15 +189,13 @@ export function Navbar() {
                     onClick={() => setOpen(false)}
                     className="mt-2 rounded-xl border border-slate-200 px-4 py-3 text-center text-sm font-semibold text-slate-700"
                   >
-                    Sign in
-                  </a>
+                    {t('signIn')}{' '}</a>
                   <a
                     href="/auth/sign-up"
                     onClick={() => setOpen(false)}
                     className="mt-1 rounded-xl bg-gradient-to-r from-emerald-deep to-teal-500 px-4 py-3 text-center text-sm font-semibold text-white"
                   >
-                    Get Started
-                  </a>
+                    {t('getStarted')}{' '}</a>
                 </>
               )}
             </nav>

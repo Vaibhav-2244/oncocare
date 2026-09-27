@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase-client";
+import { useTranslations } from 'next-intl';
 
 type InsuranceReferral = {
   id: string;
@@ -32,6 +33,7 @@ type ReferralEnquiry = {
 };
 
 export default function InsuranceReferralsPage() {
+  const t = useTranslations('insurance.referrals');
   const [referrals, setReferrals] = useState<InsuranceReferral[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -370,19 +372,15 @@ export default function InsuranceReferralsPage() {
           href="/dashboard/insurance"
           className="mb-6 inline-flex text-sm font-medium text-[#0F766E] hover:underline"
         >
-          ← Back to Insurance
-        </Link>
+          {t('backToInsurance')}{' '}</Link>
 
         {/* HEADER */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold">
-            My Insurance Referrals
-          </h1>
+            {t('myInsuranceReferrals')}{' '}</h1>
 
           <p className="mt-2 text-sm text-[#64748B]">
-            Track your submitted insurance
-            referral requests.
-          </p>
+            {t('trackYourSubmittedInsuranceReferralRequests')}{' '}</p>
         </div>
 
         {/* ERROR */}
@@ -401,8 +399,7 @@ export default function InsuranceReferralsPage() {
           {loading && (
             <div className="flex min-h-[320px] items-center justify-center">
               <p className="text-sm text-[#64748B]">
-                Loading your referrals...
-              </p>
+                {t('loadingYourReferrals')}{' '}</p>
             </div>
           )}
 
@@ -416,21 +413,16 @@ export default function InsuranceReferralsPage() {
                 </div>
 
                 <h2 className="text-lg font-bold">
-                  No insurance referrals yet
-                </h2>
+                  {t('noInsuranceReferralsYet')}{' '}</h2>
 
                 <p className="mt-2 max-w-md text-sm text-[#64748B]">
-                  After you submit an insurance
-                  referral, your request will
-                  appear here.
-                </p>
+                  {t('afterYouSubmitAnInsuranceReferralYourRequestWillAppearHere')}{' '}</p>
 
                 <Link
                   href="/dashboard/insurance#recommendations"
                   className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#0F766E] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#095C57]"
                 >
-                  Explore Plans
-                </Link>
+                  {t('explorePlans')}{' '}</Link>
               </div>
             )}
 
@@ -445,24 +437,19 @@ export default function InsuranceReferralsPage() {
                     <tr className="border-b border-[#E5E7EB] text-left">
 
                       <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Plan
-                      </th>
+                        {t('plan')}{' '}</th>
 
                       <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Provider
-                      </th>
+                        {t('provider')}{' '}</th>
 
                       <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Status
-                      </th>
+                        {t('status')}{' '}</th>
 
                       <th className="px-6 py-4 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Requested On
-                      </th>
+                        {t('requestedOn')}{' '}</th>
 
                       <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wide text-[#64748B]">
-                        Action
-                      </th>
+                        {t('action')}{' '}</th>
 
                     </tr>
                   </thead>
@@ -543,8 +530,7 @@ export default function InsuranceReferralsPage() {
                               href={`/dashboard/insurance/${referral.plan_id}`}
                               className="inline-flex items-center justify-center rounded-lg border border-[#0F766E] px-4 py-2 text-xs font-semibold text-[#0F766E] transition hover:bg-[#E8F8F6]"
                             >
-                              View Details
-                            </Link>
+                              {t('viewDetails')}{' '}</Link>
                           </td>
 
                         </tr>
@@ -560,15 +546,7 @@ export default function InsuranceReferralsPage() {
         {/* DISCLAIMER */}
         <section className="mt-8 rounded-2xl border border-[#E5E7EB] bg-white p-6">
           <p className="text-xs leading-5 text-[#64748B]">
-            OncoCare+ provides this feature
-            for informational and assistance
-            purposes. Insurance plan details,
-            premiums, eligibility, exclusions,
-            waiting periods, and policy terms
-            should be confirmed directly with
-            the relevant insurance provider
-            before making a decision.
-          </p>
+            {t('oncocareProvidesThisFeatureForInformationalAndAssistancePurposesInsurancePlanDet')}{' '}</p>
         </section>
 
       </div>

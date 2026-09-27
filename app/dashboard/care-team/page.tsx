@@ -13,6 +13,7 @@ import { DashboardLayout, PATIENT_CAREGIVER_ROLES, caregiverNavItems, patientNav
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const ROLES = [
   { value: 'oncologist', label: 'Oncologist', color: 'from-teal-500 to-emerald-500' },
@@ -90,6 +91,7 @@ function StatSkeleton() {
 }
 
 function CareTeamContent() {
+  const t = useTranslations('careTeam');
   const { user } = useAuth();
   const [members, setMembers] = useState<CareTeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,15 +223,15 @@ function CareTeamContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Care Team</h1>
-          <p className="mt-1 text-sm text-slate-500">Manage your healthcare providers and caregivers</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('careTeam')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('manageYourHealthcareProvidersAndCaregivers')}</p>
         </div>
         <button
           onClick={() => (showForm ? setShowForm(false) : openAddForm())}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-teal-700 hover:to-emerald-700"
         >
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? 'Cancel' : 'Add Member'}
+          {showForm ? t('cancel') : t('addMember')}
         </button>
       </div>
 
@@ -280,22 +282,22 @@ function CareTeamContent() {
               className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm"
             >
               <h2 className="text-base font-bold text-slate-900">
-                {editingId ? 'Edit Team Member' : 'Add a Care Team Member'}
+                {editingId ? t('editTeamMember') : t('addACareTeamMember')}
               </h2>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Name</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('name')}</label>
                   <input
                     type="text"
                     required
                     value={form.member_name}
                     onChange={(e) => setForm((f) => ({ ...f, member_name: e.target.value }))}
-                    placeholder="e.g. Dr. Sarah Chen"
+                    placeholder={t('eGDrSarahChen')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Role</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('role')}</label>
                   <select
                     value={form.role}
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
@@ -309,54 +311,54 @@ function CareTeamContent() {
                   </select>
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Specialty</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('specialty')}</label>
                   <input
                     type="text"
                     value={form.specialty}
                     onChange={(e) => setForm((f) => ({ ...f, specialty: e.target.value }))}
-                    placeholder="e.g. Medical Oncology"
+                    placeholder={t('eGMedicalOncology')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Hospital</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('hospital')}</label>
                   <input
                     type="text"
                     value={form.hospital}
                     onChange={(e) => setForm((f) => ({ ...f, hospital: e.target.value }))}
-                    placeholder="e.g. City Cancer Center"
+                    placeholder={t('eGCityCancerCenter')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Phone</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('phone')}</label>
                   <input
                     type="tel"
                     value={form.phone}
                     onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    placeholder="e.g. +1 555 123 4567"
+                    placeholder={t('eG15551234567')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Email</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('email')}</label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="e.g. s.chen@hospital.com"
+                    placeholder={t('eGSChenHospitalCom')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
               </div>
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Notes</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('notes')}</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={3}
-                  placeholder="Add any notes about this team member..."
+                  placeholder={t('addAnyNotesAboutThisTeamMember')}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                 />
               </div>
@@ -370,8 +372,7 @@ function CareTeamContent() {
                   }}
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                 >
-                  Cancel
-                </button>
+                  {t('cancel')}{' '}</button>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -382,7 +383,7 @@ function CareTeamContent() {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  {editingId ? 'Update Member' : 'Save Member'}
+                  {editingId ? t('updateMember') : t('saveMember')}
                 </button>
               </div>
             </form>
@@ -392,7 +393,7 @@ function CareTeamContent() {
 
       {/* Member cards */}
       <div>
-        <h2 className="mb-3 text-base font-bold text-slate-900">Your Care Team</h2>
+        <h2 className="mb-3 text-base font-bold text-slate-900">{t('yourCareTeam')}</h2>
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2, 3, 4, 5].map((i) => <MemberCardSkeleton key={i} />)}
@@ -403,16 +404,14 @@ function CareTeamContent() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-400">
                 <Stethoscope className="h-7 w-7" />
               </div>
-              <p className="mt-3 text-sm font-medium text-slate-700">No care team members yet</p>
+              <p className="mt-3 text-sm font-medium text-slate-700">{t('noCareTeamMembersYet')}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Add your doctors, nurses, and caregivers to keep their contact info handy.
-              </p>
+                {t('addYourDoctorsNursesAndCaregiversToKeepTheirContactInfoHandy')}{' '}</p>
               <button
                 onClick={openAddForm}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
               >
-                <Plus className="h-4 w-4" /> Add a member
-              </button>
+                <Plus className="h-4 w-4" /> {t('addAMember')}{' '}</button>
             </div>
           </div>
         ) : (
@@ -454,7 +453,7 @@ function CareTeamContent() {
                         <button
                           onClick={() => openEditForm(m)}
                           className="rounded-lg p-2 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
-                          aria-label="Edit member"
+                          aria-label={t('editMember')}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -462,7 +461,7 @@ function CareTeamContent() {
                           onClick={() => handleDelete(m.id)}
                           disabled={deletingId === m.id}
                           className="rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                          aria-label="Delete member"
+                          aria-label={t('deleteMember')}
                         >
                           {deletingId === m.id ? (
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />

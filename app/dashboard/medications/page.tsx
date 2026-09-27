@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
 import { analyzePrescription } from '@/lib/prescription-analyzer';
+import { useTranslations } from 'next-intl';
 
 const FREQUENCIES = [
   { value: 'once daily', label: 'Once Daily', times: 1 },
@@ -89,6 +90,7 @@ function StatSkeleton() {
 }
 
 function MedicationsContent() {
+  const t = useTranslations('medications');
   const { user } = useAuth();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [logs, setLogs] = useState<MedLog[]>([]);
@@ -341,15 +343,15 @@ function MedicationsContent() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Medication Reminders</h1>
-          <p className="mt-1 text-sm text-slate-500">Track your medications and adherence</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('medicationReminders')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('trackYourMedicationsAndAdherence')}</p>
         </div>
         <button
           onClick={() => (showForm ? setShowForm(false) : openAddForm())}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:from-teal-700 hover:to-emerald-700"
         >
           {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? 'Cancel' : 'Add Medication'}
+          {showForm ? t('cancel') : t('addMedication')}
         </button>
       </div>
 
@@ -400,17 +402,17 @@ function MedicationsContent() {
               className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm"
             >
               <h2 className="text-base font-bold text-slate-900">
-                {editingId ? 'Edit Medication' : 'Add a New Medication'}
+                {editingId ? t('editMedication') : t('addANewMedication')}
               </h2>
               {!editingId && (
                 <div className="mt-4 rounded-xl border border-teal-100 bg-teal-50/60 p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-teal-800">Analyze a prescription</p>
-                      <p className="mt-1 text-xs text-teal-700">Upload an image or PDF to prefill this form. Nothing is saved automatically.</p>
+                      <p className="text-sm font-semibold text-teal-800">{t('analyzeAPrescription')}</p>
+                      <p className="mt-1 text-xs text-teal-700">{t('uploadAnImageOrPdfToPrefillThisFormNothingIsSavedAutomatically')}</p>
                     </div>
                     <label className="inline-flex cursor-pointer items-center justify-center rounded-lg bg-teal-700 px-3 py-2 text-xs font-semibold text-white hover:bg-teal-800">
-                      {analyzingPrescription ? 'Analyzing...' : 'Choose file'}
+                      {analyzingPrescription ? t('analyzing') : t('chooseFile')}
                       <input type="file" accept="image/*,application/pdf" className="sr-only" disabled={analyzingPrescription} onChange={(event) => void handlePrescriptionUpload(event.target.files?.[0])} />
                     </label>
                   </div>
@@ -419,29 +421,29 @@ function MedicationsContent() {
               )}
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Name</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('name')}</label>
                   <input
                     type="text"
                     required
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    placeholder="e.g. Ondansetron"
+                    placeholder={t('eGOndansetron')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Dosage</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('dosage')}</label>
                   <input
                     type="text"
                     required
                     value={form.dosage}
                     onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
-                    placeholder="e.g. 8 mg"
+                    placeholder={t('eG8Mg')}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Frequency</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('frequency')}</label>
                   <select
                     value={form.frequency}
                     onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
@@ -456,7 +458,7 @@ function MedicationsContent() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">Start Date</label>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('startDate')}</label>
                     <input
                       type="date"
                       value={form.start_date}
@@ -465,7 +467,7 @@ function MedicationsContent() {
                     />
                   </div>
                   <div>
-                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">End Date</label>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('endDate')}</label>
                     <input
                       type="date"
                       value={form.end_date}
@@ -480,7 +482,7 @@ function MedicationsContent() {
               {/* Times */}
               {form.frequency !== 'as needed' && form.times.length > 0 && (
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">Reminder Times</label>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('reminderTimes')}</label>
                   <div className="flex flex-wrap gap-3">
                     {form.times.map((time, idx) => (
                       <input
@@ -502,12 +504,12 @@ function MedicationsContent() {
               )}
 
               <div className="mt-4">
-                <label className="mb-1.5 block text-xs font-semibold text-slate-600">Notes</label>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-600">{t('notes')}</label>
                 <textarea
                   value={form.notes}
                   onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                   rows={3}
-                  placeholder="e.g. Take with food, before bed..."
+                  placeholder={t('eGTakeWithFoodBeforeBed')}
                   className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 placeholder:text-slate-400 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                 />
               </div>
@@ -521,8 +523,7 @@ function MedicationsContent() {
                   }}
                   className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
                 >
-                  Cancel
-                </button>
+                  {t('cancel')}{' '}</button>
                 <button
                   type="submit"
                   disabled={submitting}
@@ -533,7 +534,7 @@ function MedicationsContent() {
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  {editingId ? 'Update Medication' : 'Save Medication'}
+                  {editingId ? t('updateMedication') : t('saveMedication')}
                 </button>
               </div>
             </form>
@@ -543,7 +544,7 @@ function MedicationsContent() {
 
       {/* Medication cards */}
       <div>
-        <h2 className="mb-3 text-base font-bold text-slate-900">Your Medications</h2>
+        <h2 className="mb-3 text-base font-bold text-slate-900">{t('yourMedications')}</h2>
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {[0, 1, 2, 3].map((i) => <MedicationCardSkeleton key={i} />)}
@@ -554,16 +555,14 @@ function MedicationsContent() {
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 text-teal-400">
                 <Pill className="h-7 w-7" />
               </div>
-              <p className="mt-3 text-sm font-medium text-slate-700">No medications added yet</p>
+              <p className="mt-3 text-sm font-medium text-slate-700">{t('noMedicationsAddedYet')}</p>
               <p className="mt-1 text-xs text-slate-400">
-                Add your medications to get reminders and track adherence.
-              </p>
+                {t('addYourMedicationsToGetRemindersAndTrackAdherence')}{' '}</p>
               <button
                 onClick={openAddForm}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:shadow-md"
               >
-                <Plus className="h-4 w-4" /> Add a medication
-              </button>
+                <Plus className="h-4 w-4" /> {t('addAMedication')}{' '}</button>
             </div>
           </div>
         ) : (
@@ -606,7 +605,7 @@ function MedicationsContent() {
                         <button
                           onClick={() => openEditForm(med)}
                           className="rounded-lg p-2 text-slate-300 hover:bg-slate-100 hover:text-slate-600"
-                          aria-label="Edit medication"
+                          aria-label={t('editMedication2')}
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -614,7 +613,7 @@ function MedicationsContent() {
                           onClick={() => handleDelete(med.id)}
                           disabled={deletingId === med.id}
                           className="rounded-lg p-2 text-slate-300 hover:bg-rose-50 hover:text-rose-500 disabled:opacity-50"
-                          aria-label="Delete medication"
+                          aria-label={t('deleteMedication')}
                         >
                           {deletingId === med.id ? (
                             <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-rose-500" />
@@ -646,7 +645,7 @@ function MedicationsContent() {
                         {med.last_taken_at ? (
                           <span className="inline-flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                            Last taken:{' '}
+                            {t('lastTaken')}{' '}
                             {new Date(med.last_taken_at).toLocaleString('en-US', {
                               day: 'numeric',
                               month: 'short',
@@ -657,8 +656,7 @@ function MedicationsContent() {
                         ) : (
                           <span className="inline-flex items-center gap-1">
                             <CalendarClock className="h-3.5 w-3.5 text-slate-400" />
-                            Not taken yet
-                          </span>
+                            {t('notTakenYet')}{' '}</span>
                         )}
                       </div>
                       <button
@@ -667,7 +665,7 @@ function MedicationsContent() {
                           'relative h-5 w-9 rounded-full transition-colors',
                           isActive ? 'bg-teal-500' : 'bg-slate-300',
                         )}
-                        aria-label="Toggle active"
+                        aria-label={t('toggleActive')}
                       >
                         <span
                           className={cn(
@@ -693,8 +691,7 @@ function MedicationsContent() {
                       ) : (
                         <CheckCircle2 className="h-4 w-4" />
                       )}
-                      Mark as Taken
-                    </button>
+                      {t('markAsTaken')}{' '}</button>
                   </motion.div>
                 );
               })}

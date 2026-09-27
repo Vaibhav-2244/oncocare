@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 import { Section, SectionHeading, Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const faqs = [
   {
@@ -49,6 +50,7 @@ const faqs = [
 ];
 
 export function FAQ() {
+  const t = useTranslations('components.sections.faq');
   const [open, setOpen] = useState<number | null>(0);
 
   return (
@@ -57,7 +59,7 @@ export function FAQ() {
         eyebrow="FAQ"
         title={
           <>
-            Questions, <span className="gradient-text">answered</span>
+            {t('questions')}{' '}<span className="gradient-text">{t('answered')}</span>
           </>
         }
         subtitle="Everything you need to know about OncoCare+. Can't find what you're looking for? Reach out to our team."

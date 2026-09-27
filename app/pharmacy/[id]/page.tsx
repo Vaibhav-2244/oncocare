@@ -15,8 +15,10 @@ import type { Pharmacy, PharmacyReview, MedicinePrice } from '@/lib/medicine-typ
 import { availabilityConfig, formatINR } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
+import { useTranslations } from 'next-intl';
 
 export default function PharmacyProfilePage() {
+  const t = useTranslations('pharmacy.id');
   const { user } = useAuth();
   const params = useParams();
   const pharmacyId = params.id as string;
@@ -73,8 +75,8 @@ export default function PharmacyProfilePage() {
   if (!pharmacy) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-white pt-20">
-        <p className="text-sm font-medium text-slate-500">Pharmacy not found</p>
-        <a href="/medicine-finder" className="mt-4 text-sm font-semibold text-emerald-deep">Back to Medicine Finder</a>
+        <p className="text-sm font-medium text-slate-500">{t('pharmacyNotFound')}</p>
+        <a href="/medicine-finder" className="mt-4 text-sm font-semibold text-emerald-deep">{t('backToMedicineFinder')}</a>
       </div>
     );
   }
@@ -88,8 +90,7 @@ export default function PharmacyProfilePage() {
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-all hover:border-teal-300 hover:text-emerald-deep"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Medicine Finder
-        </a>
+          {t('backToMedicineFinder')}{' '}</a>
 
         {/* Pharmacy header */}
         <motion.div
@@ -110,8 +111,7 @@ export default function PharmacyProfilePage() {
                     {pharmacy.is_verified && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-deep">
                         <ShieldCheck className="h-3.5 w-3.5" />
-                        Verified
-                      </span>
+                        {t('verified')}{' '}</span>
                     )}
                   </div>
                   <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-600">
@@ -122,7 +122,7 @@ export default function PharmacyProfilePage() {
                     <span className="flex items-center gap-1 text-sm font-semibold text-slate-700">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                       {pharmacy.rating.toFixed(1)}
-                      <span className="text-xs font-normal text-slate-400">({pharmacy.review_count} reviews)</span>
+                      <span className="text-xs font-normal text-slate-400">({pharmacy.review_count} {t('reviews')}</span>
                     </span>
                   </div>
                 </div>
@@ -137,26 +137,26 @@ export default function PharmacyProfilePage() {
                 )}
               >
                 <Heart className={cn('h-4 w-4', isFavourite && 'fill-rose-500 text-rose-500')} />
-                {isFavourite ? 'Favourited' : 'Add to Favourites'}
+                {isFavourite ? t('favourited') : t('addToFavourites')}
               </button>
             </div>
           </div>
 
           {/* Info grid */}
           <div className="grid gap-4 p-6 sm:grid-cols-2 lg:grid-cols-4">
-            <InfoCard icon={Phone} label="Contact" value={pharmacy.contact_number || 'N/A'} />
-            <InfoCard icon={Clock} label="Hours" value={pharmacy.operating_hours} />
-            <InfoCard icon={Navigation} label="Location" value={`${pharmacy.city}, ${pharmacy.state}`} />
-            <InfoCard icon={Truck} label="Delivery" value={pharmacy.home_delivery ? 'Available' : 'Not available'} />
+            <InfoCard icon={Phone} label={t('contact')} value={pharmacy.contact_number || 'N/A'} />
+            <InfoCard icon={Clock} label={t('hours')} value={pharmacy.operating_hours} />
+            <InfoCard icon={Navigation} label={t('location')} value={`${pharmacy.city}, ${pharmacy.state}`} />
+            <InfoCard icon={Truck} label={t('delivery')} value={pharmacy.home_delivery ? 'Available' : 'Not available'} />
           </div>
 
           {/* Capabilities */}
           <div className="flex flex-wrap gap-2 border-t border-slate-100 p-6">
-            {pharmacy.is_24x7 && <Badge icon={Clock} label="Open 24x7" />}
-            {pharmacy.home_delivery && <Badge icon={Truck} label="Home Delivery" />}
-            {pharmacy.cancer_medicines && <Badge icon={Pill} label="Cancer Medicines" />}
-            {pharmacy.injectables && <Badge icon={Syringe} label="Injectables" />}
-            {pharmacy.discount_available && <Badge icon={Percent} label="Discounts Available" />}
+            {pharmacy.is_24x7 && <Badge icon={Clock} label={t('open24x7')} />}
+            {pharmacy.home_delivery && <Badge icon={Truck} label={t('homeDelivery')} />}
+            {pharmacy.cancer_medicines && <Badge icon={Pill} label={t('cancerMedicines')} />}
+            {pharmacy.injectables && <Badge icon={Syringe} label={t('injectables')} />}
+            {pharmacy.discount_available && <Badge icon={Percent} label={t('discountsAvailable')} />}
           </div>
         </motion.div>
 
@@ -174,7 +174,7 @@ export default function PharmacyProfilePage() {
 
         {/* Available medicines */}
         <div className="mt-8">
-          <h2 className="mb-4 text-lg font-bold text-slate-900">Available Medicines ({medicines.length})</h2>
+          <h2 className="mb-4 text-lg font-bold text-slate-900">{t('availableMedicines')}{medicines.length})</h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {medicines.map((med, i) => {
               const avail = availabilityConfig[med.availability];
@@ -199,7 +199,7 @@ export default function PharmacyProfilePage() {
                   <div className="mt-3 flex items-center justify-between">
                     <span className="text-sm font-bold text-slate-900">{formatINR(med.current_price)}</span>
                     {med.discount_percent > 0 && (
-                      <span className="text-[10px] font-semibold text-emerald-600">{med.discount_percent}% off</span>
+                      <span className="text-[10px] font-semibold text-emerald-600">{med.discount_percent}{t('off')}</span>
                     )}
                   </div>
                 </motion.div>
@@ -210,7 +210,7 @@ export default function PharmacyProfilePage() {
 
         {/* Reviews */}
         <div className="mt-8">
-          <h2 className="mb-4 text-lg font-bold text-slate-900">Reviews ({reviews.length})</h2>
+          <h2 className="mb-4 text-lg font-bold text-slate-900">{t('reviews2')}{reviews.length})</h2>
           <div className="space-y-3">
             {reviews.map((review) => (
               <div key={review.id} className="rounded-xl border border-slate-200/60 bg-white p-4 shadow-sm">
@@ -235,7 +235,7 @@ export default function PharmacyProfilePage() {
             {reviews.length === 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-8 text-center">
                 <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
-                <p className="mt-2 text-sm text-slate-400">No reviews yet</p>
+                <p className="mt-2 text-sm text-slate-400">{t('noReviewsYet')}</p>
               </div>
             )}
           </div>

@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion';
 import { Check, X, Sparkles } from 'lucide-react';
 import { Section, SectionHeading, Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const rows: {
   feature: string;
@@ -43,14 +44,15 @@ function Cell({ value, highlight }: { value: boolean | string; highlight?: boole
 }
 
 export function WhyOncoCare() {
+  const t = useTranslations('components.sections.whyOncocare');
   return (
     <Section id="why" className="bg-brand-cloud">
       <SectionHeading
         eyebrow="Why OncoCare+"
         title={
           <>
-            Not just another health app.{' '}
-            <span className="gradient-text">The cancer care platform.</span>
+            {t('notJustAnotherHealthApp')}{' '}
+            <span className="gradient-text">{t('theCancerCarePlatform')}</span>
           </>
         }
         subtitle="General healthcare apps weren't built for the complexity of cancer. OncoCare+ was—every feature, every workflow, every detail."
@@ -61,16 +63,14 @@ export function WhyOncoCare() {
           {/* Header row */}
           <div className="grid grid-cols-12 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
             <div className="col-span-6 px-6 py-5 text-sm font-semibold text-slate-500 md:col-span-7">
-              Feature
-            </div>
+              {t('feature')}{' '}</div>
             <div className="col-span-3 px-3 py-5 text-center md:col-span-2">
               <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-emerald-deep to-teal-500 px-3 py-1 text-xs font-bold text-white shadow-md shadow-teal-500/20">
                 <Sparkles className="h-3 w-3" />
-                OncoCare+
-              </div>
+                {t('oncocare')}{' '}</div>
             </div>
             <div className="col-span-3 px-3 py-5 text-center md:col-span-3">
-              <span className="text-xs font-semibold text-slate-400">Other Healthcare Apps</span>
+              <span className="text-xs font-semibold text-slate-400">{t('otherHealthcareApps')}</span>
             </div>
           </div>
 
@@ -78,7 +78,7 @@ export function WhyOncoCare() {
           {rows.map((row, i) => (
             <motion.div
               key={row.feature}
-              initial={{ opacity: 0, x: -10 }}
+              initial={false}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3, delay: i * 0.04 }}

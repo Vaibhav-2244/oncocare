@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Tag, TrendingDown, Stethoscope, CheckCircle2, ArrowRight } from 'lucide-react';
 import type { GenericAlternative } from '@/lib/medicine-types';
 import { formatINR } from '@/lib/medicine-types';
+import { useTranslations } from 'next-intl';
 
 export function GenericAlternatives({
   generics,
@@ -12,6 +13,7 @@ export function GenericAlternatives({
   generics: GenericAlternative[];
   brandMedicine: { name: string; mrp: number; manufacturer: string | null };
 }) {
+  const t = useTranslations('components.medicine.genericAlternatives');
   if (generics.length === 0) return null;
 
   return (
@@ -22,8 +24,8 @@ export function GenericAlternatives({
             <Tag className="h-4 w-4 text-blue-500" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Generic Alternatives</h3>
-            <p className="text-xs text-slate-500">Doctor-approved equivalents that may cost less</p>
+            <h3 className="text-lg font-bold text-slate-900">{t('genericAlternatives')}</h3>
+            <p className="text-xs text-slate-500">{t('doctorApprovedEquivalentsThatMayCostLess')}</p>
           </div>
         </div>
       </div>
@@ -32,9 +34,7 @@ export function GenericAlternatives({
       <div className="flex items-start gap-3 border-b border-amber-100 bg-amber-50/60 p-4">
         <Stethoscope className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
         <p className="text-xs leading-relaxed text-amber-800">
-          <span className="font-semibold">Always consult your oncologist or pharmacist</span> before switching
-          to a generic alternative. Do not change your prescribed medication without medical guidance.
-        </p>
+          <span className="font-semibold">{t('alwaysConsultYourOncologistOrPharmacist')}</span> {t('beforeSwitchingToAGenericAlternativeDoNotChangeYourPrescribedMedicationWithoutMe')}{' '}</p>
       </div>
 
       {/* Generic cards */}
@@ -64,8 +64,7 @@ export function GenericAlternatives({
                     {generic.is_doctor_approved && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-600 ring-1 ring-emerald-200/40">
                         <CheckCircle2 className="h-2.5 w-2.5" />
-                        Doctor Approved
-                      </span>
+                        {t('doctorApproved')}{' '}</span>
                     )}
                   </div>
                   <div className="text-xs text-slate-500">
@@ -79,7 +78,7 @@ export function GenericAlternatives({
                   <div className="text-sm font-bold text-slate-900">{formatINR(displayMed.mrp)}</div>
                   <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
                     <TrendingDown className="h-3 w-3" />
-                    Save {formatINR(generic.estimated_savings)}
+                    {t('save')}{' '}{formatINR(generic.estimated_savings)}
                   </div>
                 </div>
               </div>

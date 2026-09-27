@@ -44,6 +44,7 @@ import type {
   BatchReplacementReason,
   MealReplacementStatus,
 } from "@/types/diet-batch-replacement";
+import { useTranslations } from 'next-intl';
 
 const MEAL_LABELS: Record<MealType, string> = {
   breakfast: "Breakfast",
@@ -303,6 +304,7 @@ function ReferenceTile({
 }
 
 export default function DietPlanDashboard() {
+  const t = useTranslations('components.dietPlan.dietPlanDashboard');
   const [plan, setPlan] =
     useState<DietPlan | null>(null);
   const [loading, setLoading] =
@@ -822,7 +824,7 @@ export default function DietPlanDashboard() {
           <header className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <Image
               src="/brand/oncocare-logo.png"
-              alt="OncoCare+"
+              alt={t('oncocare')}
               width={165}
               height={54}
               className="h-auto w-[135px]"
@@ -864,11 +866,11 @@ export default function DietPlanDashboard() {
         <header className="sticky top-3 z-30 flex items-center justify-between gap-4 rounded-[24px] border border-slate-200/90 bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:px-5">
           <Link
             href="/dashboard/diet-plan"
-            aria-label="OncoCare+ Diet Plans"
+            aria-label={t('oncocareDietPlans')}
           >
             <Image
               src="/brand/oncocare-logo.png"
-              alt="OncoCare+"
+              alt={t('oncocare')}
               width={165}
               height={54}
               className="h-auto w-[132px] sm:w-[145px]"
@@ -881,25 +883,21 @@ export default function DietPlanDashboard() {
               href="/dashboard/diet-plan"
               className="rounded-xl bg-[#eef8f7] px-3.5 py-2 text-sm font-semibold text-[#167772]"
             >
-              Diet plans
-            </Link>
+              {t('dietPlans')}{' '}</Link>
             <Link
               href="/dashboard/diet-plan/history"
               className="rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              History
-            </Link>
+              {t('history')}{' '}</Link>
             <Link
               href="/dashboard/diet-plan/preferences"
               className="rounded-xl px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
             >
-              Preferences
-            </Link>
+              {t('preferences')}{' '}</Link>
           </nav>
 
           <div className="hidden rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 sm:block">
-            Personalized Diet Plans
-          </div>
+            {t('personalizedDietPlans')}{' '}</div>
         </header>
 
         {error && (
@@ -908,8 +906,7 @@ export default function DietPlanDashboard() {
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
               <div>
                 <p className="font-semibold">
-                  Something went wrong
-                </p>
+                  {t('somethingWentWrong')}{' '}</p>
                 <p className="mt-1 leading-5">
                   {error}
                 </p>
@@ -924,8 +921,7 @@ export default function DietPlanDashboard() {
               className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-800 hover:bg-red-100"
             >
               <RefreshCw className="h-4 w-4" />
-              Retry
-            </button>
+              {t('retry')}{' '}</button>
           </div>
         )}
 
@@ -935,11 +931,9 @@ export default function DietPlanDashboard() {
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div>
                 <h1 className="text-lg font-semibold text-amber-950">
-                  A little more information is needed
-                </h1>
+                  {t('aLittleMoreInformationIsNeeded')}{' '}</h1>
                 <p className="mt-1 text-sm leading-6 text-amber-900">
-                  We need a few details from your current OncoCare+ information before we can safely personalize a plan.
-                </p>
+                  {t('weNeedAFewDetailsFromYourCurrentOncocareInformationBeforeWeCanSafelyPersonalizeA')}{' '}</p>
 
                 <ul className="mt-3 space-y-1 text-sm text-amber-900">
                   {missingInfo.map(
@@ -959,8 +953,7 @@ export default function DietPlanDashboard() {
                   href="/dashboard/diet-plan/preferences"
                   className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#167772] px-4 text-sm font-semibold text-white hover:bg-[#125f5b]"
                 >
-                  Review preferences
-                  <ChevronRight className="h-4 w-4" />
+                  {t('reviewPreferences')}{' '}<ChevronRight className="h-4 w-4" />
                 </Link>
               </div>
             </div>
@@ -973,18 +966,13 @@ export default function DietPlanDashboard() {
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-[#eef8f7] px-3 py-1.5 text-xs font-semibold text-[#167772]">
                   <Sparkles className="h-3.5 w-3.5" />
-                  Personalized nutrition support
-                </div>
+                  {t('personalizedNutritionSupport')}{' '}</div>
 
                 <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">
-                  Your plan starts with what you&apos;ve shared.
-                </h1>
+                  {t('yourPlanStartsWithWhatYouAposVeShared')}{' '}</h1>
 
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
-                  We&apos;ll use your available OncoCare+ information,
-                  dietary preferences, and trusted nutrition guidance
-                  to prepare today&apos;s plan.
-                </p>
+                  {t('weAposLlUseYourAvailableOncocareInformationDietaryPreferencesAndTrustedNutrition')}{' '}</p>
 
                 <button
                   type="button"
@@ -1000,8 +988,8 @@ export default function DietPlanDashboard() {
                     <Sparkles className="h-4 w-4" />
                   )}
                   {generating
-                    ? "Preparing your plan..."
-                    : "Create today's plan"}
+                    ? t('preparingYourPlan')
+                    : t('createTodaySPlan')}
                 </button>
 
                 {statusMessage && (
@@ -1031,13 +1019,12 @@ export default function DietPlanDashboard() {
                 <div>
                   <p className="text-sm font-medium text-[#167772]">
                     {isToday(plan.planDate)
-                      ? "Your plan for today"
-                      : "Saved diet plan"}
+                      ? t('yourPlanForToday')
+                      : t('savedDietPlan')}
                   </p>
 
                   <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                    Good morning
-                  </h1>
+                    {t('goodMorning')}{' '}</h1>
 
                   <p className="mt-2 text-sm leading-6 text-slate-600">
                     {plan.summary}
@@ -1054,11 +1041,9 @@ export default function DietPlanDashboard() {
 
                 <div className="hidden rounded-[22px] border border-[#e5efed] bg-[#f6faf9] p-5 lg:block">
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#167772]">
-                    A note for today
-                  </p>
+                    {t('aNoteForToday')}{' '}</p>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Keep things simple and take the day one meal at a time.
-                  </p>
+                    {t('keepThingsSimpleAndTakeTheDayOneMealAtATime')}{' '}</p>
                 </div>
               </div>
 
@@ -1075,8 +1060,7 @@ export default function DietPlanDashboard() {
                 <div className="flex items-center gap-2.5">
                   <Info className="h-4 w-4 text-[#167772]" />
                   <span className="text-sm font-semibold text-slate-800">
-                    See why this plan looks this way
-                  </span>
+                    {t('seeWhyThisPlanLooksThisWay')}{' '}</span>
                 </div>
                 <ChevronDown
                   className={`h-4 w-4 text-slate-400 transition ${
@@ -1088,9 +1072,7 @@ export default function DietPlanDashboard() {
               {whyOpen && (
                 <div className="border-t border-slate-100 px-6 py-5 sm:px-8">
                   <p className="text-sm leading-6 text-slate-600">
-                    This plan uses the information currently available
-                    about your preferences and nutrition context.
-                  </p>
+                    {t('thisPlanUsesTheInformationCurrentlyAvailableAboutYourPreferencesAndNutritionCont')}{' '}</p>
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {attentionFlags
@@ -1126,11 +1108,9 @@ export default function DietPlanDashboard() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <h2 className="text-2xl font-semibold tracking-tight text-slate-950">
-                    Today&apos;s meals
-                  </h2>
+                    {t('todayAposSMeals')}{' '}</h2>
                   <p className="mt-1 text-sm text-slate-500">
-                    Simple. Nourishing. Tailored to you.
-                  </p>
+                    {t('simpleNourishingTailoredToYou')}{' '}</p>
                 </div>
 
                 <button
@@ -1141,8 +1121,7 @@ export default function DietPlanDashboard() {
                   className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#167772] px-4 text-sm font-semibold text-white transition hover:bg-[#125f5b] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#d8eeeb]"
                 >
                   <RefreshCw className="h-4 w-4" />
-                  Change a meal
-                </button>
+                  {t('changeAMeal')}{' '}</button>
               </div>
 
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -1174,8 +1153,7 @@ export default function DietPlanDashboard() {
                               <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center shadow-lg">
                                 <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#167772]" />
                                 <p className="mt-2 text-xs font-semibold text-slate-700">
-                                  Updating this meal...
-                                </p>
+                                  {t('updatingThisMeal')}{' '}</p>
                               </div>
                             </div>
                           )}
@@ -1204,8 +1182,7 @@ export default function DietPlanDashboard() {
                                 "number" && (
                                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                   <Clock3 className="h-3 w-3" />
-                                  {meal.estimatedPrepMinutes} min
-                                </span>
+                                  {meal.estimatedPrepMinutes} {t('min')}{' '}</span>
                               )}
 
                               {meal.portionGuidance && (
@@ -1227,8 +1204,7 @@ export default function DietPlanDashboard() {
                               }
                               className="mt-4 inline-flex min-h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-[#cfe8e4] bg-[#f7fcfb] px-3 text-xs font-semibold text-[#167772] transition hover:bg-[#eef8f7] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#d8eeeb]"
                             >
-                              View details
-                              <ChevronRight className="h-3.5 w-3.5" />
+                              {t('viewDetails')}{' '}<ChevronRight className="h-3.5 w-3.5" />
                             </button>
                           </div>
                         </article>
@@ -1243,8 +1219,8 @@ export default function DietPlanDashboard() {
                 icon={
                   <Droplets className="h-5 w-5" />
                 }
-                title="Hydration"
-                description="A simple hydration reminder for today."
+                title={t('hydration')}
+                description={t('aSimpleHydrationReminderForToday')}
                 active={
                   expandedReference ===
                   "hydration"
@@ -1260,8 +1236,8 @@ export default function DietPlanDashboard() {
                 icon={
                   <BookOpen className="h-5 w-5" />
                 }
-                title="Nutrition notes"
-                description="Helpful guidance connected to your plan."
+                title={t('nutritionNotes')}
+                description={t('helpfulGuidanceConnectedToYourPlan')}
                 active={
                   expandedReference ===
                   "notes"
@@ -1277,8 +1253,8 @@ export default function DietPlanDashboard() {
                 icon={
                   <ShieldCheck className="h-5 w-5" />
                 }
-                title="Where this guidance comes from"
-                description="Trusted nutrition sources used for grounding."
+                title={t('whereThisGuidanceComesFrom')}
+                description={t('trustedNutritionSourcesUsedForGrounding')}
                 active={
                   expandedReference ===
                   "sources"
@@ -1299,14 +1275,12 @@ export default function DietPlanDashboard() {
                     <Droplets className="mt-0.5 h-5 w-5 shrink-0 text-[#167772]" />
                     <div>
                       <h3 className="text-sm font-semibold text-slate-900">
-                        Hydration guidance
-                      </h3>
+                        {t('hydrationGuidance')}{' '}</h3>
                       <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
                         {plan.hydrationGuidance}
                       </p>
                       <p className="mt-2 text-xs leading-5 text-slate-400">
-                        General nutrition information only; follow your care team&apos;s individualized guidance.
-                      </p>
+                        {t('generalNutritionInformationOnlyFollowYourCareTeamAposSIndividualizedGuidance')}{' '}</p>
                     </div>
                   </div>
                 )}
@@ -1315,14 +1289,12 @@ export default function DietPlanDashboard() {
                   "notes" && (
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
-                      A few things worth knowing
-                    </h3>
+                      {t('aFewThingsWorthKnowing')}{' '}</h3>
 
                     {plan.generalNutritionNotes.length ===
                     0 ? (
                       <p className="mt-2 text-sm text-slate-500">
-                        There are no additional notes for this plan.
-                      </p>
+                        {t('thereAreNoAdditionalNotesForThisPlan')}{' '}</p>
                     ) : (
                       <ul className="mt-3 space-y-2.5">
                         {plan.generalNutritionNotes.map(
@@ -1345,12 +1317,10 @@ export default function DietPlanDashboard() {
                   "sources" && (
                   <div>
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Where this guidance comes from
-                    </h3>
+                      {t('whereThisGuidanceComesFrom')}{' '}</h3>
 
                     <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Sources retrieved for this plan. No internal model or knowledge-base metadata is shown here.
-                    </p>
+                      {t('sourcesRetrievedForThisPlanNoInternalModelOrKnowledgeBaseMetadataIsShownHere')}{' '}</p>
 
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {plan.sources.map(
@@ -1385,8 +1355,7 @@ export default function DietPlanDashboard() {
                                 rel="noreferrer"
                                 className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#167772] underline underline-offset-2"
                               >
-                                View source
-                                <ChevronRight className="h-3.5 w-3.5" />
+                                {t('viewSource')}{' '}<ChevronRight className="h-3.5 w-3.5" />
                               </a>
                             )}
                           </div>
@@ -1403,15 +1372,11 @@ export default function DietPlanDashboard() {
                 <Leaf className="h-5 w-5" />
               </div>
               <p className="text-sm leading-5 text-slate-600">
-                Every step counts. Be kind to yourself â€” progress takes time.
-              </p>
+                {t('everyStepCountsBeKindToYourselfÂProgressTakesTime')}{' '}</p>
             </div>
 
             <p className="mx-auto mt-6 max-w-3xl pb-8 text-center text-xs leading-5 text-slate-400">
-              OncoCare+ nutrition guidance is informational and personalized
-              from available data. It does not replace advice from your oncology
-              or nutrition care team.
-            </p>
+              {t('oncocareNutritionGuidanceIsInformationalAndPersonalizedFromAvailableDataItDoesNo')}{' '}</p>
           </>
         )}
 
@@ -1527,6 +1492,7 @@ function ChangeMealSheet({
     meal: MealPlanItem,
   ) => void;
 }) {
+  const t = useTranslations('components.dietPlan.dietPlanDashboard');
   const selectedCount =
     selectedMealTypes.length;
 
@@ -1597,17 +1563,15 @@ function ChangeMealSheet({
               id="change-meal-title"
               className="text-xl font-semibold tracking-tight text-slate-950"
             >
-              Change today&apos;s meal(s)
-            </h2>
+              {t('changeTodayAposSMealS')}{' '}</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Select one or more meals you&apos;d like to replace.
-            </p>
+              {t('selectOneOrMoreMealsYouAposDLikeToReplace')}{' '}</p>
           </div>
 
           <button
             type="button"
             onClick={onCancel}
-            aria-label="Close change meal"
+            aria-label={t('closeChangeMeal')}
             className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-4 focus-visible:ring-slate-100"
           >
             <X className="h-5 w-5" />
@@ -1617,8 +1581,7 @@ function ChangeMealSheet({
         <div className="overflow-y-auto px-5 py-5 sm:px-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
-              Choose meals
-            </p>
+              {t('chooseMeals')}{' '}</p>
 
             <button
               type="button"
@@ -1628,8 +1591,8 @@ function ChangeMealSheet({
             >
               {selectedCount ===
               plan.meals.length
-                ? "Clear selection"
-                : "Select all available"}
+                ? t('clearSelection')
+                : t('selectAllAvailable')}
             </button>
           </div>
 
@@ -1672,7 +1635,7 @@ function ChangeMealSheet({
                       aria-checked={
                         selected
                       }
-                      aria-label={`Select ${MEAL_LABELS[meal.mealType]}`}
+                      aria-label={t('mealSelectionLabel', { meal: MEAL_LABELS[meal.mealType] })}
                       disabled={
                         unavailable ||
                         loading
@@ -1727,8 +1690,7 @@ function ChangeMealSheet({
 
                     {unavailable ? (
                       <span className="text-[11px] font-medium text-slate-400">
-                        Already updated today
-                      </span>
+                        {t('alreadyUpdatedToday')}{' '}</span>
                     ) : (
                       <button
                         type="button"
@@ -1739,8 +1701,7 @@ function ChangeMealSheet({
                         }
                         className="hidden items-center gap-1 text-xs font-semibold text-[#167772] sm:inline-flex"
                       >
-                        Details
-                        <ChevronRight className="h-3.5 w-3.5" />
+                        {t('details')}{' '}<ChevronRight className="h-3.5 w-3.5" />
                       </button>
                     )}
                   </div>
@@ -1753,11 +1714,9 @@ function ChangeMealSheet({
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-sm font-semibold text-slate-900">
-                  Why would you like a different option?
-                </h3>
+                  {t('whyWouldYouLikeADifferentOption')}{' '}</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  Optional â€” one reason applies to all selected meals.
-                </p>
+                  {t('optionalÂOneReasonAppliesToAllSelectedMeals')}{' '}</p>
               </div>
               {replacementReason && (
                 <button
@@ -1769,8 +1728,7 @@ function ChangeMealSheet({
                   }
                   className="text-xs font-semibold text-slate-400 hover:text-slate-600"
                 >
-                  Clear
-                </button>
+                  {t('clear')}{' '}</button>
               )}
             </div>
 
@@ -1811,8 +1769,7 @@ function ChangeMealSheet({
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-red-900">
-                    We couldn&apos;t update those meals.
-                  </p>
+                    {t('weCouldnAposTUpdateThoseMeals')}{' '}</p>
                   <p className="mt-1 text-sm leading-5 text-red-800">
                     {error}
                   </p>
@@ -1824,8 +1781,7 @@ function ChangeMealSheet({
                     className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-xl border border-red-200 bg-white px-3.5 text-xs font-semibold text-red-800 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
-                    Retry
-                  </button>
+                    {t('retry')}{' '}</button>
                 </div>
               </div>
             </div>
@@ -1839,8 +1795,7 @@ function ChangeMealSheet({
             disabled={loading}
             className="min-h-11 rounded-xl border border-slate-200 px-5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Cancel
-          </button>
+            {t('cancel')}{' '}</button>
 
           <button
             type="button"
@@ -1857,8 +1812,8 @@ function ChangeMealSheet({
               <RefreshCw className="h-4 w-4" />
             )}
             {loading
-              ? "Generating..."
-              : "Generate replacement"}
+              ? t('generating')
+              : t('generateReplacement')}
           </button>
         </div>
 
@@ -1866,9 +1821,7 @@ function ChangeMealSheet({
           <div className="flex gap-2">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[#167772]" />
             <span>
-              We&apos;ll suggest nutritious alternatives based on your preferences
-              and current health context.
-            </span>
+              {t('weAposLlSuggestNutritiousAlternativesBasedOnYourPreferencesAndCurrentHealthConte')}{' '}</span>
           </div>
         </div>
       </div>
@@ -1885,6 +1838,7 @@ function MealDetailsSheet({
   onClose: () => void;
   onChangeMeal: () => void;
 }) {
+  const t = useTranslations('components.dietPlan.dietPlanDashboard');
   return (
     <div
       className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-[2px]"
@@ -1903,13 +1857,12 @@ function MealDetailsSheet({
             className="inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800"
           >
             <ChevronLeft className="h-4 w-4" />
-            Back to today&apos;s meals
-          </button>
+            {t('backToTodayAposSMeals')}{' '}</button>
 
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close meal details"
+            aria-label={t('closeMealDetails')}
             className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-5 w-5" />
@@ -1946,8 +1899,7 @@ function MealDetailsSheet({
                 <Leaf className="mt-0.5 h-5 w-5 shrink-0 text-[#167772]" />
                 <div>
                   <h3 className="text-sm font-semibold text-slate-900">
-                    Why this fits you
-                  </h3>
+                    {t('whyThisFitsYou')}{' '}</h3>
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     {meal.whyThisMeal}
                   </p>
@@ -1960,8 +1912,7 @@ function MealDetailsSheet({
             {meal.portionGuidance && (
               <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Portion guidance
-                </p>
+                  {t('portionGuidance')}{' '}</p>
                 <p className="mt-2 text-sm leading-5 text-slate-700">
                   {meal.portionGuidance}
                 </p>
@@ -1972,21 +1923,19 @@ function MealDetailsSheet({
               "number" && (
               <section className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">
-                  Prep time
-                </p>
+                  {t('prepTime')}{' '}</p>
                 <p className="mt-2 text-sm leading-5 text-slate-700">
-                  About{" "}
+                  {t('about')}{" "}
                   {
                     meal.estimatedPrepMinutes
                   }{" "}
-                  minutes
-                </p>
+                  {t('minutes')}{' '}</p>
               </section>
             )}
           </div>
 
           <DetailSection
-            title="Ingredients"
+            title={t('ingredients')}
             icon={
               <Utensils className="h-5 w-5" />
             }
@@ -2007,7 +1956,7 @@ function MealDetailsSheet({
 
           {meal.preparationNotes && (
             <DetailSection
-              title="Preparation"
+              title={t('preparation')}
               icon={
                 <BookOpen className="h-5 w-5" />
               }
@@ -2022,7 +1971,7 @@ function MealDetailsSheet({
             meal.nutritionNotes.length >
               0 && (
               <DetailSection
-                title="Nutrition notes"
+                title={t('nutritionNotes')}
                 icon={
                   <Sparkles className="h-5 w-5" />
                 }
@@ -2051,8 +2000,7 @@ function MealDetailsSheet({
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
                   <div>
                     <h3 className="text-sm font-semibold text-amber-950">
-                      Safety notes
-                    </h3>
+                      {t('safetyNotes')}{' '}</h3>
                     <ul className="mt-2 space-y-1.5 text-sm leading-6 text-amber-900">
                       {meal.safetyNotes.map(
                         (note) => (
@@ -2074,14 +2022,11 @@ function MealDetailsSheet({
             onClick={onChangeMeal}
             className="mt-7 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#167772] px-5 text-sm font-semibold text-white hover:bg-[#125f5b]"
           >
-            Change this meal
-            <RefreshCw className="h-4 w-4" />
+            {t('changeThisMeal')}{' '}<RefreshCw className="h-4 w-4" />
           </button>
 
           <p className="mt-4 pb-6 text-center text-xs leading-5 text-slate-400">
-            Nutrition support is informational and does not replace advice
-            from your oncology or nutrition care team.
-          </p>
+            {t('nutritionSupportIsInformationalAndDoesNotReplaceAdviceFromYourOncologyOrNutritio')}{' '}</p>
         </div>
       </div>
     </div>

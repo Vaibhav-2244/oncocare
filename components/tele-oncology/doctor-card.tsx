@@ -1,6 +1,7 @@
 import { CheckCircle, Video, MapPin, Clock3, ArrowRight } from "lucide-react";
 import type { Doctor } from "@/lib/data/tele-oncology";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from 'next-intl';
 
 interface DoctorCardProps {
   doctor: Doctor;
@@ -9,6 +10,7 @@ interface DoctorCardProps {
 }
 
 export function DoctorCard({ doctor, onView, onBook }: DoctorCardProps) {
+  const t = useTranslations('components.teleOncology.doctorCard');
   const initials = doctor.name
     .replace("Dr. ", "")
     .split(" ")
@@ -60,20 +62,18 @@ export function DoctorCard({ doctor, onView, onBook }: DoctorCardProps) {
 
       <div className="mt-4 flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-xs font-medium text-purple-700">
         <Video className="h-4 w-4" />
-        Video consultation available
-      </div>
+        {t('videoConsultationAvailable')}{' '}</div>
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">Consultation Fee</p>
+          <p className="text-[10px] uppercase tracking-wider text-slate-500">{t('consultationFee')}</p>
           <p className="text-lg font-bold text-slate-900">₹{doctor.consultationFee}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => onView(doctor)}>
-            View Profile
-          </Button>
+            {t('viewProfile')}{' '}</Button>
           <Button size="sm" onClick={() => onBook(doctor)} className="gap-1 bg-teal-600 hover:bg-teal-700 text-white">
-            Book <ArrowRight className="h-3.5 w-3.5" />
+            {t('book')}{' '}<ArrowRight className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>

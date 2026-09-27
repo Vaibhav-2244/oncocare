@@ -11,6 +11,7 @@ import { DashboardLayout, commonNavItems } from '@/components/auth/dashboard-lay
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type Tab = 'personal' | 'emergency' | 'notifications' | 'privacy' | 'security' | 'delete';
 
@@ -24,6 +25,7 @@ const tabs: { id: Tab; label: string; icon: typeof User }[] = [
 ];
 
 function ProfileContent() {
+  const t = useTranslations('profile');
   const { user, refreshUser, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('personal');
   const [saving, setSaving] = useState(false);
@@ -225,8 +227,8 @@ function ProfileContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Profile Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage your personal information and preferences</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('profileSettings')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('manageYourPersonalInformationAndPreferences')}</p>
       </div>
 
       {/* Profile header card */}
@@ -242,7 +244,7 @@ function ProfileContent() {
               </div>
             </div>
             <div className="pb-1">
-              <h2 className="text-lg font-bold text-slate-900">{fullName || 'User'}</h2>
+              <h2 className="text-lg font-bold text-slate-900">{fullName || t('user')}</h2>
               <p className="text-sm text-slate-500">{user?.email}</p>
             </div>
           </div>
@@ -284,46 +286,46 @@ function ProfileContent() {
         {saved && (
           <div className="mb-4 flex items-center gap-2 rounded-xl bg-teal-50 p-3 text-sm text-teal-700">
             <Check className="h-4 w-4" />
-            <span>Saved successfully!</span>
+            <span>{t('savedSuccessfully')}</span>
           </div>
         )}
 
         {/* Personal Details */}
         {activeTab === 'personal' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Personal Information</h3>
+            <h3 className="text-base font-bold text-slate-900">{t('personalInformation')}</h3>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Full Name" icon={User} value={fullName} onChange={setFullName} />
-              <Field label="Email" icon={Mail} value={user?.email || ''} onChange={() => {}} disabled />
-              <Field label="Phone" icon={Phone} value={phone} onChange={setPhone} placeholder="+91..." />
-              <Field label="Date of Birth" icon={Calendar} value={dateOfBirth} onChange={setDateOfBirth} type="date" />
-              <Field label="Address" icon={MapPin} value={address} onChange={setAddress} placeholder="Street address" />
+              <Field label={t('fullName')} icon={User} value={fullName} onChange={setFullName} />
+              <Field label={t('email')} icon={Mail} value={user?.email || ''} onChange={() => {}} disabled />
+              <Field label={t('phone')} icon={Phone} value={phone} onChange={setPhone} placeholder="+91..." />
+              <Field label={t('dateOfBirth')} icon={Calendar} value={dateOfBirth} onChange={setDateOfBirth} type="date" />
+              <Field label={t('address')} icon={MapPin} value={address} onChange={setAddress} placeholder={t('streetAddress')} />
               <div className="grid grid-cols-2 gap-4">
-                <Field label="City" value={city} onChange={setCity} />
-                <Field label="State" value={state} onChange={setState} />
+                <Field label={t('city')} value={city} onChange={setCity} />
+                <Field label={t('state')} value={state} onChange={setState} />
               </div>
-              <Field label="Pincode" value={pincode} onChange={setPincode} />
+              <Field label={t('pincode')} value={pincode} onChange={setPincode} />
               <div>
-                <label className="text-sm font-semibold text-slate-700">Gender</label>
+                <label className="text-sm font-semibold text-slate-700">{t('gender')}</label>
                 <select
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
                   className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                 >
-                  <option value="prefer_not_to_say">Prefer not to say</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
+                  <option value="prefer_not_to_say">{t('preferNotToSay')}</option>
+                  <option value="male">{t('male')}</option>
+                  <option value="female">{t('female')}</option>
+                  <option value="other">{t('other')}</option>
                 </select>
               </div>
             </div>
             <div>
-              <label className="text-sm font-semibold text-slate-700">Bio</label>
+              <label className="text-sm font-semibold text-slate-700">{t('bio')}</label>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={3}
-                placeholder="Tell us about yourself..."
+                placeholder={t('tellUsAboutYourself')}
                 className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
               />
             </div>
@@ -334,12 +336,12 @@ function ProfileContent() {
         {/* Emergency Contacts */}
         {activeTab === 'emergency' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Emergency Contact</h3>
-            <p className="text-sm text-slate-500">This contact will be notified in case of an emergency.</p>
+            <h3 className="text-base font-bold text-slate-900">{t('emergencyContact')}</h3>
+            <p className="text-sm text-slate-500">{t('thisContactWillBeNotifiedInCaseOfAnEmergency')}</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Contact Name" icon={User} value={emName} onChange={setEmName} placeholder="Emergency contact name" />
-              <Field label="Contact Phone" icon={Phone} value={emPhone} onChange={setEmPhone} placeholder="+91..." />
-              <Field label="Relationship" value={emRelation} onChange={setEmRelation} placeholder="e.g. Spouse, Parent, Sibling" />
+              <Field label={t('contactName')} icon={User} value={emName} onChange={setEmName} placeholder={t('emergencyContactName')} />
+              <Field label={t('contactPhone')} icon={Phone} value={emPhone} onChange={setEmPhone} placeholder="+91..." />
+              <Field label={t('relationship')} value={emRelation} onChange={setEmRelation} placeholder={t('eGSpouseParentSibling')} />
             </div>
             <SaveButton onClick={handleSaveEmergency} saving={saving} />
           </div>
@@ -348,11 +350,11 @@ function ProfileContent() {
         {/* Notifications */}
         {activeTab === 'notifications' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Notification Preferences</h3>
+            <h3 className="text-base font-bold text-slate-900">{t('notificationPreferences')}</h3>
             <div className="space-y-3">
-              <ToggleRow label="Email Notifications" desc="Receive notifications via email" checked={notifEmail} onChange={setNotifEmail} />
-              <ToggleRow label="Push Notifications" desc="Receive push notifications in your browser" checked={notifPush} onChange={setNotifPush} />
-              <ToggleRow label="SMS Notifications" desc="Receive notifications via SMS" checked={notifSms} onChange={setNotifSms} />
+              <ToggleRow label={t('emailNotifications')} desc="Receive notifications via email" checked={notifEmail} onChange={setNotifEmail} />
+              <ToggleRow label={t('pushNotifications')} desc="Receive push notifications in your browser" checked={notifPush} onChange={setNotifPush} />
+              <ToggleRow label={t('smsNotifications')} desc="Receive notifications via SMS" checked={notifSms} onChange={setNotifSms} />
             </div>
             <SaveButton onClick={handleSaveNotifications} saving={saving} />
           </div>
@@ -361,10 +363,10 @@ function ProfileContent() {
         {/* Privacy */}
         {activeTab === 'privacy' && (
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Privacy Settings</h3>
+            <h3 className="text-base font-bold text-slate-900">{t('privacySettings')}</h3>
             <div className="space-y-3">
-              <ToggleRow label="Profile Visible" desc="Allow other users to view your profile" checked={profileVisible} onChange={setProfileVisible} />
-              <ToggleRow label="Show Activity Status" desc="Show when you are active on the platform" checked={showActivity} onChange={setShowActivity} />
+              <ToggleRow label={t('profileVisible')} desc="Allow other users to view your profile" checked={profileVisible} onChange={setProfileVisible} />
+              <ToggleRow label={t('showActivityStatus')} desc="Show when you are active on the platform" checked={showActivity} onChange={setShowActivity} />
             </div>
             <SaveButton onClick={handleSavePrivacy} saving={saving} />
           </div>
@@ -373,10 +375,10 @@ function ProfileContent() {
         {/* Security */}
         {activeTab === 'security' && (
           <form onSubmit={handleChangePassword} className="space-y-4">
-            <h3 className="text-base font-bold text-slate-900">Change Password</h3>
+            <h3 className="text-base font-bold text-slate-900">{t('changePassword')}</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700">Current Password</label>
+                <label className="text-sm font-semibold text-slate-700">{t('currentPassword')}</label>
                 <div className="relative mt-1.5">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -384,13 +386,13 @@ function ProfileContent() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     required
-                    placeholder="Enter current password"
+                    placeholder={t('enterCurrentPassword')}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-slate-700">New Password</label>
+                <label className="text-sm font-semibold text-slate-700">{t('newPassword')}</label>
                 <div className="relative mt-1.5">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -398,13 +400,13 @@ function ProfileContent() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     required
-                    placeholder="At least 8 characters"
+                    placeholder={t('atLeast8Characters')}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-sm font-semibold text-slate-700">Confirm New Password</label>
+                <label className="text-sm font-semibold text-slate-700">{t('confirmNewPassword')}</label>
                 <div className="relative mt-1.5">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <input
@@ -412,7 +414,7 @@ function ProfileContent() {
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}
                     required
-                    placeholder="Re-enter new password"
+                    placeholder={t('reEnterNewPassword')}
                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   />
                   <button type="button" onClick={() => setShowPasswords(!showPasswords)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
@@ -423,8 +425,7 @@ function ProfileContent() {
             </div>
             <button type="submit" disabled={saving} className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 disabled:opacity-50">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Update Password
-            </button>
+              {t('updatePassword')}{' '}</button>
           </form>
         )}
 
@@ -434,22 +435,19 @@ function ProfileContent() {
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-4">
               <div className="flex items-center gap-2">
                 <Trash2 className="h-5 w-5 text-rose-600" />
-                <h3 className="text-base font-bold text-rose-900">Delete Account</h3>
+                <h3 className="text-base font-bold text-rose-900">{t('deleteAccount')}</h3>
               </div>
               <p className="mt-2 text-sm text-rose-700">
-                This action is irreversible. All your personal data will be permanently removed.
-                Your appointments, messages, and documents will be deleted.
-              </p>
+                {t('thisActionIsIrreversibleAllYourPersonalDataWillBePermanentlyRemovedYourAppointme')}{' '}</p>
             </div>
             <div>
               <label className="text-sm font-semibold text-slate-700">
-                Type <span className="font-mono font-bold text-rose-600">DELETE</span> to confirm
-              </label>
+                {t('type')}{' '}<span className="font-mono font-bold text-rose-600">{t('delete')}</span> {t('toConfirm')}{' '}</label>
               <input
                 type="text"
                 value={deleteConfirm}
                 onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="DELETE"
+                placeholder={t('delete')}
                 className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:border-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-200/30"
               />
             </div>
@@ -459,8 +457,7 @@ function ProfileContent() {
               className="flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-rose-500/20 disabled:opacity-50"
             >
               {deleteLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-              Delete My Account
-            </button>
+              {t('deleteMyAccount')}{' '}</button>
           </div>
         )}
       </motion.div>
@@ -525,6 +522,7 @@ function ToggleRow({ label, desc, checked, onChange }: { label: string; desc: st
 }
 
 function SaveButton({ onClick, saving }: { onClick: () => void; saving: boolean }) {
+  const t = useTranslations('profile');
   return (
     <button
       onClick={onClick}
@@ -532,8 +530,7 @@ function SaveButton({ onClick, saving }: { onClick: () => void; saving: boolean 
       className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/20 disabled:opacity-50"
     >
       {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-      Save Changes
-    </button>
+      {t('saveChanges')}{' '}</button>
   );
 }
 

@@ -10,8 +10,10 @@ import { getAllPharmacies, getPharmacyMedicines, updateMedicinePrice } from '@/l
 import type { Pharmacy, MedicinePrice, Availability } from '@/lib/medicine-types';
 import { availabilityConfig, formatINR } from '@/lib/medicine-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export default function AdminDashboardPage() {
+  const t = useTranslations('admin');
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [selectedPharmacy, setSelectedPharmacy] = useState<Pharmacy | null>(null);
   const [medicines, setMedicines] = useState<MedicinePrice[]>([]);
@@ -97,19 +99,18 @@ export default function AdminDashboardPage() {
           <div>
             <a href="/medicine-finder" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-emerald-deep">
               <ArrowLeft className="h-4 w-4" />
-              Back to Medicine Finder
-            </a>
-            <h1 className="mt-2 text-2xl font-bold text-slate-900">Pharmacy Admin Dashboard</h1>
-            <p className="text-sm text-slate-500">Manage inventory, prices, and availability</p>
+              {t('backToMedicineFinder')}{' '}</a>
+            <h1 className="mt-2 text-2xl font-bold text-slate-900">{t('pharmacyAdminDashboard')}</h1>
+            <p className="text-sm text-slate-500">{t('manageInventoryPricesAndAvailability')}</p>
           </div>
         </div>
 
         {/* Stats */}
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard icon={Store} label="Partner Pharmacies" value={pharmacies.length.toString()} color="from-teal-500 to-emerald-500" />
-          <StatCard icon={Package} label="Total Medicines" value={medicines.length.toString()} color="from-blue-500 to-indigo-500" />
-          <StatCard icon={TrendingUp} label="In Stock" value={medicines.filter((m) => m.availability === 'in_stock').length.toString()} color="from-emerald-500 to-teal-500" />
-          <StatCard icon={Bell} label="Low Stock Alerts" value={medicines.filter((m) => m.availability === 'low_stock').length.toString()} color="from-amber-500 to-orange-500" />
+          <StatCard icon={Store} label={t('partnerPharmacies')} value={pharmacies.length.toString()} color="from-teal-500 to-emerald-500" />
+          <StatCard icon={Package} label={t('totalMedicines')} value={medicines.length.toString()} color="from-blue-500 to-indigo-500" />
+          <StatCard icon={TrendingUp} label={t('inStock')} value={medicines.filter((m) => m.availability === 'in_stock').length.toString()} color="from-emerald-500 to-teal-500" />
+          <StatCard icon={Bell} label={t('lowStockAlerts')} value={medicines.filter((m) => m.availability === 'low_stock').length.toString()} color="from-amber-500 to-orange-500" />
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-12">
@@ -117,7 +118,7 @@ export default function AdminDashboardPage() {
           <div className="lg:col-span-3">
             <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
               <div className="border-b border-slate-100 p-4">
-                <h3 className="text-sm font-bold text-slate-900">Select Pharmacy</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('selectPharmacy')}</h3>
               </div>
               <div className="max-h-96 overflow-y-auto">
                 {pharmacies.map((pharmacy) => (
@@ -148,8 +149,8 @@ export default function AdminDashboardPage() {
               <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
                 <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">{selectedPharmacy.name} — Inventory</h3>
-                    <p className="text-xs text-slate-500">Update prices, stock, and discounts</p>
+                    <h3 className="text-lg font-bold text-slate-900">{selectedPharmacy.name} {t('inventory')}</h3>
+                    <p className="text-xs text-slate-500">{t('updatePricesStockAndDiscounts')}</p>
                   </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -157,7 +158,7 @@ export default function AdminDashboardPage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Search medicines..."
+                      placeholder={t('searchMedicines')}
                       className="rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-teal-300 focus:outline-none"
                     />
                   </div>
@@ -167,11 +168,11 @@ export default function AdminDashboardPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                        <th className="px-5 py-3">Medicine</th>
-                        <th className="px-5 py-3">Price</th>
-                        <th className="px-5 py-3">Discount</th>
-                        <th className="px-5 py-3">Availability</th>
-                        <th className="px-5 py-3 text-right">Action</th>
+                        <th className="px-5 py-3">{t('medicine')}</th>
+                        <th className="px-5 py-3">{t('price')}</th>
+                        <th className="px-5 py-3">{t('discount')}</th>
+                        <th className="px-5 py-3">{t('availability')}</th>
+                        <th className="px-5 py-3 text-right">{t('action')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -217,9 +218,9 @@ export default function AdminDashboardPage() {
                                 onChange={(e) => setEditAvailability(e.target.value as Availability)}
                                 className="rounded-lg border border-slate-200 px-2 py-1 text-sm focus:border-teal-300 focus:outline-none"
                               >
-                                <option value="in_stock">In Stock</option>
-                                <option value="low_stock">Low Stock</option>
-                                <option value="out_of_stock">Out of Stock</option>
+                                <option value="in_stock">{t('inStock')}</option>
+                                <option value="low_stock">{t('lowStock')}</option>
+                                <option value="out_of_stock">{t('outOfStock')}</option>
                               </select>
                             ) : (
                               <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-semibold', availabilityConfig[med.availability].color, availabilityConfig[med.availability].bg)}>
@@ -241,8 +242,7 @@ export default function AdminDashboardPage() {
                             ) : (
                               <button onClick={() => handleEdit(med)} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-teal-100 hover:text-emerald-deep">
                                 <Edit2 className="h-3 w-3" />
-                                Edit
-                              </button>
+                                {t('edit')}{' '}</button>
                             )}
                           </td>
                         </tr>
@@ -254,14 +254,14 @@ export default function AdminDashboardPage() {
                 {filteredMedicines.length === 0 && (
                   <div className="p-12 text-center">
                     <Package className="mx-auto h-8 w-8 text-slate-300" />
-                    <p className="mt-2 text-sm text-slate-400">No medicines found</p>
+                    <p className="mt-2 text-sm text-slate-400">{t('noMedicinesFound')}</p>
                   </div>
                 )}
               </div>
             ) : (
               <div className="flex h-full min-h-64 flex-col items-center justify-center rounded-2xl border border-slate-200/60 bg-white p-12 text-center">
                 <Store className="h-10 w-10 text-slate-300" />
-                <p className="mt-4 text-sm font-medium text-slate-500">Select a pharmacy to manage inventory</p>
+                <p className="mt-4 text-sm font-medium text-slate-500">{t('selectAPharmacyToManageInventory')}</p>
               </div>
             )}
           </div>

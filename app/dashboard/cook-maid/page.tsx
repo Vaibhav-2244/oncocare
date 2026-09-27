@@ -7,6 +7,7 @@ import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/aut
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 type HelperType = 'Cook' | 'Maid' | 'Cook + Maid';
 
@@ -170,6 +171,7 @@ function overlaps(startA: string, endA: string, startB: string, endB: string) {
 }
 
 function BookingPageContent() {
+  const t = useTranslations('cookMaid');
   const { user } = useAuth();
   const [helpers, setHelpers] = useState<HelperProfile[]>(helperCatalog);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -403,14 +405,12 @@ function BookingPageContent() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-teal-700">
-            <ChefHat className="h-4 w-4" /> Care Support
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900">Cook & Maid</h1>
-          <p className="mt-1 text-sm text-slate-600">Verified household support for home-based care, dietary assistance, and daily routines.</p>
+            <ChefHat className="h-4 w-4" /> {t('careSupport')}{' '}</div>
+          <h1 className="text-3xl font-bold text-slate-900">{t('cookMaid')}</h1>
+          <p className="mt-1 text-sm text-slate-600">{t('verifiedHouseholdSupportForHomeBasedCareDietaryAssistanceAndDailyRoutines')}</p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-medium text-teal-700">
-          <ShieldCheck className="h-4 w-4" /> Verified profiles only
-        </div>
+          <ShieldCheck className="h-4 w-4" /> {t('verifiedProfilesOnly')}{' '}</div>
       </div>
 
       {successBooking && (
@@ -418,8 +418,8 @@ function BookingPageContent() {
           <div className="flex items-start gap-3">
             <CheckCircle2 className="mt-0.5 h-5 w-5" />
             <div>
-              <p className="font-semibold">Booking confirmed successfully.</p>
-              <p className="text-sm">Booking ID: {successBooking.id} · {successBooking.helper_name} · {successBooking.duration_days} days</p>
+              <p className="font-semibold">{t('bookingConfirmedSuccessfully')}</p>
+              <p className="text-sm">{t('bookingId')}{' '}{successBooking.id} · {successBooking.helper_name} · {successBooking.duration_days} {t('days')}</p>
             </div>
           </div>
           <button onClick={() => setSuccessBooking(null)} className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100">
@@ -453,27 +453,27 @@ function BookingPageContent() {
                 service === option ? 'bg-teal-600 text-white shadow-md shadow-teal-500/20' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               )}
             >
-              {option === 'All' ? 'All Helpers' : option}
+              {option === 'All' ? t('allHelpers') : option}
             </button>
           ))}
         </div>
 
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Location</span>
+            <span className="text-sm font-medium text-slate-700">{t('location')}</span>
             <div className="relative">
               <MapPin className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <select value={location} onChange={(e) => setLocation(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white">
-                <option value="">Select a location</option>
-                <option value="Delhi">Delhi</option>
-                <option value="Noida">Noida</option>
-                <option value="Gurugram">Gurugram</option>
+                <option value="">{t('selectALocation')}</option>
+                <option value="Delhi">{t('delhi')}</option>
+                <option value="Noida">{t('noida')}</option>
+                <option value="Gurugram">{t('gurugram')}</option>
               </select>
             </div>
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Start date</span>
+            <span className="text-sm font-medium text-slate-700">{t('startDate')}</span>
             <div className="relative">
               <CalendarRange className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <input type="date" min={todayString()} value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
@@ -481,15 +481,15 @@ function BookingPageContent() {
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-slate-700">Duration</span>
+            <span className="text-sm font-medium text-slate-700">{t('duration')}</span>
             <div className="relative">
               <Clock3 className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" />
               <select value={duration} onChange={(e) => setDuration(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white">
-                <option value="1">1 day</option>
-                <option value="3">3 days</option>
-                <option value="7">7 days</option>
-                <option value="14">14 days</option>
-                <option value="30">30 days</option>
+                <option value="1">{t('text1Day')}</option>
+                <option value="3">{t('text3Days')}</option>
+                <option value="7">{t('text7Days')}</option>
+                <option value="14">{t('text14Days')}</option>
+                <option value="30">{t('text30Days')}</option>
               </select>
             </div>
           </label>
@@ -499,21 +499,20 @@ function BookingPageContent() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between gap-2">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">Available helpers</h2>
-            <p className="text-sm text-slate-600">{filteredHelpers.length} verified helpers available</p>
+            <h2 className="text-xl font-semibold text-slate-900">{t('availableHelpers')}</h2>
+            <p className="text-sm text-slate-600">{filteredHelpers.length} {t('verifiedHelpersAvailable')}</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            <ShieldCheck className="h-3.5 w-3.5" /> Verified profiles
-          </div>
+            <ShieldCheck className="h-3.5 w-3.5" /> {t('verifiedProfiles')}{' '}</div>
         </div>
 
         {loading ? (
-          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-sm text-slate-500">Loading helper profiles…</div>
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-sm text-slate-500">{t('loadingHelperProfiles')}</div>
         ) : filteredHelpers.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
             <Search className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-            <h3 className="text-lg font-semibold text-slate-900">No helpers found</h3>
-            <p className="mt-2 text-sm text-slate-600">Try another service, location, or search keyword.</p>
+            <h3 className="text-lg font-semibold text-slate-900">{t('noHelpersFound')}</h3>
+            <p className="mt-2 text-sm text-slate-600">{t('tryAnotherServiceLocationOrSearchKeyword')}</p>
           </div>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
@@ -525,7 +524,7 @@ function BookingPageContent() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-semibold text-slate-900">{helper.name}</h3>
-                        {helper.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> Verified</span>}
+                        {helper.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> {t('verified')}</span>}
                       </div>
                       <p className="text-sm text-slate-600">{helper.service} · {helper.location}</p>
                     </div>
@@ -543,23 +542,23 @@ function BookingPageContent() {
 
                 <div className="mt-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Starting from</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('startingFrom')}</p>
                     <div className="mt-1 flex items-baseline gap-1 text-2xl font-bold text-slate-900">
                       <IndianRupee className="h-5 w-5" />
                       {helper.price_per_day.toLocaleString('en-IN')}
-                      <span className="text-sm font-medium text-slate-500">/day</span>
+                      <span className="text-sm font-medium text-slate-500">{t('day')}</span>
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">₹{(helper.price_per_day * Number(duration || 1)).toLocaleString('en-IN')} for {duration} days</p>
+                    <p className="mt-1 text-xs text-slate-500">₹{(helper.price_per_day * Number(duration || 1)).toLocaleString('en-IN')} {t('for')}{' '}{duration} {t('days')}</p>
                   </div>
                   <div className="text-right text-xs text-slate-500">
-                    <p>{helper.reviews} reviews</p>
+                    <p>{helper.reviews} {t('reviews')}</p>
                     <p>{helper.experience}</p>
                   </div>
                 </div>
 
                 <div className="mt-4 flex gap-3">
-                  <button onClick={() => setShowDetails(helper)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100">View profile</button>
-                  <button onClick={() => openBooking(helper)} className="flex-1 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20 transition hover:opacity-95">Book now</button>
+                  <button onClick={() => setShowDetails(helper)} className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100">{t('viewProfile')}</button>
+                  <button onClick={() => openBooking(helper)} className="flex-1 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20 transition hover:opacity-95">{t('bookNow')}</button>
                 </div>
               </article>
             ))}
@@ -570,19 +569,18 @@ function BookingPageContent() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">My bookings</h2>
-            <p className="text-sm text-slate-600">Your current and previous home-care bookings</p>
+            <h2 className="text-xl font-semibold text-slate-900">{t('myBookings')}</h2>
+            <p className="text-sm text-slate-600">{t('yourCurrentAndPreviousHomeCareBookings')}</p>
           </div>
           <div className="flex items-center gap-2 rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
-            <Bell className="h-3.5 w-3.5" /> {unreadNotifications} active
-          </div>
+            <Bell className="h-3.5 w-3.5" /> {unreadNotifications} {t('active')}{' '}</div>
         </div>
 
         {bookings.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
             <ChefHat className="mx-auto mb-3 h-8 w-8 text-slate-400" />
-            <h3 className="text-lg font-semibold text-slate-900">No bookings yet</h3>
-            <p className="mt-2 text-sm text-slate-600">Choose a verified helper above and book your support.</p>
+            <h3 className="text-lg font-semibold text-slate-900">{t('noBookingsYet')}</h3>
+            <p className="mt-2 text-sm text-slate-600">{t('chooseAVerifiedHelperAboveAndBookYourSupport')}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -601,21 +599,21 @@ function BookingPageContent() {
 
                 <div className="flex flex-col gap-3 text-sm text-slate-600 sm:flex-row sm:items-center">
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Duration</p>
-                    <p className="font-semibold text-slate-900">{booking.duration_days} days</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('duration')}</p>
+                    <p className="font-semibold text-slate-900">{booking.duration_days} {t('days')}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Total</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('total')}</p>
                     <p className="font-semibold text-slate-900">₹{booking.total_amount.toLocaleString('en-IN')}</p>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
-                    <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>{booking.status === 'confirmed' ? 'Confirmed' : 'Cancelled'}</span>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{t('status')}</p>
+                    <span className={cn('inline-flex rounded-full px-2.5 py-1 text-xs font-semibold', booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700')}>{booking.status === 'confirmed' ? t('confirmed') : t('cancelled')}</span>
                   </div>
                 </div>
 
                 {booking.status === 'confirmed' && (
-                  <button onClick={() => cancelBooking(booking.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">Cancel</button>
+                  <button onClick={() => cancelBooking(booking.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100">{t('cancel')}</button>
                 )}
               </div>
             ))}
@@ -629,9 +627,9 @@ function BookingPageContent() {
             <Sparkles className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">Expand coverage</p>
-            <h3 className="mt-1 text-xl font-semibold text-slate-900">We are expanding across more cities.</h3>
-            <p className="mt-2 text-sm text-slate-600">OncoCare+ currently supports Cook & Maid services in Delhi, Noida and Gurugram, with coverage growing as more verified helpers join the network.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-600">{t('expandCoverage')}</p>
+            <h3 className="mt-1 text-xl font-semibold text-slate-900">{t('weAreExpandingAcrossMoreCities')}</h3>
+            <p className="mt-2 text-sm text-slate-600">{t('oncocareCurrentlySupportsCookMaidServicesInDelhiNoidaAndGurugramWithCoverageGrow')}</p>
           </div>
         </div>
       </section>
@@ -645,12 +643,11 @@ function BookingPageContent() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-bold text-slate-900">{showDetails.name}</h2>
-                    {showDetails.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> Verified</span>}
+                    {showDetails.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> {t('verified')}</span>}
                   </div>
                   <p className="text-sm text-slate-600">{showDetails.service} · {showDetails.location}</p>
                   <div className="mt-2 flex items-center gap-1 text-sm font-medium text-amber-600">
-                    <Star className="h-4 w-4 fill-current" /> {showDetails.rating} ({showDetails.reviews} reviews)
-                  </div>
+                    <Star className="h-4 w-4 fill-current" /> {showDetails.rating} ({showDetails.reviews} {t('reviews2')}{' '}</div>
                 </div>
               </div>
               <button onClick={() => setShowDetails(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
@@ -660,26 +657,26 @@ function BookingPageContent() {
 
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Experience</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">{t('experience')}</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{showDetails.experience}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Languages</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">{t('languages')}</p>
                 <p className="mt-2 text-lg font-semibold text-slate-900">{showDetails.languages.join(', ')}</p>
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Daily rate</p>
-                <p className="mt-2 flex items-baseline gap-1 text-lg font-semibold text-slate-900"><IndianRupee className="h-4 w-4" /> {showDetails.price_per_day.toLocaleString('en-IN')}/day</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">{t('dailyRate')}</p>
+                <p className="mt-2 flex items-baseline gap-1 text-lg font-semibold text-slate-900"><IndianRupee className="h-4 w-4" /> {showDetails.price_per_day.toLocaleString('en-IN')}{t('day')}</p>
               </div>
             </div>
 
             <div className="mt-6">
-              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">About</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('about')}</p>
               <p className="mt-2 text-sm leading-6 text-slate-700">{showDetails.about}</p>
             </div>
 
             <div className="mt-6">
-              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Skills</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('skills')}</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {showDetails.skills.map((skill) => (
                   <span key={skill} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">{skill}</span>
@@ -688,8 +685,8 @@ function BookingPageContent() {
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              <button onClick={() => setShowDetails(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Close</button>
-              <button onClick={() => { setShowDetails(null); if (showDetails) openBooking(showDetails); }} className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20">Book this helper</button>
+              <button onClick={() => setShowDetails(null)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{t('close')}</button>
+              <button onClick={() => { setShowDetails(null); if (showDetails) openBooking(showDetails); }} className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20">{t('bookThisHelper')}</button>
             </div>
           </div>
         </div>
@@ -700,7 +697,7 @@ function BookingPageContent() {
           <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600">Book helper</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600">{t('bookHelper')}</p>
                 <h2 className="mt-1 text-2xl font-bold text-slate-900">{selectedHelper.name}</h2>
               </div>
               <button onClick={() => setShowBookingModal(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
@@ -711,59 +708,59 @@ function BookingPageContent() {
             <div className="mt-5 space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Patient name</span>
+                  <span className="text-sm font-medium text-slate-700">{t('patientName')}</span>
                   <input value={patientName} onChange={(e) => setPatientName(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Service</span>
+                  <span className="text-sm font-medium text-slate-700">{t('service')}</span>
                   <input value={selectedHelper.service} readOnly className="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm text-slate-700 outline-none" />
                 </label>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Location</span>
+                  <span className="text-sm font-medium text-slate-700">{t('location')}</span>
                   <input value={selectedHelper.location} readOnly className="h-11 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 text-sm text-slate-700 outline-none" />
                 </label>
 
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Start date</span>
+                  <span className="text-sm font-medium text-slate-700">{t('startDate')}</span>
                   <input type="date" min={todayString()} value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
                 </label>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Duration</span>
+                  <span className="text-sm font-medium text-slate-700">{t('duration')}</span>
                   <select value={duration} onChange={(e) => setDuration(e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white">
-                    <option value="1">1 day</option>
-                    <option value="3">3 days</option>
-                    <option value="7">7 days</option>
-                    <option value="14">14 days</option>
-                    <option value="30">30 days</option>
+                    <option value="1">{t('text1Day')}</option>
+                    <option value="3">{t('text3Days')}</option>
+                    <option value="7">{t('text7Days')}</option>
+                    <option value="14">{t('text14Days')}</option>
+                    <option value="30">{t('text30Days')}</option>
                   </select>
                 </label>
 
                 <div className="space-y-2">
-                  <span className="text-sm font-medium text-slate-700">Total</span>
+                  <span className="text-sm font-medium text-slate-700">{t('total')}</span>
                   <div className="flex h-11 items-center justify-between rounded-xl border border-teal-200 bg-teal-50 px-3 text-sm font-semibold text-teal-700">
                     <span className="flex items-center gap-1"><IndianRupee className="h-4 w-4" /> {selectedHelper.price_per_day * Number(duration || 1)} </span>
-                    <span>{Number(duration || 1)} days</span>
+                    <span>{Number(duration || 1)} {t('days')}</span>
                   </div>
                 </div>
               </div>
 
               <label className="space-y-2">
-                <span className="text-sm font-medium text-slate-700">Care and dietary instructions</span>
-                <textarea value={careNotes} onChange={(e) => setCareNotes(e.target.value)} rows={4} placeholder="Optional notes for dietary restrictions, cleanliness needs, or daily care instructions..." className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
+                <span className="text-sm font-medium text-slate-700">{t('careAndDietaryInstructions')}</span>
+                <textarea value={careNotes} onChange={(e) => setCareNotes(e.target.value)} rows={4} placeholder={t('optionalNotesForDietaryRestrictionsCleanlinessNeedsOrDailyCareInstructions')} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
               </label>
 
               {bookingError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{bookingError}</div>}
 
               <div className="flex justify-end gap-3 pt-2">
-                <button onClick={() => setShowBookingModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">Cancel</button>
-                <button onClick={createBooking} className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20">Confirm booking</button>
+                <button onClick={() => setShowBookingModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{t('cancel')}</button>
+                <button onClick={createBooking} className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-teal-500/20">{t('confirmBooking')}</button>
               </div>
             </div>
           </div>

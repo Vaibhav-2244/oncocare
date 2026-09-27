@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { GoogleMap, MarkerF, useJsApiLoader } from '@react-google-maps/api';
+import dynamic from 'next/dynamic';
 import {
   AlertCircle,
   CheckCircle2,
@@ -18,33 +18,26 @@ import {
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout } from '@/components/auth/dashboard-layout';
+import type { Coordinates, NearbyHospital, Radius } from '@/components/nearby-hospitals/hospital-map';
+import { useTranslations } from 'next-intl';
 
-const mapLibraries: ('places')[] = ['places'];
-const mapContainerStyle = { width: '100%', height: '100%' };
+function HospitalMapLoading() {
+  const tI18n = useTranslations('nearbyHospitals');
+  const t = useTranslations('nearbyHospitals');
+  return (
+    <div className="flex h-full items-center justify-center text-sm text-slate-500">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> {tI18n('loadingMap')}{' '}</div>
+  );
+}
+
+const HospitalMap = dynamic(() => import('@/components/nearby-hospitals/hospital-map'), {
+  ssr: false,
+  loading: HospitalMapLoading,
+});
 const defaultCenter = { lat: 20.5937, lng: 78.9629 };
 const radiusOptions = [5, 10, 25, 50] as const;
 
-type Radius = (typeof radiusOptions)[number];
 type SortOption = 'nearest' | 'rating';
-
-interface Coordinates {
-  latitude: number;
-  longitude: number;
-}
-
-interface NearbyHospital {
-  id: string;
-  name: string;
-  address: string | null;
-  latitude: number;
-  longitude: number;
-  phone: string | null;
-  rating: number | null;
-  reviewCount: number | null;
-  openNow: boolean | null;
-  mapsUrl: string | null;
-  distanceKm: number;
-}
 
 interface ApiResponse {
   hospitals?: NearbyHospital[];
@@ -60,20 +53,20 @@ function formatReviews(reviewCount: number) {
 }
 
 function LocationMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const t = useTranslations('nearbyHospitals');
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-900">
       <div className="flex gap-3">
         <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
         <div>
-          <p className="text-sm font-semibold">We need your location to search nearby</p>
+          <p className="text-sm font-semibold">{t('weNeedYourLocationToSearchNearby')}</p>
           <p className="mt-1 text-sm text-amber-800">{message}</p>
           <button
             type="button"
             onClick={onRetry}
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-amber-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-800"
           >
-            <Navigation className="h-4 w-4" /> Use My Location Again
-          </button>
+            <Navigation className="h-4 w-4" /> {t('useMyLocationAgain')}{' '}</button>
         </div>
       </div>
     </div>
@@ -89,6 +82,7 @@ function HospitalCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations('nearbyHospitals');
   const directionsUrl = hospital.mapsUrl
     || `https://www.google.com/maps/dir/?api=1&destination=${hospital.latitude},${hospital.longitude}`;
 
@@ -105,7 +99,7 @@ function HospitalCard({
           <h2 className="font-semibold leading-5 text-slate-900">{hospital.name}</h2>
           <p className="mt-1 flex items-start gap-1.5 text-sm text-slate-500">
             <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>{hospital.address || 'Address unavailable'}</span>
+            <span>{hospital.address || t('addressUnavailable')}</span>
           </p>
         </div>
       </div>
@@ -120,7 +114,7 @@ function HospitalCard({
         )}
         {hospital.openNow !== null && (
           <span className={hospital.openNow ? 'text-emerald-700' : 'text-rose-600'}>
-            {hospital.openNow ? 'Open now' : 'Closed now'}
+            {hospital.openNow ? t('openNow') : t('closedNow')}
           </span>
         )}
       </div>
@@ -133,16 +127,14 @@ function HospitalCard({
           onClick={(event) => event.stopPropagation()}
           className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-teal-700"
         >
-          <Navigation className="h-3.5 w-3.5" /> Directions
-        </a>
+          <Navigation className="h-3.5 w-3.5" /> {t('directions')}{' '}</a>
         {hospital.phone && (
           <a
             href={`tel:${hospital.phone}`}
             onClick={(event) => event.stopPropagation()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            <Phone className="h-3.5 w-3.5" /> Call
-          </a>
+            <Phone className="h-3.5 w-3.5" /> {t('call')}{' '}</a>
         )}
         {hospital.mapsUrl && (
           <a
@@ -152,8 +144,7 @@ function HospitalCard({
             onClick={(event) => event.stopPropagation()}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
           >
-            <MapPin className="h-3.5 w-3.5" /> View on Map
-          </a>
+            <MapPin className="h-3.5 w-3.5" /> {t('viewOnMap')}{' '}</a>
         )}
       </div>
     </article>
@@ -181,6 +172,7 @@ function HospitalSkeleton() {
 }
 
 function NearbyHospitalsContent() {
+  const t = useTranslations('nearbyHospitals');
   const [coordinates, setCoordinates] = useState<Coordinates | null>(null);
   const [hospitals, setHospitals] = useState<NearbyHospital[]>([]);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
@@ -192,11 +184,6 @@ function NearbyHospitalsContent() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-  const { isLoaded: mapLoaded, loadError: mapLoadError } = useJsApiLoader({
-    googleMapsApiKey: mapsApiKey,
-    libraries: mapLibraries,
-  });
-
   const searchHospitals = useCallback(async (location: Coordinates, selectedRadius: Radius) => {
     setSearching(true);
     setError(null);
@@ -268,17 +255,15 @@ function NearbyHospitalsContent() {
     <div className="space-y-6">
       <div>
         <div className="flex items-center gap-2 text-sm font-semibold text-teal-700">
-          <Hospital className="h-4 w-4" /> Care navigation
-        </div>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900">Nearby Oncology Hospitals</h1>
+          <Hospital className="h-4 w-4" /> {t('careNavigation')}{' '}</div>
+        <h1 className="mt-2 text-2xl font-bold text-slate-900">{t('nearbyOncologyHospitals')}</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-          Find hospitals, cancer centres, and medical facilities near your current location so you can plan the next step in care.
-        </p>
+          {t('findHospitalsCancerCentresAndMedicalFacilitiesNearYourCurrentLocationSoYouCanPla')}{' '}</p>
       </div>
 
       <div className="flex items-start gap-3 rounded-2xl border border-teal-100 bg-teal-50/70 p-4 text-sm text-teal-900">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-teal-700" />
-        <p>Your location is used only for this hospital search and is not permanently stored. No medical or profile information is sent to Google.</p>
+        <p>{t('yourLocationIsUsedOnlyForThisHospitalSearchAndIsNotPermanentlyStoredNoMedicalOrP')}</p>
       </div>
 
       {!coordinates && !locationMessage && (
@@ -289,8 +274,8 @@ function NearbyHospitalsContent() {
                 <MapPin className="h-6 w-6" />
               </div>
               <div>
-                <h2 className="font-semibold text-slate-900">Allow location access to begin</h2>
-                <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">We need your approximate current location to show nearby hospitals. Your precise location stays in your browser and is used only for this search.</p>
+                <h2 className="font-semibold text-slate-900">{t('allowLocationAccessToBegin')}</h2>
+                <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">{t('weNeedYourApproximateCurrentLocationToShowNearbyHospitalsYourPreciseLocationStay')}</p>
               </div>
             </div>
             <button
@@ -300,7 +285,7 @@ function NearbyHospitalsContent() {
               className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-teal-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-wait disabled:opacity-70"
             >
               {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Navigation className="h-4 w-4" />}
-              {locating ? 'Locating...' : 'Use My Current Location'}
+              {locating ? t('locating') : t('useMyCurrentLocation')}
             </button>
           </div>
         </div>
@@ -312,32 +297,29 @@ function NearbyHospitalsContent() {
         <>
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Searching around your current location
-            </div>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> {t('searchingAroundYourCurrentLocation')}{' '}</div>
             <div className="flex flex-wrap gap-2">
               <label className="flex items-center gap-2 text-sm text-slate-600">
-                Radius
-                <span className="relative">
+                {t('radius')}{' '}<span className="relative">
                   <select
                     value={radius}
                     onChange={(event) => setRadius(Number(event.target.value) as Radius)}
                     className="appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
                   >
-                    {radiusOptions.map((option) => <option key={option} value={option}>{option} km</option>)}
+                    {radiusOptions.map((option) => <option key={option} value={option}>{option} {t('km')}</option>)}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </span>
               </label>
               <label className="flex items-center gap-2 text-sm text-slate-600">
-                Sort
-                <span className="relative">
+                {t('sort')}{' '}<span className="relative">
                   <select
                     value={sortOption}
                     onChange={(event) => setSortOption(event.target.value as SortOption)}
                     className="appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
                   >
-                    <option value="nearest">Nearest</option>
-                    <option value="rating">Highest Rated</option>
+                    <option value="nearest">{t('nearest')}</option>
+                    <option value="rating">{t('highestRated')}</option>
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 </span>
@@ -348,22 +330,22 @@ function NearbyHospitalsContent() {
           {error && (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <span className="flex items-center gap-2"><WifiOff className="h-4 w-4" /> {error}</span>
-              <button type="button" onClick={() => void searchHospitals(coordinates, radius)} className="shrink-0 font-semibold underline">Try Again</button>
+              <button type="button" onClick={() => void searchHospitals(coordinates, radius)} className="shrink-0 font-semibold underline">{t('tryAgain')}</button>
             </div>
           )}
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
             <section className="order-2 min-w-0 lg:order-1">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold text-slate-900">Hospitals near you</h2>
-                {!searching && <span className="text-xs text-slate-500">{sortedHospitals.length} found</span>}
+                <h2 className="font-semibold text-slate-900">{t('hospitalsNearYou')}</h2>
+                {!searching && <span className="text-xs text-slate-500">{sortedHospitals.length} {t('found')}</span>}
               </div>
               {searching ? <HospitalSkeleton /> : sortedHospitals.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                   <Hospital className="mx-auto h-8 w-8 text-slate-300" />
-                  <h2 className="mt-3 font-semibold text-slate-900">No hospitals found</h2>
-                  <p className="mt-1 text-sm text-slate-500">Try a wider search radius or use your location again.</p>
-                  <button type="button" onClick={() => setRadius(50)} className="mt-4 text-sm font-semibold text-teal-700 hover:text-teal-800">Search within 50 km</button>
+                  <h2 className="mt-3 font-semibold text-slate-900">{t('noHospitalsFound')}</h2>
+                  <p className="mt-1 text-sm text-slate-500">{t('tryAWiderSearchRadiusOrUseYourLocationAgain')}</p>
+                  <button type="button" onClick={() => setRadius(50)} className="mt-4 text-sm font-semibold text-teal-700 hover:text-teal-800">{t('searchWithin50Km')}</button>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -380,40 +362,26 @@ function NearbyHospitalsContent() {
             </section>
 
             <section className="order-1 h-[360px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-sm lg:order-2 lg:h-[640px]">
-              {!mapsApiKey || mapLoadError ? (
+              {!mapsApiKey ? (
                 <div className="flex h-full flex-col items-center justify-center p-6 text-center text-slate-500">
                   <MapPin className="h-8 w-8 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-700">
-                    {mapLoadError ? 'Google Maps authorization required' : 'Map unavailable'}
-                  </p>
-                  <p className="mt-1 max-w-sm text-xs leading-5">
-                    {mapLoadError
-                      ? 'Add http://localhost:3000/* to the browser key HTTP referrer restrictions in Google Cloud Console, then restart the dev server.'
-                      : 'Hospital results are still available in the list.'}
-                  </p>
+                  <p className="mt-3 text-sm font-semibold text-slate-700">{t('mapUnavailable')}</p>
+                  <p className="mt-1 max-w-sm text-xs leading-5">{t('hospitalResultsAreStillAvailableInTheList')}</p>
                 </div>
-              ) : !mapLoaded ? (
-                <div className="flex h-full items-center justify-center text-sm text-slate-500"><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading map...</div>
               ) : (
-                <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={radius <= 10 ? 12 : radius <= 25 ? 11 : 10} options={{ streetViewControl: false, mapTypeControl: false, fullscreenControl: false }}>
-                  <MarkerF position={mapCenter} title="Your current location" icon={{ url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png' }} />
-                  {hospitals.map((hospital) => (
-                    <MarkerF
-                      key={hospital.id}
-                      position={{ lat: hospital.latitude, lng: hospital.longitude }}
-                      title={hospital.name}
-                      icon={hospital.id === selectedHospitalId
-                        ? 'https://maps.google.com/mapfiles/ms/icons/red-dot.png'
-                        : undefined}
-                      onClick={() => setSelectedHospitalId(hospital.id)}
-                    />
-                  ))}
-                </GoogleMap>
+                <HospitalMap
+                  apiKey={mapsApiKey}
+                  center={mapCenter}
+                  hospitals={hospitals}
+                  radius={radius}
+                  selectedHospitalId={selectedHospitalId}
+                  onSelect={setSelectedHospitalId}
+                />
               )}
             </section>
           </div>
 
-          <p className="flex items-center gap-2 text-xs text-slate-400"><Clock3 className="h-3.5 w-3.5" /> Hospital hours, ratings, and phone details are provided by Google and may change.</p>
+          <p className="flex items-center gap-2 text-xs text-slate-400"><Clock3 className="h-3.5 w-3.5" /> {t('hospitalHoursRatingsAndPhoneDetailsAreProvidedByGoogleAndMayChange')}</p>
         </>
       )}
     </div>

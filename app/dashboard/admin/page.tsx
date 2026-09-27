@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { roleConfig, type RoleName } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const adminNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/admin', icon: Activity },
@@ -24,6 +25,7 @@ const adminNavItems: NavItem[] = [
 ];
 
 function AdminDashboardContent() {
+  const t = useTranslations('admin');
   const { user } = useAuth();
   const [stats, setStats] = useState({ totalUsers: 0, doctors: 0, hospitals: 0, pharmacies: 0 });
   const [users, setUsers] = useState<any[]>([]);
@@ -86,8 +88,8 @@ function AdminDashboardContent() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Manage users, verify partners, and monitor platform health</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t('adminDashboard')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('manageUsersVerifyPartnersAndMonitorPlatformHealth')}</p>
       </div>
 
       {/* Stats */}
@@ -113,8 +115,8 @@ function AdminDashboardContent() {
       <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-900">User Management</h2>
-            <p className="text-xs text-slate-500">View and manage all registered users</p>
+            <h2 className="text-base font-bold text-slate-900">{t('userManagement')}</h2>
+            <p className="text-xs text-slate-500">{t('viewAndManageAllRegisteredUsers')}</p>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -122,7 +124,7 @@ function AdminDashboardContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search users..."
+              placeholder={t('searchUsers')}
               className="rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm focus:border-teal-300 focus:outline-none"
             />
           </div>
@@ -132,10 +134,10 @@ function AdminDashboardContent() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                <th className="px-5 py-3">User</th>
-                <th className="px-5 py-3">Role</th>
-                <th className="px-5 py-3">Joined</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className="px-5 py-3">{t('user')}</th>
+                <th className="px-5 py-3">{t('role')}</th>
+                <th className="px-5 py-3">{t('joined')}</th>
+                <th className="px-5 py-3 text-right">{t('actions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -157,20 +159,20 @@ function AdminDashboardContent() {
                             {u.full_name?.charAt(0).toUpperCase() || u.email?.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <div className="text-sm font-semibold text-slate-800">{u.full_name || 'Unnamed User'}</div>
+                            <div className="text-sm font-semibold text-slate-800">{u.full_name || t('unnamedUser')}</div>
                             <div className="text-[10px] text-slate-400">{u.email}</div>
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3">
                         <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold text-teal-700">
-                          {config?.displayName || 'Patient'}
+                          {config?.displayName || t('patient')}
                         </span>
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-500">
                         {new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-5 py-3 text-right text-xs text-slate-400">Managed in profile</td>
+                      <td className="px-5 py-3 text-right text-xs text-slate-400">{t('managedInProfile')}</td>
                     </tr>
                   );
                 })
@@ -178,7 +180,7 @@ function AdminDashboardContent() {
                 <tr>
                   <td colSpan={4} className="px-5 py-12 text-center">
                     <Users className="mx-auto h-8 w-8 text-slate-300" />
-                    <p className="mt-2 text-sm text-slate-400">No users found</p>
+                    <p className="mt-2 text-sm text-slate-400">{t('noUsersFound')}</p>
                   </td>
                 </tr>
               )}

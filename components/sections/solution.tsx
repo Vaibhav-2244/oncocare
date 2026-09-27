@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { Section, SectionHeading, Reveal } from '@/components/shared/reveal';
+import { useTranslations } from 'next-intl';
 
 const pillars = [
   {
@@ -39,14 +40,15 @@ const pillars = [
 ];
 
 export function Solution() {
+  const t = useTranslations('components.sections.solution');
   return (
     <Section id="solution">
       <SectionHeading
         eyebrow="The Solution"
         title={
           <>
-            One platform for the entire{' '}
-            <span className="gradient-text">cancer journey</span>
+            {t('onePlatformForTheEntire')}{' '}
+            <span className="gradient-text">{t('cancerJourney')}</span>
           </>
         }
         subtitle="OncoCare+ unifies care coordination, AI monitoring, caregiver access, and financial support into a single, beautifully designed experience—for patients, families, and doctors."
@@ -90,19 +92,18 @@ export function Solution() {
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-deep to-teal-400">
                     <Activity className="h-4 w-4 text-white" />
                   </div>
-                  <span className="text-sm font-bold text-slate-800">Care Dashboard</span>
+                  <span className="text-sm font-bold text-slate-800">{t('careDashboard')}</span>
                 </div>
                 <div className="flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold text-emerald-600 ring-1 ring-emerald-200/50">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Live
-                </div>
+                  {t('live')}{' '}</div>
               </div>
 
               {/* Body */}
               <div className="space-y-4 p-5">
                 {/* AI Assistant bubble */}
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={false}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: 0.3 }}
@@ -112,17 +113,14 @@ export function Solution() {
                     <Sparkles className="h-4 w-4 text-white" />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-emerald-deep">OncoCare AI Assistant</div>
+                    <div className="text-xs font-semibold text-emerald-deep">{t('oncocareAiAssistant')}</div>
                     <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                      Good morning, Priya. Your symptom score improved to 8.2. I&apos;ve scheduled your medication reminder and flagged a mild nausea trend to your oncologist.
-                    </p>
+                      {t('goodMorningPriyaYourSymptomScoreImprovedTo82IAposVeScheduledYourMedicationRemind')}{' '}</p>
                     <div className="mt-2 flex gap-2">
                       <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-medium text-teal-600 ring-1 ring-teal-200/50">
-                        View analysis
-                      </span>
+                        {t('viewAnalysis')}{' '}</span>
                       <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-medium text-slate-500 ring-1 ring-slate-200/50">
-                        Dismiss
-                      </span>
+                        {t('dismiss')}{' '}</span>
                     </div>
                   </div>
                 </motion.div>
@@ -145,8 +143,8 @@ export function Solution() {
                 {/* Care team */}
                 <div className="rounded-xl border border-slate-100 p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">Care Team</span>
-                    <span className="text-[10px] text-teal-500">View all</span>
+                    <span className="text-xs font-semibold text-slate-700">{t('careTeam')}</span>
+                    <span className="text-[10px] text-teal-500">{t('viewAll')}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {['Dr. Sharma', 'Nurse Anita', 'Ravi (Caregiver)'].map((name, i) => (
@@ -167,7 +165,7 @@ export function Solution() {
                   {['Complete symptom check-in', 'Take morning medication', 'Upload latest lab report'].map((task, i) => (
                     <motion.div
                       key={task}
-                      initial={{ opacity: 0, x: -10 }}
+                      initial={false}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
                       transition={{ delay: 0.4 + i * 0.1 }}
