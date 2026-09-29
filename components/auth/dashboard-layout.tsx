@@ -381,6 +381,7 @@ export const patientNavItems: NavItem[] = [
 
 export const caregiverNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
+  { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
   { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
   { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
   { label: 'Patient Medications', href: '/dashboard/caregiver-medications', icon: Pill },

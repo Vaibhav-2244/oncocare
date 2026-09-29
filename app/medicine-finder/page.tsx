@@ -27,9 +27,10 @@ import type { Medicine, MedicinePrice, Pharmacy, GenericAlternative, WatchlistIt
 import { popularSearches } from '@/lib/medicine-types';
 import { useAuth } from '@/lib/auth-context';
 import { useTranslations } from 'next-intl';
-import { Navbar } from '@/components/sections/navbar';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { DashboardLayout, PATIENT_ROLES } from '@/components/auth/dashboard-layout';
 
-export default function MedicineFinderPage() {
+function MedicineFinderContent() {
   const t = useTranslations('medicineFinder');
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,11 +126,9 @@ export default function MedicineFinderPage() {
   const favouriteIds = new Set(favouritePharmacies.map((f) => f.pharmacy_id));
 
   return (
-    <>
-      <Navbar />
-      <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <section className="relative overflow-hidden pt-32 pb-12 sm:pt-36 sm:pb-16">
+      <section className="relative overflow-hidden pt-4 pb-12 sm:pt-6 sm:pb-16">
         {/* Background */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-teal-50/40 via-white to-white" />
         <div className="absolute inset-0 -z-10 bg-grid mask-fade-b opacity-40" />
@@ -370,7 +369,16 @@ export default function MedicineFinderPage() {
           </AnimatePresence>
         </div>
       </section>
-      </div>
-    </>
+    </div>
+  );
+}
+
+export default function MedicineFinderPage() {
+  return (
+    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
+      <DashboardLayout dashboardTitle="Patient Dashboard">
+        <MedicineFinderContent />
+      </DashboardLayout>
+    </ProtectedRoute>
   );
 }

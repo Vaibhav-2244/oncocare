@@ -2,11 +2,15 @@ import { NextResponse } from 'next/server';
 
 const ALLOWED_RADII = [5, 10, 25, 50] as const;
 const PLACES_URL = 'https://places.googleapis.com/v1/places:searchNearby';
+const PLACES_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
+const CANCER_SEARCH_RADIUS_KM = 500;
+const CANCER_SEARCH_QUERIES = ['oncology hospital', 'cancer treatment center', 'cancer hospital'];
 
 interface NearbyHospitalsRequest {
   latitude?: unknown;
   longitude?: unknown;
   radius?: unknown;
+  mode?: unknown;
 }
 
 interface GooglePlace {
@@ -69,6 +73,85 @@ function asNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+function locationBounds(latitude: number, longitude: number, radiusKm: number) {
+  const latitudeDelta = radiusKm / 110.574;
+  const longitudeDelta = Math.min(
+    180,
+    radiusKm / (111.32 * Math.max(Math.abs(Math.cos((latitude * Math.PI) / 180)), 0.01)),
+  );
+
+  return {
+    low: {
+      latitude: Math.max(-90, latitude - latitudeDelta),
+      longitude: Math.max(-180, longitude - longitudeDelta),
+    },
+    high: {
+      latitude: Math.min(90, latitude + latitudeDelta),
+      longitude: Math.min(180, longitude + longitudeDelta),
+    },
+  };
+}
+
+async function searchTextPlaces(
+  query: string,
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+  apiKey: string,
+): Promise<GooglePlace[]> {
+  const response = await fetch(PLACES_TEXT_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': apiKey,
+      'X-Goog-FieldMask': [
+        'places.id',
+        'places.displayName',
+        'places.formattedAddress',
+        'places.location',
+        'places.nationalPhoneNumber',
+        'places.rating',
+        'places.userRatingCount',
+        'places.currentOpeningHours.openNow',
+        'places.googleMapsUri',
+        'places.types',
+      ].join(','),
+    },
+    body: JSON.stringify({
+      textQuery: query,
+      pageSize: 20,
+      rankPreference: 'DISTANCE',
+      regionCode: 'IN',
+      locationRestriction: {
+        rectangle: locationBounds(latitude, longitude, radiusKm),
+      },
+    }),
+    cache: 'no-store',
+  });
+
+  if (!response.ok) throw new Error('Google could not complete the hospital search.');
+  const data = (await response.json()) as GooglePlacesResponse;
+  return data.places || [];
+}
+
+function uniqueNearbyHospitals(
+  places: GooglePlace[],
+  latitude: number,
+  longitude: number,
+  maximumDistanceKm: number,
+): NearbyHospital[] {
+  const unique = new Map<string, NearbyHospital>();
+
+  for (const place of places) {
+    const hospital = parsePlace(place, latitude, longitude);
+    if (hospital && hospital.distanceKm <= maximumDistanceKm) unique.set(hospital.id, hospital);
+  }
+
+  return [...unique.values()]
+    .sort((first, second) => first.distanceKm - second.distanceKm)
+    .slice(0, 20);
+}
+
 function parsePlace(
   place: GooglePlace,
   latitude: number,
@@ -122,6 +205,40 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (body.mode === 'cancer') {
+      const cancerPlaces = (await Promise.all(CANCER_SEARCH_QUERIES.map((query) => (
+        searchTextPlaces(query, latitude, longitude, CANCER_SEARCH_RADIUS_KM, apiKey)
+      )))).flat();
+      const cancerHospitals = uniqueNearbyHospitals(
+        cancerPlaces,
+        latitude,
+        longitude,
+        CANCER_SEARCH_RADIUS_KM,
+      );
+
+      if (cancerHospitals.length > 0) {
+        return NextResponse.json({ hospitals: cancerHospitals, fallback: false });
+      }
+
+      const generalPlaces = (await Promise.all(['hospital', 'medical center'].map((query) => (
+        searchTextPlaces(query, latitude, longitude, CANCER_SEARCH_RADIUS_KM, apiKey)
+      )))).flat();
+      const fallbackHospitals = uniqueNearbyHospitals(
+        generalPlaces,
+        latitude,
+        longitude,
+        CANCER_SEARCH_RADIUS_KM,
+      );
+
+      return NextResponse.json({
+        hospitals: fallbackHospitals,
+        fallback: fallbackHospitals.length > 0,
+        searchUrl: fallbackHospitals.length === 0
+          ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`oncology hospital near ${latitude},${longitude}`)}`
+          : null,
+      });
+    }
+
     const response = await fetch(PLACES_URL, {
       method: 'POST',
       headers: {

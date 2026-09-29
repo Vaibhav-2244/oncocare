@@ -42,7 +42,11 @@ type SortOption = 'nearest' | 'rating';
 interface ApiResponse {
   hospitals?: NearbyHospital[];
   error?: string;
+  fallback?: boolean;
+  searchUrl?: string | null;
 }
+
+type SearchMode = 'cancer' | 'all';
 
 function formatDistance(distanceKm: number) {
   return distanceKm < 1 ? `${Math.round(distanceKm * 1000)} m away` : `${distanceKm.toFixed(1)} km away`;
@@ -177,6 +181,9 @@ function NearbyHospitalsContent() {
   const [hospitals, setHospitals] = useState<NearbyHospital[]>([]);
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null);
   const [radius, setRadius] = useState<Radius>(25);
+  const [searchMode, setSearchMode] = useState<SearchMode>('cancer');
+  const [generalFallback, setGeneralFallback] = useState(false);
+  const [fallbackSearchUrl, setFallbackSearchUrl] = useState<string | null>(null);
   const [sortOption, setSortOption] = useState<SortOption>('nearest');
   const [locating, setLocating] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -184,22 +191,30 @@ function NearbyHospitalsContent() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-  const searchHospitals = useCallback(async (location: Coordinates, selectedRadius: Radius) => {
+  const searchHospitals = useCallback(async (
+    location: Coordinates,
+    selectedRadius: Radius,
+    selectedMode: SearchMode,
+  ) => {
     setSearching(true);
     setError(null);
     try {
       const response = await fetch('/api/nearby-hospitals', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...location, radius: selectedRadius }),
+        body: JSON.stringify({ ...location, radius: selectedRadius, mode: selectedMode }),
       });
       const data = (await response.json()) as ApiResponse;
       if (!response.ok) throw new Error(data.error || 'Hospital search failed.');
       setHospitals(data.hospitals || []);
       setSelectedHospitalId(data.hospitals?.[0]?.id || null);
+      setGeneralFallback(data.fallback === true);
+      setFallbackSearchUrl(data.searchUrl || null);
     } catch (searchError) {
       setHospitals([]);
       setSelectedHospitalId(null);
+      setGeneralFallback(false);
+      setFallbackSearchUrl(null);
       setError(searchError instanceof Error ? searchError.message : 'We could not load nearby hospitals.');
     } finally {
       setSearching(false);
@@ -238,8 +253,8 @@ function NearbyHospitalsContent() {
   }, []);
 
   useEffect(() => {
-    if (coordinates) void searchHospitals(coordinates, radius);
-  }, [coordinates, radius, searchHospitals]);
+    if (coordinates) void searchHospitals(coordinates, radius, searchMode);
+  }, [coordinates, radius, searchMode, searchHospitals]);
 
   const sortedHospitals = useMemo(() => [...hospitals].sort((first, second) => (
     sortOption === 'nearest'
@@ -297,20 +312,42 @@ function NearbyHospitalsContent() {
         <>
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" /> {t('searchingAroundYourCurrentLocation')}{' '}</div>
-            <div className="flex flex-wrap gap-2">
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                {t('radius')}{' '}<span className="relative">
-                  <select
-                    value={radius}
-                    onChange={(event) => setRadius(Number(event.target.value) as Radius)}
-                    className="appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
-                  >
-                    {radiusOptions.map((option) => <option key={option} value={option}>{option} {t('km')}</option>)}
-                  </select>
-                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                </span>
-              </label>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              {searchMode === 'cancer' ? t('searchingCancerCareUpTo500Km') : t('searchingAroundYourCurrentLocation')}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-slate-200 p-1" role="group" aria-label={t('facilitySearchMode')}>
+                <button
+                  type="button"
+                  aria-pressed={searchMode === 'cancer'}
+                  onClick={() => setSearchMode('cancer')}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${searchMode === 'cancer' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {t('cancerCareOnly')}
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={searchMode === 'all'}
+                  onClick={() => setSearchMode('all')}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${searchMode === 'all' ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {t('allFacilities')}
+                </button>
+              </div>
+              {searchMode === 'all' && (
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  {t('radius')}{' '}<span className="relative">
+                    <select
+                      value={radius}
+                      onChange={(event) => setRadius(Number(event.target.value) as Radius)}
+                      className="appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-sm font-medium text-slate-700 outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+                    >
+                      {radiusOptions.map((option) => <option key={option} value={option}>{option} {t('km')}</option>)}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  </span>
+                </label>
+              )}
               <label className="flex items-center gap-2 text-sm text-slate-600">
                 {t('sort')}{' '}<span className="relative">
                   <select
@@ -327,25 +364,44 @@ function NearbyHospitalsContent() {
             </div>
           </div>
 
+          {generalFallback && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="status">
+              {t('noOncologyMatchShowingGeneralHospitals')}
+            </div>
+          )}
+
           {error && (
             <div className="flex items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <span className="flex items-center gap-2"><WifiOff className="h-4 w-4" /> {error}</span>
-              <button type="button" onClick={() => void searchHospitals(coordinates, radius)} className="shrink-0 font-semibold underline">{t('tryAgain')}</button>
+              <button type="button" onClick={() => void searchHospitals(coordinates, radius, searchMode)} className="shrink-0 font-semibold underline">{t('tryAgain')}</button>
             </div>
           )}
 
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]">
             <section className="order-2 min-w-0 lg:order-1">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold text-slate-900">{t('hospitalsNearYou')}</h2>
+                <h2 className="font-semibold text-slate-900">
+                  {generalFallback ? t('nearestHospitalsOncologyNotConfirmed') : t('hospitalsNearYou')}
+                </h2>
                 {!searching && <span className="text-xs text-slate-500">{sortedHospitals.length} {t('found')}</span>}
               </div>
               {searching ? <HospitalSkeleton /> : sortedHospitals.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center">
                   <Hospital className="mx-auto h-8 w-8 text-slate-300" />
-                  <h2 className="mt-3 font-semibold text-slate-900">{t('noHospitalsFound')}</h2>
-                  <p className="mt-1 text-sm text-slate-500">{t('tryAWiderSearchRadiusOrUseYourLocationAgain')}</p>
-                  <button type="button" onClick={() => setRadius(50)} className="mt-4 text-sm font-semibold text-teal-700 hover:text-teal-800">{t('searchWithin50Km')}</button>
+                  {searchMode === 'cancer' && fallbackSearchUrl ? (
+                    <>
+                      <h2 className="mt-3 font-semibold text-slate-900">{t('continueCancerCareSearch')}</h2>
+                      <a href={fallbackSearchUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-teal-700 hover:text-teal-800">
+                        {t('openGoogleMapsSearch')}
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="mt-3 font-semibold text-slate-900">{t('noHospitalsFound')}</h2>
+                      <p className="mt-1 text-sm text-slate-500">{t('tryAWiderSearchRadiusOrUseYourLocationAgain')}</p>
+                      <button type="button" onClick={() => setRadius(50)} className="mt-4 text-sm font-semibold text-teal-700 hover:text-teal-800">{t('searchWithin50Km')}</button>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
