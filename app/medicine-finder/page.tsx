@@ -27,6 +27,7 @@ import type { Medicine, MedicinePrice, Pharmacy, GenericAlternative, WatchlistIt
 import { popularSearches } from '@/lib/medicine-types';
 import { useAuth } from '@/lib/auth-context';
 import { useTranslations } from 'next-intl';
+import { Navbar } from '@/components/sections/navbar';
 
 export default function MedicineFinderPage() {
   const t = useTranslations('medicineFinder');
@@ -124,7 +125,9 @@ export default function MedicineFinderPage() {
   const favouriteIds = new Set(favouritePharmacies.map((f) => f.pharmacy_id));
 
   return (
-    <div className="min-h-screen bg-white">
+    <>
+      <Navbar />
+      <div className="min-h-screen bg-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-32 pb-12 sm:pt-36 sm:pb-16">
         {/* Background */}
@@ -367,6 +370,7 @@ export default function MedicineFinderPage() {
           </AnimatePresence>
         </div>
       </section>
-    </div>
+      </div>
+    </>
   );
 }

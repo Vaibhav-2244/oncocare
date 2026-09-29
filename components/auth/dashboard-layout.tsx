@@ -349,6 +349,7 @@ export const commonNavItems: NavItem[] = [
   { label: 'Symptoms', href: '/dashboard/symptoms', icon: AlertCircle },
   { label: 'Treatments', href: '/dashboard/treatments', icon: TrendingUp },
   { label: 'Medications', href: '/dashboard/medications', icon: Pill },
+  { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
   { label: 'Appointments', href: '/dashboard/appointments', icon: Calendar },
   { label: 'Tele-Oncology', href: '/dashboard/tele-oncology', icon: Video },
   { label: 'Documents', href: '/dashboard/documents', icon: FileText },
