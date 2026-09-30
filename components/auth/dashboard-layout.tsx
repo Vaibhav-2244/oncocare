@@ -1,39 +1,53 @@
 'use client';
 
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import {
-  Heart, LayoutDashboard, User, Settings, FileText, MessageSquare,
-  Calendar, Brain, Bell, LogOut, Menu, X, Search, ChevronDown,
-  Activity, AlertCircle, TrendingUp, Pill, Users, Clock, MessageCircle,
-  Siren, Map, Video, BookOpen, Hospital,
-  ShieldCheck, FileSearch, ChefHat, FlaskConical,
-  type LucideIcon,
-} from 'lucide-react';
+import { ArrowLeft, Bell, ChevronDown, LogOut, Menu, Search, Settings, User } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import { roleConfig, type RoleName } from '@/lib/auth-types';
+import { roleConfig } from '@/lib/auth-types';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
 import { getCachedUnreadNotificationCount, loadUnreadNotificationCount } from '@/lib/notification-count-cache';
 import { Logo } from '@/components/shared/logo';
 import { useTranslations } from 'next-intl';
+import {
+  ADMIN_ROLES,
+  ALL_ROLES,
+  CAREGIVER_ROLES,
+  DOCTOR_ROLES,
+  HOSPITAL_ROLES,
+  PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES,
+  PATIENT_CAREGIVER_ROLES,
+  PATIENT_ROLES,
+  PHARMACY_ROLES,
+  RESEARCH_PARTNER_ROLES,
+  STAFF_AND_PARTNER_ROLES,
+  caregiverNavItems,
+  commonNavItems,
+  getDashboardTitleForRole,
+  getNavItemsForRole,
+  patientNavItems,
+  type NavItem,
+} from '@/lib/dashboard-nav';
 
-export const ADMIN_ROLES: RoleName[] = ['super_admin', 'admin'];
-export const PATIENT_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor'];
-export const PATIENT_CAREGIVER_ROLES: RoleName[] = ['patient', 'family_caregiver'];
-export const PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES: RoleName[] = ['patient', 'family_caregiver', 'medical_advisor', 'admin', 'super_admin'];
-export const CAREGIVER_ROLES: RoleName[] = ['family_caregiver'];
-export const DOCTOR_ROLES: RoleName[] = ['doctor'];
-export const HOSPITAL_ROLES: RoleName[] = ['hospital'];
-export const PHARMACY_ROLES: RoleName[] = ['pharmacy'];
-export const RESEARCH_PARTNER_ROLES: RoleName[] = ['research_partner'];
-
-export interface NavItem {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-}
+export {
+  ADMIN_ROLES,
+  ALL_ROLES,
+  CAREGIVER_ROLES,
+  DOCTOR_ROLES,
+  HOSPITAL_ROLES,
+  PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES,
+  PATIENT_CAREGIVER_ROLES,
+  PATIENT_ROLES,
+  PHARMACY_ROLES,
+  RESEARCH_PARTNER_ROLES,
+  STAFF_AND_PARTNER_ROLES,
+  caregiverNavItems,
+  commonNavItems,
+  patientNavItems,
+};
+export type { NavItem } from '@/lib/dashboard-nav';
 
 export function DashboardLayout({
   children,
@@ -42,7 +56,7 @@ export function DashboardLayout({
 }: {
   children: ReactNode;
   navItems?: NavItem[];
-  dashboardTitle: string;
+  dashboardTitle?: string;
 }) {
   const t = useTranslations('components.auth.dashboardLayout');
   const router = useRouter();
@@ -51,6 +65,7 @@ export function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentHash, setCurrentHash] = useState('');
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(() =>
     user ? getCachedUnreadNotificationCount(user.id) || 0 : 0,
   );
@@ -61,17 +76,36 @@ export function DashboardLayout({
     router.push('/');
   };
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/dashboard');
+  };
+
   const initials = user?.profile?.full_name
     ? user.profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.phone?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
-  const dashboardNavItems = navItems || (user?.primaryRole === 'family_caregiver'
-    ? caregiverNavItems
-    : patientNavItems);
-  // Full data search across appointments, medications, and documents can be added later.
+  const dashboardNavItems = navItems ?? getNavItemsForRole(user?.primaryRole ?? null);
+  const resolvedTitle = getDashboardTitleForRole(user?.primaryRole ?? null);
+  const title = dashboardTitle || resolvedTitle;
+
   const filteredNavItems = searchQuery.trim()
     ? dashboardNavItems.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
     : [];
+
+  useEffect(() => {
+    setCurrentHash(window.location.hash || '');
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleHashChange = () => setCurrentHash(window.location.hash || '');
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -117,48 +151,49 @@ export function DashboardLayout({
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar — desktop */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-border bg-card lg:block">
         <SidebarContent
           navItems={dashboardNavItems}
-          dashboardTitle={dashboardTitle}
+          dashboardTitle={title}
           pathname={pathname}
+          currentHash={currentHash}
           user={user}
           initials={initials}
-          onSignOut={handleSignOut}
-          userMenuOpen={userMenuOpen}
-          setUserMenuOpen={setUserMenuOpen}
         />
       </aside>
 
-      {/* Sidebar — mobile */}
       {sidebarOpen && (
         <>
-            <div
-              className="dashboard-overlay-enter fixed inset-0 z-40 bg-slate-900/60 lg:hidden"
-              onClick={() => setSidebarOpen(false)}
+          <div
+            className="dashboard-overlay-enter fixed inset-0 z-40 bg-slate-900/60 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <aside className="dashboard-sidebar-enter fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card lg:hidden">
+            <SidebarContent
+              navItems={dashboardNavItems}
+              dashboardTitle={title}
+              pathname={pathname}
+              currentHash={currentHash}
+              user={user}
+              initials={initials}
+              onNavigate={() => setSidebarOpen(false)}
             />
-            <aside className="dashboard-sidebar-enter fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card lg:hidden">
-              <SidebarContent
-                navItems={dashboardNavItems}
-                dashboardTitle={dashboardTitle}
-                pathname={pathname}
-                user={user}
-                initials={initials}
-                onSignOut={handleSignOut}
-                userMenuOpen={userMenuOpen}
-                setUserMenuOpen={setUserMenuOpen}
-                onNavigate={() => setSidebarOpen(false)}
-              />
-            </aside>
+          </aside>
         </>
       )}
 
-      {/* Main content */}
       <div className="flex flex-1 flex-col lg:pl-64">
-        {/* Top bar */}
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-md lg:px-6">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Go back"
+              title="Go back"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/80 text-slate-600 shadow-sm transition-colors hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
             <button
               onClick={() => setSidebarOpen(true)}
               className="rounded-lg p-2 text-muted-foreground hover:bg-muted lg:hidden"
@@ -183,7 +218,7 @@ export function DashboardLayout({
                 <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-card p-1.5 shadow-xl">
                   {filteredNavItems.length > 0 ? filteredNavItems.map((item) => (
                     <button
-                      key={item.href}
+                      key={`${item.label}-${item.href}`}
                       type="button"
                       onClick={() => navigateToSearchResult(item.href)}
                       className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -211,7 +246,6 @@ export function DashboardLayout({
               )}
             </button>
 
-            {/* User menu */}
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -228,35 +262,37 @@ export function DashboardLayout({
 
               {userMenuOpen && (
                 <>
-                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="dashboard-menu-enter absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-card shadow-xl">
-                      <div className="border-b border-border p-3">
-                        <p className="truncate text-sm font-semibold text-foreground">
-                          {user?.profile?.full_name || t('user')}
-                        </p>
-                        <p className="truncate text-xs text-muted-foreground">{user?.phone || user?.email}</p>
-                        {user?.primaryRole && (
-                          <span className="mt-1.5 inline-block rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
-                            {roleConfig[user.primaryRole].displayName}
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-1.5">
-                        <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
-                          <User className="h-4 w-4" /> {t('profile')}{' '}</Link>
-                        <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
-                          <Settings className="h-4 w-4" /> {t('settings')}{' '}</Link>
-                        <button onClick={handleSignOut} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
-                          <LogOut className="h-4 w-4" /> {t('signOut')}{' '}</button>
-                      </div>
+                  <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                  <div className="dashboard-menu-enter absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+                    <div className="border-b border-border p-3">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {user?.profile?.full_name || t('user')}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{user?.phone || user?.email}</p>
+                      {user?.primaryRole && (
+                        <span className="mt-1.5 inline-block rounded-full bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-700">
+                          {roleConfig[user.primaryRole].displayName}
+                        </span>
+                      )}
                     </div>
+                    <div className="p-1.5">
+                      <Link href="/dashboard/profile" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+                        <User className="h-4 w-4" /> {t('profile')}{' '}
+                      </Link>
+                      <Link href="/dashboard/settings" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted">
+                        <Settings className="h-4 w-4" /> {t('settings')}{' '}
+                      </Link>
+                      <button onClick={handleSignOut} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                        <LogOut className="h-4 w-4" /> {t('signOut')}{' '}
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
             </div>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 p-4 lg:p-8">{children}</main>
       </div>
     </div>
@@ -267,46 +303,48 @@ function SidebarContent({
   navItems,
   dashboardTitle,
   pathname,
+  currentHash,
   user,
   initials,
-  onSignOut,
-  userMenuOpen,
-  setUserMenuOpen,
   onNavigate,
 }: {
   navItems: NavItem[];
   dashboardTitle: string;
   pathname: string;
+  currentHash: string;
   user: ReturnType<typeof useAuth>['user'];
   initials: string;
-  onSignOut: () => void;
-  userMenuOpen: boolean;
-  setUserMenuOpen: (v: boolean) => void;
   onNavigate?: () => void;
 }) {
   const t = useTranslations('components.auth.dashboardLayout');
+
   return (
     <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2 border-b border-border px-6">
+      <div className="flex h-16 items-center gap-2 border-b border-border px-4">
         <Link href="/" className="flex items-center gap-2" onClick={onNavigate}>
           <Logo className="gap-2" textClassName="text-foreground" />
         </Link>
       </div>
 
-      {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-4">
         <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           {dashboardTitle}
         </p>
         <div className="space-y-1">
           {navItems.map((item) => {
-            const isActive = item.href === '/dashboard'
-              ? pathname === item.href
-              : pathname === item.href || pathname.startsWith(item.href + '/');
+            const hrefWithoutHash = item.href.split('#')[0];
+            const itemHash = item.href.includes('#') ? `#${item.href.split('#')[1]}` : '';
+            const sameBaseHashItems = navItems.filter(
+              (entry) => entry.href.includes('#') && entry.href.split('#')[0] === hrefWithoutHash,
+            );
+            const pathnameMatches = pathname === hrefWithoutHash || pathname.startsWith(`${hrefWithoutHash}/`);
+            const isActive = item.href.includes('#')
+              ? pathnameMatches && currentHash === itemHash
+              : pathnameMatches && (sameBaseHashItems.length === 0 || currentHash === '');
+
             return (
               <Link
-                key={item.href}
+                key={`${item.label}-${item.href}`}
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
@@ -324,7 +362,6 @@ function SidebarContent({
         </div>
       </nav>
 
-      {/* User card */}
       <div className="border-t border-border p-4">
         <Link href="/dashboard/profile" onClick={onNavigate} className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 text-sm font-bold text-white">
@@ -341,51 +378,3 @@ function SidebarContent({
     </div>
   );
 }
-
-export const commonNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Personalized Nutrition', href: '/dashboard/diet-plan', icon: ChefHat },
-  { label: 'BPL Donations', href: '/dashboard/bpl-donations', icon: Heart },
-  { label: 'Symptoms', href: '/dashboard/symptoms', icon: AlertCircle },
-  { label: 'Treatments', href: '/dashboard/treatments', icon: TrendingUp },
-  { label: 'Medications', href: '/dashboard/medications', icon: Pill },
-  { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
-  { label: 'Appointments', href: '/dashboard/appointments', icon: Calendar },
-  { label: 'Tele-Oncology', href: '/dashboard/tele-oncology', icon: Video },
-  { label: 'Documents', href: '/dashboard/documents', icon: FileText },
-  { label: 'Lab Reports', href: '/dashboard/lab-reports', icon: FlaskConical },
-  { label: 'Second Opinion', href: '/dashboard/second-opinion', icon: FileSearch },
-  { label: 'Care Team', href: '/dashboard/care-team', icon: Users },
-  { label: 'Caregiver Marketplace', href: '/dashboard/caregiver-marketplace', icon: Users },
-  { label: 'Timeline', href: '/dashboard/timeline', icon: Clock },
-  { label: 'Community', href: '/dashboard/community', icon: MessageCircle },
-  { label: 'Cook & Maid', href: '/dashboard/cook-maid', icon: ChefHat },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Brain },
-  { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
-  { label: 'Emergency', href: '/dashboard/emergency', icon: Siren },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];
-
-export const patientNavItems: NavItem[] = [
-  ...commonNavItems,
-  { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
-  { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
-  { label: 'Nearby Hospitals', href: '/dashboard/nearby-hospitals', icon: Hospital },
-  { label: 'Cancer Journey Roadmap', href: '/dashboard/cancer-journey', icon: Map },
-  { label: 'Survivor Stories', href: '/dashboard/survivor-stories', icon: BookOpen },
-  { label: 'Cancer Insurance', href: '/dashboard/insurance', icon: ShieldCheck },
-  { label: 'Government Schemes', href: '/dashboard/insurance/government-schemes', icon: ShieldCheck },
-];
-
-export const caregiverNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
-  { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
-  { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
-  { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
-  { label: 'Patient Medications', href: '/dashboard/caregiver-medications', icon: Pill },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
-];

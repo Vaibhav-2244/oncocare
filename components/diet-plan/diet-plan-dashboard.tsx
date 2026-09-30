@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
 import {
   AlertCircle,
   Apple,
@@ -822,14 +823,7 @@ export default function DietPlanDashboard() {
       <main className="min-h-screen bg-[#f5f7fa] px-4 py-6 text-slate-900 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <header className="flex items-center justify-between rounded-[24px] border border-slate-200 bg-white px-5 py-4 shadow-sm">
-            <Image
-              src="/brand/oncocare-logo.png"
-              alt={t('oncocare')}
-              width={165}
-              height={54}
-              className="h-auto w-[135px]"
-              priority
-            />
+            <Logo iconBoxSize="h-8 w-8" iconSize="h-7 w-7" textSize="text-base" />
             <div className="h-9 w-24 animate-pulse rounded-xl bg-slate-100" />
           </header>
 
@@ -868,14 +862,7 @@ export default function DietPlanDashboard() {
             href="/dashboard/diet-plan"
             aria-label={t('oncocareDietPlans')}
           >
-            <Image
-              src="/brand/oncocare-logo.png"
-              alt={t('oncocare')}
-              width={165}
-              height={54}
-              className="h-auto w-[132px] sm:w-[145px]"
-              priority
-            />
+            <Logo iconBoxSize="h-8 w-8" iconSize="h-7 w-7" textSize="text-base" />
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">

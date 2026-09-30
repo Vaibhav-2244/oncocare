@@ -1,7 +1,8 @@
 'use client';
 
-import { Activity, Twitter, Linkedin, Github, Instagram, Mail, MapPin, Phone } from 'lucide-react';
+import { Twitter, Linkedin, Github, Instagram, Mail, MapPin, Phone } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Logo } from '@/components/shared/logo';
 
 const footerLinks = {
   Company: ['About Us', 'Our Mission', 'Careers', 'Press Kit', 'Blog'],
@@ -26,13 +27,8 @@ export function Footer() {
         <div className="grid gap-12 lg:grid-cols-12">
           {/* Brand column */}
           <div className="lg:col-span-4">
-            <a href="#" className="flex items-center gap-2.5">
-              <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-deep to-teal-400 shadow-md shadow-teal-500/30">
-                <Activity className="h-5 w-5 text-white" strokeWidth={2.5} />
-              </div>
-              <span className="text-lg font-bold tracking-tight text-slate-900">
-                {t('oncocare')}<span className="text-emerald-deep">+</span>
-              </span>
+            <a href="#" aria-label={t('oncocare')}>
+              <Logo />
             </a>
             <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-500">
               {t('indiaAposSFirstAiPoweredIntegratedCancerHomeCarePlatformHelpingPatientsBeyondHos')}{' '}</p>

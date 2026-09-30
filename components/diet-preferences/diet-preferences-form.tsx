@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Logo } from "@/components/shared/logo";
 import {
   ArrowLeft,
   ArrowRight,
@@ -856,14 +857,7 @@ export default function DietPreferencesForm() {
             <ArrowLeft className="h-4 w-4" />
             {t('backToYourPlan')}{' '}</a>
 
-          <Image
-            src="/brand/oncocare-logo.png"
-            alt={t('oncocare')}
-            width={165}
-            height={54}
-            className="h-12 w-32 object-contain object-right sm:h-14 sm:w-40"
-            priority
-          />
+          <Logo iconBoxSize="h-9 w-9" iconSize="h-8 w-8" textSize="text-base" />
         </header>
 
         <section className="relative mt-7 overflow-hidden rounded-[30px] border border-[#d7ecea] bg-white px-6 py-7 shadow-[0_16px_50px_rgba(31,41,55,0.06)] sm:px-9 sm:py-9">

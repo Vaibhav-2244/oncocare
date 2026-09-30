@@ -15,6 +15,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { LogoMark } from '@/components/shared/logo';
 
 const trustIndicators = [
   { icon: Brain, label: 'AI Powered' },
@@ -170,7 +171,7 @@ export function Hero() {
                 </div>
                 <div className="mx-auto flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-1 text-xs text-slate-400">
                   <ShieldCheck className="h-3 w-3 text-teal-500" />
-                  {t('appOncocareplusComDashboard')}{' '}</div>
+                  {t('oncocarePatientPortal')}{' '}</div>
               </div>
 
               {/* Dashboard content */}
@@ -178,9 +179,7 @@ export function Hero() {
                 {/* Sidebar */}
                 <div className="col-span-3 hidden flex-col gap-1 md:flex">
                   <div className="mb-3 flex items-center gap-2 px-2">
-                    <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-deep to-teal-400">
-                      <Activity className="h-4 w-4 text-white" />
-                    </div>
+                    <LogoMark className="h-7 w-7" />
                     <span className="text-sm font-bold text-slate-800">{t('oncocare')}</span>
                   </div>
                   {['Dashboard', 'Care Plan', 'Symptoms', 'Medications', 'Lab Trends', 'Caregivers'].map(

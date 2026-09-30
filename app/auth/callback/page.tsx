@@ -1,16 +1,45 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { roleConfig } from '@/lib/auth-types';
+import { supabase } from '@/lib/supabase-client';
 import { useTranslations } from 'next-intl';
 
 export default function AuthCallbackPage() {
   const t = useTranslations('auth.callback');
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, session, refreshUser } = useAuth();
+  const handledRoleRef = useRef(false);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const applyStoredRole = async () => {
+      if (!session || handledRoleRef.current) return;
+
+      const role = sessionStorage.getItem('oncocare_signup_role');
+      if (role) {
+        handledRoleRef.current = true;
+        sessionStorage.removeItem('oncocare_signup_role');
+
+        try {
+          await supabase.rpc('set_initial_signup_role', { p_role: role });
+        } catch {
+          // expected for existing users or unsupported roles; ignore and continue
+        }
+
+        await refreshUser();
+        return;
+      }
+
+      handledRoleRef.current = true;
+    };
+
+    void applyStoredRole();
+  }, [loading, refreshUser, session]);
 
   useEffect(() => {
     if (loading) return;

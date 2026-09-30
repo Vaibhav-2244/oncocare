@@ -57,11 +57,16 @@ export default function SignUpPage() {
     setLoading(true);
     setError(null);
 
-    const { error: signUpError } = await signUp(email, password, fullName, selectedRole);
+    const { error: signUpError, hasSession } = await signUp(email, password, fullName, selectedRole);
 
     if (signUpError) {
       setError(signUpError);
       setLoading(false);
+      return;
+    }
+
+    if (hasSession) {
+      router.push('/dashboard');
       return;
     }
 
@@ -173,7 +178,7 @@ export default function SignUpPage() {
             </div>
 
             {/* OAuth */}
-            <OAuthButtons />
+            <OAuthButtons role={selectedRole ?? undefined} />
 
             <div className="my-5 flex items-center gap-3">
               <div className="h-px flex-1 bg-slate-200" />

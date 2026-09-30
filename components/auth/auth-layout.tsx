@@ -25,7 +25,7 @@ export function AuthLayout({
         <div className="absolute -left-20 bottom-20 h-72 w-72 rounded-full bg-emerald-400/20 blur-3xl" />
 
         <Link href="/" className="relative flex items-center gap-2 text-white">
-          <Logo iconBoxSize="h-10 w-10" iconSize="h-5 w-5" textSize="text-xl" textClassName="text-white" className="gap-2" />
+          <Logo iconBoxSize="h-10 w-10" iconSize="h-9 w-9" textSize="text-xl" textClassName="text-white" className="gap-2" />
         </Link>
 
         <div className="relative">
@@ -62,7 +62,7 @@ export function AuthLayout({
         >
           {/* Mobile logo */}
           <Link href="/" className="mb-8 flex items-center justify-center gap-2 lg:hidden">
-            <Logo iconBoxSize="h-10 w-10" iconSize="h-5 w-5" textSize="text-xl" />
+            <Logo iconBoxSize="h-10 w-10" iconSize="h-9 w-9" textSize="text-xl" />
           </Link>
 
           <h1 className="text-2xl font-bold text-foreground">{title}</h1>

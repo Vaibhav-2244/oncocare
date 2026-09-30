@@ -1,10 +1,23 @@
-import { Activity } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/brand/oncocare-brandmark.png"
+      alt=""
+      aria-hidden="true"
+      width={64}
+      height={64}
+      className={cn('object-contain', className)}
+    />
+  );
+}
+
 export function Logo({
   iconBoxSize = 'h-9 w-9',
-  iconSize = 'h-5 w-5',
+  iconSize = 'h-8 w-8',
   textSize = 'text-lg',
   textClassName = 'text-slate-900',
   className,
@@ -18,9 +31,8 @@ export function Logo({
   const t = useTranslations('components.shared.logo');
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
-      <div className={cn('relative flex items-center justify-center rounded-xl bg-gradient-to-br from-emerald-deep to-teal-400 shadow-md shadow-teal-500/30', iconBoxSize)}>
-        <Activity className={cn(iconSize, 'text-white')} strokeWidth={2.5} />
-        <div className="absolute inset-0 -z-10 rounded-xl bg-teal-400/30 blur-md" />
+      <div className={cn('flex shrink-0 items-center justify-center', iconBoxSize)}>
+        <LogoMark className={iconSize} />
       </div>
       <span className={cn(textSize, 'font-bold tracking-tight', textClassName)}>
         {t('oncocare')}<span className="text-emerald-deep">+</span>

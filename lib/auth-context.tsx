@@ -24,8 +24,8 @@ interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string, fullName: string, role: RoleName) => Promise<{ error: string | null }>;
-  signInWithOAuth: (provider: 'google' | 'apple') => Promise<{ error: string | null }>;
+  signUp: (email: string, password: string, fullName: string, role: RoleName) => Promise<{ error: string | null; hasSession?: boolean }>;
+  signInWithOAuth: (provider: 'google' | 'apple', role?: RoleName) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: string | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: string | null }>;
@@ -177,40 +177,22 @@ export function AuthProvider({
     });
     if (error) return { error: error.message };
 
-    if (data.user) {
-      if (!data.session) return { error: null };
-
-      const { data: roleData, error: roleLookupError } = await supabase
-        .from('roles')
-        .select('id')
-        .eq('name', role)
-        .maybeSingle();
-      if (roleLookupError) return { error: `Unable to verify the selected role: ${roleLookupError.message}` };
-      if (!roleData) return { error: 'The selected role is not available. Please contact support.' };
-
-      if (data.session) {
-        const { error: roleInsertError } = await supabase
-          .from('user_roles')
-          .upsert({ user_id: data.user.id, role_id: roleData.id }, { onConflict: 'user_id,role_id' });
-        if (roleInsertError) return { error: `Unable to assign your account role: ${roleInsertError.message}` };
-      }
-
-      const { error: notificationError } = await supabase
-        .from('notification_preferences')
-        .upsert({ user_id: data.user.id }, { onConflict: 'user_id' });
-      if (notificationError && data.session) return { error: `Unable to create notification settings: ${notificationError.message}` };
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ full_name: fullName })
-        .eq('id', data.user.id);
-      if (profileError && data.session) return { error: `Unable to save your profile: ${profileError.message}` };
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      return { error: 'An account with this email already exists. Please sign in instead.' };
     }
 
-    return { error: null };
+    return { error: null, hasSession: Boolean(data.session) };
   }, []);
 
-  const signInWithOAuth = useCallback(async (provider: 'google' | 'apple') => {
+  const signInWithOAuth = useCallback(async (provider: 'google' | 'apple', role?: RoleName) => {
+    if (role) {
+      try {
+        sessionStorage.setItem('oncocare_signup_role', role);
+      } catch {
+        // ignore storage errors
+      }
+    }
+
     const providerMap: Record<string, 'google' | 'apple'> = {
       google: 'google',
       apple: 'apple',

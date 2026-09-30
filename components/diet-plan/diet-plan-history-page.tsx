@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/shared/logo";
 import {
   ArrowLeft,
   Apple,
@@ -658,14 +659,7 @@ export default function DietPlanHistoryPage() {
             href="/dashboard/diet-plan"
             aria-label={t('oncocareDietPlans')}
           >
-            <Image
-              src="/brand/oncocare-logo.png"
-              alt={t('oncocare')}
-              width={165}
-              height={54}
-              className="h-auto w-[132px] sm:w-[145px]"
-              priority
-            />
+            <Logo iconBoxSize="h-8 w-8" iconSize="h-7 w-7" textSize="text-base" />
           </Link>
 
           <nav className="hidden items-center gap-1 sm:flex">

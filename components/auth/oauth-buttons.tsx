@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import type { RoleName } from '@/lib/auth-types';
 
-export function OAuthButtons() {
+export function OAuthButtons({ role }: { role?: RoleName }) {
   const { signInWithOAuth } = useAuth();
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
 
   const handleOAuth = async (provider: 'google' | 'apple') => {
     setLoadingProvider(provider);
-    const { error } = await signInWithOAuth(provider);
+    const { error } = await signInWithOAuth(provider, role);
     if (error) setLoadingProvider(null);
   };
 
