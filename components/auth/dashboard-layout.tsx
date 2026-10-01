@@ -89,13 +89,12 @@ export function DashboardLayout({
     ? user.profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.phone?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
-  const isHospitalSharedPage = user?.primaryRole === 'hospital'
-    && (pathname === '/dashboard/notifications' || pathname === '/dashboard/documents');
-  const dashboardNavItems = isHospitalSharedPage
+  const isHospitalUser = user?.primaryRole === 'hospital';
+  const dashboardNavItems = isHospitalUser
     ? getNavItemsForRole('hospital')
     : navItems ?? getNavItemsForRole(user?.primaryRole ?? null);
   const resolvedTitle = getDashboardTitleForRole(user?.primaryRole ?? null);
-  const title = isHospitalSharedPage ? resolvedTitle : dashboardTitle || resolvedTitle;
+  const title = isHospitalUser ? resolvedTitle : dashboardTitle || resolvedTitle;
 
   const filteredNavItems = searchQuery.trim()
     ? dashboardNavItems.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
