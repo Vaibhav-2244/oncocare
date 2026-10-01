@@ -1,0 +1,61 @@
+export const initialOrders = [
+  { id: 'OC-1042', patient: 'Priya Sharma', prescription: 'RX-2026-1042', medicines: 3, amount: 2840, status: 'Verification', priority: 'Urgent', created: '10:42 AM' },
+  { id: 'OC-1041', patient: 'Rajesh Kumar', prescription: 'RX-2026-1041', medicines: 2, amount: 1620, status: 'Preparing', priority: 'Normal', created: '10:15 AM' },
+  { id: 'OC-1040', patient: 'Anita Desai', prescription: 'RX-2026-1040', medicines: 5, amount: 4210, status: 'Ready', priority: 'Normal', created: '09:50 AM' },
+  { id: 'OC-1039', patient: 'Rahul Verma', prescription: 'RX-2026-1039', medicines: 4, amount: 3180, status: 'Dispatched', priority: 'Normal', created: '09:12 AM' },
+  { id: 'OC-1038', patient: 'Neha Kapoor', prescription: 'RX-2026-1038', medicines: 2, amount: 1950, status: 'Completed', priority: 'Normal', created: '08:40 AM' },
+];
+
+export const initialInventory = [
+  { id: 'MED-001', name: 'Paclitaxel 100mg', generic: 'Paclitaxel', category: 'Chemotherapy', price: 1850, stock: 4, reorder: 10, batch: 'PTX-26A14', expiry: '2027-04-30' },
+  { id: 'MED-002', name: 'Ondansetron 8mg', generic: 'Ondansetron', category: 'Supportive Care', price: 120, stock: 12, reorder: 25, batch: 'OND-26B08', expiry: '2027-08-31' },
+  { id: 'MED-003', name: 'Letrozole 2.5mg', generic: 'Letrozole', category: 'Hormonal Therapy', price: 680, stock: 18, reorder: 20, batch: 'LET-26C02', expiry: '2028-01-31' },
+  { id: 'MED-004', name: 'Filgrastim 300mcg', generic: 'Filgrastim', category: 'Supportive Care', price: 2400, stock: 32, reorder: 15, batch: 'FIL-26D11', expiry: '2027-12-31' },
+  { id: 'MED-005', name: 'Tamoxifen 20mg', generic: 'Tamoxifen', category: 'Hormonal Therapy', price: 240, stock: 64, reorder: 20, batch: 'TAM-26E04', expiry: '2028-03-31' },
+  { id: 'MED-006', name: 'Carboplatin 150mg', generic: 'Carboplatin', category: 'Chemotherapy', price: 1550, stock: 22, reorder: 10, batch: 'CAR-26F19', expiry: '2027-11-30' },
+];
+
+export const initialPrescriptions = [
+  { id: 'RX-2026-1042', patient: 'Priya Sharma', doctor: 'Dr. Sharma', medicines: 3, status: 'Pending Verification', submitted: '10:39 AM' },
+  { id: 'RX-2026-1041', patient: 'Rajesh Kumar', doctor: 'Dr. Mehta', medicines: 2, status: 'Verified', submitted: '10:11 AM' },
+  { id: 'RX-2026-1040', patient: 'Anita Desai', doctor: 'Dr. Kapoor', medicines: 5, status: 'Verified', submitted: '09:46 AM' },
+  { id: 'RX-2026-1039', patient: 'Rahul Verma', doctor: 'Dr. Singh', medicines: 4, status: 'Verified', submitted: '09:08 AM' },
+];
+
+export const initialPatients = [
+  { id: 'P-10042', name: 'Priya Sharma', condition: 'Breast Cancer', phone: '+91 98XXXX1024', orders: 4, status: 'Active' },
+  { id: 'P-10041', name: 'Rajesh Kumar', condition: 'Lung Cancer', phone: '+91 97XXXX2188', orders: 3, status: 'Active' },
+  { id: 'P-10040', name: 'Anita Desai', condition: 'Colorectal Cancer', phone: '+91 99XXXX4372', orders: 6, status: 'Active' },
+  { id: 'P-10039', name: 'Rahul Verma', condition: 'Lymphoma', phone: '+91 96XXXX5011', orders: 2, status: 'Follow-up' },
+];
+
+export const initialDeliveries = [
+  { id: 'DL-2042', order: 'OC-1042', patient: 'Priya Sharma', schedule: 'Today, 5:30 PM', status: 'Preparing', courier: 'OncoCare Express' },
+  { id: 'DL-2041', order: 'OC-1040', patient: 'Anita Desai', schedule: 'Today, 4:15 PM', status: 'Ready', courier: 'OncoCare Express' },
+  { id: 'DL-2040', order: 'OC-1039', patient: 'Rahul Verma', schedule: 'Today, 3:00 PM', status: 'Dispatched', courier: 'OncoCare Express' },
+  { id: 'DL-2039', order: 'OC-1038', patient: 'Neha Kapoor', schedule: 'Delivered', status: 'Delivered', courier: 'OncoCare Express' },
+];
+
+export const initialPayments = [
+  { id: 'PAY-4021', order: 'OC-1042', patient: 'Priya Sharma', amount: 2840, method: 'UPI', status: 'Paid', time: '10:45 AM' },
+  { id: 'PAY-4020', order: 'OC-1041', patient: 'Rajesh Kumar', amount: 1620, method: 'Card', status: 'Paid', time: '10:19 AM' },
+  { id: 'PAY-4019', order: 'OC-1040', patient: 'Anita Desai', amount: 4210, method: 'UPI', status: 'Paid', time: '09:54 AM' },
+  { id: 'PAY-4018', order: 'OC-1039', patient: 'Rahul Verma', amount: 3180, method: 'Cash on Delivery', status: 'Pending', time: '09:18 AM' },
+];
+
+export const initialNotifications = [
+  { id: 'N1', title: 'Prescription requires verification', message: 'RX-2026-1042 is waiting for pharmacist review.', time: '5 min ago', type: 'Prescription', read: false },
+  { id: 'N2', title: 'Critical stock alert', message: 'Paclitaxel 100mg has only 4 units remaining.', time: '18 min ago', type: 'Inventory', read: false },
+  { id: 'N3', title: 'Delivery scheduled', message: 'Order OC-1042 is scheduled for 5:30 PM.', time: '32 min ago', type: 'Delivery', read: true },
+  { id: 'N4', title: 'Payment received', message: '₹4,210 payment received for order OC-1040.', time: '1 hr ago', type: 'Payment', read: true },
+];
+
+export const initialProfile = {
+  name: 'OncoCare Pharmacy',
+  license: 'PH-OC-2026-001',
+  phone: '+91 98XXXXXX90',
+  email: 'pharmacy@oncocare.com',
+  address: 'Gurugram, Haryana, India',
+  hours: '9:00 AM – 9:00 PM',
+  open: true,
+};
