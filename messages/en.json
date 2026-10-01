@@ -1117,6 +1117,66 @@
       "noReviewsYet": "No reviews yet"
     }
   },
+  "pharmacyApp": {
+    "shell": {
+      "loading": "Loading pharmacy workspace...",
+      "setupIssue": "Pharmacy workspace issue",
+      "workspaceUnavailable": "Your pharmacy workspace could not be loaded.",
+      "showTechnicalDetails": "Show technical details",
+      "hideTechnicalDetails": "Hide technical details",
+      "retry": "Retry",
+      "open": "Open",
+      "closed": "Closed",
+      "saving": "Saving...",
+      "verified": "Verified",
+      "unverified": "Unverified workspace",
+      "suspended": "Suspended",
+      "connected": "Connected",
+      "workspaceSuspended": "This workspace is suspended. Changes are unavailable.",
+      "saveStatusError": "Pharmacy operating status could not be updated.",
+      "routeErrorTitle": "This pharmacy page could not be displayed",
+      "routeErrorDescription": "Try loading the page again. Technical details are available below."
+    },
+    "dashboard": {
+      "eyebrow": "Pharmacy workspace",
+      "description": "Manage pharmacy operations from your workspace.",
+      "workflowTitle": "Order workflow",
+      "workflowDescription": "Move each order through the pharmacy workflow.",
+      "openOrders": "Open orders",
+      "workflowSteps": {
+        "orders": "Receive orders",
+        "prescriptions": "Verify prescriptions",
+        "inventory": "Prepare medicines",
+        "deliveries": "Dispatch deliveries",
+        "payments": "Complete orders"
+      },
+      "setupTitle": "Workspace setup",
+      "setupDescription": "Your checklist will update as pharmacy records are added.",
+      "checklist": {
+        "profile": "Complete pharmacy licence and address details",
+        "medicines": "Add medicines to your catalogue",
+        "stock": "Receive your first stock batch",
+        "customers": "Add a customer"
+      },
+      "complete": "Complete",
+      "incomplete": "Not complete",
+      "open": "Open",
+      "unverifiedNote": "Your workspace is usable while unverified. Public listing and patient orders require platform verification."
+    },
+    "sections": {
+      "emptyTitle": "Workspace ready",
+      "foundationPlaceholder": "This section is connected to your pharmacy workspace. Its data workflows will be enabled in the next implementation step.",
+      "dashboardLink": "Return to dashboard",
+      "orders": { "title": "Orders", "description": "Review pharmacy orders and their processing status." },
+      "inventory": { "title": "Inventory", "description": "Track stock batches, available units, and expiry." },
+      "medicines": { "title": "Medicines", "description": "Manage medicines and pricing in your pharmacy catalogue." },
+      "customers": { "title": "Customers", "description": "Manage customer records scoped to this pharmacy." },
+      "prescriptions": { "title": "Prescriptions", "description": "Review and verify prescriptions for this pharmacy." },
+      "deliveries": { "title": "Deliveries", "description": "Schedule and track pharmacy deliveries." },
+      "payments": { "title": "Payments", "description": "Review recorded payments and outstanding balances." },
+      "settings": { "title": "Pharmacy Profile", "description": "Manage pharmacy details, operating status, verification, and staff." }
+    }
+  },
   "profile": {
     "profileSettings": "Profile Settings",
     "manageYourPersonalInformationAndPreferences": "Manage your personal information and preferences",

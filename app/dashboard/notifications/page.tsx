@@ -10,6 +10,7 @@ import {
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, ALL_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
+import { pharmacyNavItems } from '@/lib/dashboard-nav';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
@@ -363,7 +364,11 @@ function NotificationsContent() {
 
 export default function NotificationsPage() {
   const { user } = useAuth();
-  const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
+  const navItems = user?.primaryRole === 'pharmacy'
+    ? pharmacyNavItems
+    : user?.primaryRole === 'family_caregiver'
+      ? caregiverNavItems
+      : patientNavItems;
 
   return (
     <ProtectedRoute allowedRoles={ALL_ROLES}>

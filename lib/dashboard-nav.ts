@@ -6,6 +6,8 @@ import {
   Brain,
   Calendar,
   ChefHat,
+  ClipboardList,
+  CreditCard,
   Clock,
   FileText,
   FlaskConical,
@@ -16,10 +18,12 @@ import {
   MessageCircle,
   MessageSquare,
   Pill,
+  Package,
   Settings,
   ShieldCheck,
   Siren,
   TrendingUp,
+  Truck,
   User,
   Users,
   Video,
@@ -144,12 +148,17 @@ export const researchNavItems: NavItem[] = [
 ];
 
 export const pharmacyNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/pharmacy', icon: LayoutDashboard },
-  { label: 'Inventory', href: '/dashboard/pharmacy#inventory', icon: Pill },
-  { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
+  { label: 'Dashboard', href: '/dashboard/pharmacy', icon: LayoutDashboard },
+  { label: 'Orders', href: '/dashboard/pharmacy/orders', icon: ClipboardList },
+  { label: 'Inventory', href: '/dashboard/pharmacy/inventory', icon: Package },
+  { label: 'Medicines', href: '/dashboard/pharmacy/medicines', icon: Pill },
+  { label: 'Customers', href: '/dashboard/pharmacy/customers', icon: Users },
+  { label: 'Prescriptions', href: '/dashboard/pharmacy/prescriptions', icon: FileText },
+  { label: 'Deliveries', href: '/dashboard/pharmacy/deliveries', icon: Truck },
+  { label: 'Payments', href: '/dashboard/pharmacy/payments', icon: CreditCard },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
+  { label: 'Pharmacy Profile', href: '/dashboard/pharmacy/settings', icon: Settings },
   { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
 export const adminNavItems: NavItem[] = [
