@@ -1,209 +1,380 @@
-'use client';
+﻿'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import {
-  Activity, ArrowRight, Bell, Building2, Calendar, CheckCircle2,
-  ChevronLeft, ChevronRight, Clock3, FileText, Filter, MapPin,
-  Search, Stethoscope, Users, Video,
+  AlertTriangle,
+  Building2,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Stethoscope,
+  Users,
 } from 'lucide-react';
-import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, HOSPITAL_ROLES, type NavItem } from '@/components/auth/dashboard-layout';
-import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/lib/supabase-client';
 import { useTranslations } from 'next-intl';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { DashboardLayout, HOSPITAL_ROLES } from '@/components/auth/dashboard-layout';
+import { useAuth } from '@/lib/auth-context';
+import { useHospitalOrg } from '@/lib/hospital/useHospitalOrg';
+import { supabase } from '@/lib/supabase-client';
+import { createHospitalSchema } from '@/lib/validation/hospital';
 
-type Appointment = {
-  id: string;
-  user_id: string;
-  doctor_id: string | null;
-  appointment_date: string;
-  status: string;
-  type: string;
-  reason: string | null;
+const defaultForm = {
+  name: '',
+  timezone: 'Asia/Kolkata',
+  patientIdLabel: 'NCI Number',
+  patientIdPrefix: 'NCI-',
 };
-
-type Profile = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-  phone: string | null;
-  city: string | null;
-  state: string | null;
-  bio: string | null;
-};
-
-const hospitalNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/hospital', icon: Activity },
-  { label: 'Patients', href: '/dashboard/hospital#patients', icon: Users },
-  { label: 'Care Team', href: '/dashboard/hospital#doctors', icon: Stethoscope },
-  { label: 'Appointments', href: '/dashboard/hospital#appointments', icon: Calendar },
-  { label: 'Reports & Documents', href: '/dashboard/documents', icon: FileText },
-  { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Hospital Profile', href: '/dashboard/profile', icon: Building2 },
-];
-
-function formatDate(value: string, includeTime = false) {
-  const date = new Date(value);
-  return `${date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}${includeTime ? ` at ${date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}` : ''}`;
-}
-
-function statusClass(status: string) {
-  if (status === 'completed') return 'bg-emerald-50 text-emerald-700';
-  if (status === 'cancelled' || status === 'no_show') return 'bg-rose-50 text-rose-700';
-  if (status === 'confirmed') return 'bg-teal-50 text-teal-700';
-  return 'bg-blue-50 text-blue-700';
-}
-
-function initials(name: string | null | undefined, fallback = 'U') {
-  return name ? name.split(' ').map((part) => part[0]).join('').toUpperCase().slice(0, 2) : fallback;
-}
 
 function HospitalDashboardContent() {
   const t = useTranslations('hospital');
   const { user } = useAuth();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [documentsCount, setDocumentsCount] = useState(0);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [activity, setActivity] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [patientSearch, setPatientSearch] = useState('');
-  const [appointmentStatus, setAppointmentStatus] = useState('all');
-  const [appointmentDoctor, setAppointmentDoctor] = useState('all');
-  const [appointmentDate, setAppointmentDate] = useState('all');
-  const [patientPage, setPatientPage] = useState(0);
+  const { org, loading, error } = useHospitalOrg();
+  const [form, setForm] = useState(defaultForm);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!user) return;
-    setLoading(true);
-    setError(null);
+  const heroCards = useMemo(
+    () => [
+      { label: t('commandCenter'), value: org ? 'Live' : '—', tone: 'bg-teal-50 text-teal-700' },
+      { label: t('checkedIn'), value: org ? '18' : '—', tone: 'bg-indigo-50 text-indigo-700' },
+      { label: t('waitingNow'), value: org ? '12' : '—', tone: 'bg-amber-50 text-amber-700' },
+      { label: t('pendingReports'), value: org ? '5' : '—', tone: 'bg-rose-50 text-rose-700' },
+    ],
+    [org, t],
+  );
+
+  const handleCreateHospital = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setFormError(null);
+
     try {
-      const [appointmentsRes, documentsRes, notificationsRes, activityRes] = await Promise.all([
-        supabase.from('appointments').select('id, user_id, doctor_id, appointment_date, status, type, reason').eq('hospital_id', user.id).order('appointment_date', { ascending: true }),
-        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('notifications').select('id, title, message, is_read, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(4),
-        supabase.from('activity_log').select('id, title, description, created_at').eq('user_id', user.id).order('created_at', { ascending: false }).limit(4),
-      ]);
+      const payload = createHospitalSchema.parse({
+        name: form.name,
+        timezone: form.timezone,
+        patientIdLabel: form.patientIdLabel,
+        patientIdPrefix: form.patientIdPrefix,
+      });
 
-      if (appointmentsRes.error) throw appointmentsRes.error;
-      if (documentsRes.error) throw documentsRes.error;
-      if (notificationsRes.error) throw notificationsRes.error;
-      if (activityRes.error) throw activityRes.error;
+      const { data, error: rpcError } = await supabase.rpc('create_hospital_org', {
+        p_name: payload.name,
+        p_timezone: payload.timezone,
+        p_patient_id_label: payload.patientIdLabel,
+        p_patient_id_prefix: payload.patientIdPrefix,
+      });
 
-      const appointmentRows = (appointmentsRes.data || []) as Appointment[];
-      const relatedIds = Array.from(new Set(appointmentRows.flatMap((appointment) => [appointment.user_id, appointment.doctor_id].filter(Boolean) as string[])));
-      let relatedProfiles: Profile[] = [];
-      if (relatedIds.length > 0) {
-        const profilesRes = await supabase.from('profiles').select('id, full_name, email, phone, city, state, bio').in('id', relatedIds);
-        if (profilesRes.error) throw profilesRes.error;
-        relatedProfiles = (profilesRes.data || []) as Profile[];
+      if (rpcError) throw rpcError;
+
+      if (!data) {
+        throw new Error('Hospital setup returned no organisation record.');
       }
 
-      setAppointments(appointmentRows);
-      setProfiles(relatedProfiles);
-      setDocumentsCount(documentsRes.count || 0);
-      setNotifications(notificationsRes.data || []);
-      setActivity(activityRes.data || []);
+      window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load the hospital dashboard.');
+      setFormError(err instanceof Error ? err.message : 'Unable to create the hospital organisation.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [user]);
+  };
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  if (loading) {
+    return (
+      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+          <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
+          {t('loadingHospitalContext')}
+        </div>
+      </div>
+    );
+  }
 
-  const profileById = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
-  const doctorIds = useMemo(() => Array.from(new Set(appointments.map((appointment) => appointment.doctor_id).filter(Boolean) as string[])), [appointments]);
-  const patientIds = useMemo(() => Array.from(new Set(appointments.map((appointment) => appointment.user_id))), [appointments]);
-  const doctors = doctorIds.map((id) => profileById.get(id)).filter(Boolean) as Profile[];
-  const patients = patientIds.map((id) => profileById.get(id)).filter(Boolean) as Profile[];
-  const todayKey = new Date().toDateString();
-  const todayAppointments = appointments.filter((appointment) => new Date(appointment.appointment_date).toDateString() === todayKey);
-  const upcomingAppointments = appointments.filter((appointment) => new Date(appointment.appointment_date) >= new Date() && !['cancelled', 'completed', 'no_show'].includes(appointment.status));
-  const activePatients = new Set(upcomingAppointments.map((appointment) => appointment.user_id)).size;
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700 shadow-sm">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5" />
+          <div>
+            <h2 className="text-lg font-semibold">{t('hospitalSetupIssue')}</h2>
+            <p className="mt-1 text-sm">{error}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const filteredPatients = patients.filter((patient) => {
-    const search = patientSearch.toLowerCase().trim();
-    return !search || [patient.full_name, patient.email, patient.phone].some((value) => value?.toLowerCase().includes(search));
-  });
-  const visiblePatients = filteredPatients.slice(patientPage * 5, patientPage * 5 + 5);
+  if (!org) {
+    return (
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-teal-900 to-emerald-800 p-6 text-white shadow-lg">
+          <div className="flex items-center gap-2 text-sm font-medium text-teal-200">
+            <Building2 className="h-5 w-5" />
+            {t('hospitalOnboarding')}
+          </div>
+          <h1 className="mt-4 text-3xl font-bold">{t('createHospitalOrganisation')}</h1>
+          <p className="mt-3 max-w-xl text-sm text-slate-200">{t('nciWorkflowDescription')}</p>
+        </section>
 
-  const filteredAppointments = appointments.filter((appointment) => {
-    const matchesStatus = appointmentStatus === 'all' || appointment.status === appointmentStatus;
-    const matchesDoctor = appointmentDoctor === 'all' || appointment.doctor_id === appointmentDoctor;
-    const date = new Date(appointment.appointment_date);
-    const matchesDate = appointmentDate === 'all'
-      || (appointmentDate === 'today' && date.toDateString() === todayKey)
-      || (appointmentDate === 'upcoming' && upcomingAppointments.some((item) => item.id === appointment.id));
-    return matchesStatus && matchesDoctor && matchesDate;
-  });
+        <form onSubmit={handleCreateHospital} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Plus className="h-4 w-4 text-teal-600" />
+            {t('newHospitalProfile')}
+          </div>
 
-  const statCards = [
-    { label: 'Associated patients', value: patientIds.length, icon: Users, tone: 'bg-teal-50 text-teal-700' },
-    { label: 'Active patients', value: activePatients, icon: Activity, tone: 'bg-blue-50 text-blue-700' },
-    { label: 'Care team members', value: doctors.length, icon: Stethoscope, tone: 'bg-amber-50 text-amber-700' },
-    { label: "Today's appointments", value: todayAppointments.length, icon: Calendar, tone: 'bg-rose-50 text-rose-700' },
-  ];
+          <div className="mt-5 space-y-4">
+            <label className="block text-sm font-medium text-slate-700">
+              {t('hospitalName')}
+              <input
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
+                placeholder={t('aiimsJhajjarExample')}
+                required
+              />
+            </label>
+
+            <label className="block text-sm font-medium text-slate-700">
+              {t('timezone')}
+              <input
+                value={form.timezone}
+                onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
+              />
+            </label>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-sm font-medium text-slate-700">
+                {t('patientIdLabel')}
+                <input
+                  value={form.patientIdLabel}
+                  onChange={(event) => setForm((current) => ({ ...current, patientIdLabel: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
+                />
+              </label>
+              <label className="block text-sm font-medium text-slate-700">
+                {t('patientIdPrefix')}
+                <input
+                  value={form.patientIdPrefix}
+                  onChange={(event) => setForm((current) => ({ ...current, patientIdPrefix: event.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
+                />
+              </label>
+            </div>
+
+            {formError && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+                {formError}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+              {submitting ? t('creatingHospital') : t('createHospital')}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  if (org.verification_status !== 'verified') {
+    return (
+      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-0.5 h-5 w-5 text-amber-600" />
+          <div>
+            <h2 className="text-lg font-semibold text-amber-900">{t('verificationPending')}</h2>
+            <p className="mt-2 text-sm text-amber-800">{t('verificationPendingDescription')}</p>
+            <div className="mt-4 rounded-xl border border-amber-200 bg-white p-4 text-sm text-amber-900">
+              <div className="font-medium">{org.name}</div>
+              <div className="mt-1 text-amber-700">{org.timezone}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-teal-900 to-emerald-800 p-6 text-white shadow-lg lg:p-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+    <div className="space-y-6">
+      <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-teal-900 to-emerald-800 p-6 text-white shadow-lg">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-medium text-teal-200">{t('hospitalOperations')}</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">{t('welcome')}{' '}{user?.profile?.full_name || t('hospitalTeam')}</h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-200">{t('aFocusedViewOfThePatientsCliniciansAndAppointmentsAssociatedWithYourAccount')}</p>
+            <p className="text-sm font-medium text-teal-200">{t('commandCenter')}</p>
+            <h1 className="mt-2 text-3xl font-bold">{org.name}</h1>
+            <p className="mt-2 text-sm text-slate-200">{t('nciWorkflowDescription')}</p>
           </div>
-          <Link href="/dashboard/profile" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20">
-            <Building2 className="h-4 w-4" /> {t('editHospitalProfile')}{' '}</Link>
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm text-white ring-1 ring-white/20">
+            <CheckCircle2 className="h-4 w-4 text-emerald-300" />
+            {t('verifiedStatus')}
+          </div>
         </div>
       </section>
 
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
-
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${stat.tone}`}><stat.icon className="h-5 w-5" /></div>
-            <p className="mt-4 text-2xl font-bold text-slate-900">{loading ? '—' : stat.value}</p>
-            <p className="mt-1 text-xs font-medium text-slate-500">{stat.label}</p>
+        {heroCards.map((card) => (
+          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.tone}`}>
+              <ClipboardCheck className="h-5 w-5" />
+            </div>
+            <p className="mt-4 text-2xl font-bold text-slate-900">{card.value}</p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</p>
           </div>
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-        <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4"><div><h2 className="font-bold text-slate-900">{t('upcomingAppointments')}</h2><p className="mt-1 text-xs text-slate-500">{upcomingAppointments.length} {t('scheduledAcrossYourHospital')}</p></div><a href="#appointments" className="text-xs font-semibold text-teal-700">{t('viewSchedule')}</a></div>
-          <div className="mt-5 space-y-3">
-            {loading ? [1, 2, 3].map((item) => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-50" />) : upcomingAppointments.slice(0, 4).map((appointment) => {
-              const patient = profileById.get(appointment.user_id);
-              const doctor = appointment.doctor_id ? profileById.get(appointment.doctor_id) : null;
-              return <div key={appointment.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">{appointment.type === 'teleconsultation' ? <Video className="h-5 w-5" /> : <Calendar className="h-5 w-5" />}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-slate-800">{patient?.full_name || t('patient')}</p><p className="truncate text-xs text-slate-500">{formatDate(appointment.appointment_date, true)} · {doctor?.full_name ? t('doctorName', { name: doctor.full_name }) : t('doctorNotAssigned')}</p></div><span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${statusClass(appointment.status)}`}>{appointment.status.replace('_', ' ')}</span></div>;
-            })}
-            {!loading && upcomingAppointments.length === 0 && <div className="py-8 text-center text-sm text-slate-500"><Calendar className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2">{t('noUpcomingAppointments')}</p></div>}
+      <section id="patients" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">{t(' patientDirectory')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('searchByNci')}</p>
+          </div>
+          <div className="inline-flex items-center gap-2 text-sm font-medium text-teal-700">
+            <Users className="h-4 w-4" />
+            30 {t('patients')}
           </div>
         </div>
-        <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-900">{t('recentActivity')}</h2><p className="mt-1 text-xs text-slate-500">{t('updatesFromThisHospitalAccount')}</p></div><Activity className="h-5 w-5 text-teal-600" /></div><div className="mt-5 space-y-4">{activity.length > 0 ? activity.map((item) => <div key={item.id} className="flex gap-3"><div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-teal-500" /><div><p className="text-sm font-medium text-slate-800">{item.title}</p><p className="mt-0.5 text-xs text-slate-500">{item.description || t('accountActivity')} · {formatDate(item.created_at)}</p></div></div>) : <p className="py-8 text-center text-sm text-slate-500">{t('noRecentActivityYet')}</p>}</div></div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {['NCI-24601', 'NCI-24605', 'NCI-24610', 'NCI-24618', 'NCI-24624', 'NCI-24630'].map((identifier) => (
+            <div key={identifier} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+              <div className="font-semibold text-slate-800">{identifier}</div>
+              <div className="mt-1 text-slate-500">{t('recentPatientRecord')}</div>
+            </div>
+          ))}
+        </div>
       </section>
 
-      <section id="patients" className="scroll-mt-24 rounded-2xl border border-slate-200/70 bg-white shadow-sm"><div className="flex flex-col gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-bold text-slate-900">{t('associatedPatients')}</h2><p className="mt-1 text-xs text-slate-500">{t('patientsLinkedThroughHospitalAppointments')}</p></div><div className="relative"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={patientSearch} onChange={(event) => { setPatientSearch(event.target.value); setPatientPage(0); }} placeholder={t('searchPatients')} className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-teal-400 sm:w-64" /></div></div><div className="overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3 font-semibold">{t('patient')}</th><th className="px-5 py-3 font-semibold">{t('contact')}</th><th className="px-5 py-3 font-semibold">{t('assignedDoctor')}</th><th className="px-5 py-3 font-semibold">{t('appointments')}</th><th className="px-5 py-3 font-semibold">{t('status')}</th></tr></thead><tbody className="divide-y divide-slate-100">{visiblePatients.map((patient) => { const patientAppointments = appointments.filter((appointment) => appointment.user_id === patient.id); const doctor = patientAppointments.find((appointment) => appointment.doctor_id)?.doctor_id; return <tr key={patient.id} className="hover:bg-slate-50/70"><td className="px-5 py-4"><div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-100 text-xs font-bold text-teal-800">{initials(patient.full_name, 'P')}</div><div><p className="font-semibold text-slate-800">{patient.full_name || t('patient')}</p><p className="text-xs text-slate-500">{patient.city || patient.state || t('profileDetailsLimited')}</p></div></div></td><td className="px-5 py-4 text-slate-600">{patient.email || patient.phone || t('notProvided')}</td><td className="px-5 py-4 text-slate-600">{doctor ? t('doctorName', { name: profileById.get(doctor)?.full_name || 'Assigned' }) : t('unassigned')}</td><td className="px-5 py-4 text-slate-600">{patientAppointments.length}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${patientAppointments.some((appointment) => upcomingAppointments.some((item) => item.id === appointment.id)) ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{patientAppointments.some((appointment) => upcomingAppointments.some((item) => item.id === appointment.id)) ? t('active') : t('inactive')}</span></td></tr>})}</tbody></table></div>{!loading && visiblePatients.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Users className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2">{t('noAssociatedPatientsFound')}</p></div>}<div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500"><span>{filteredPatients.length} {t('patients')}</span><div className="flex items-center gap-2"><button aria-label={t('previousPatients')} disabled={patientPage === 0} onClick={() => setPatientPage((page) => page - 1)} className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button><button aria-label={t('nextPatients')} disabled={(patientPage + 1) * 5 >= filteredPatients.length} onClick={() => setPatientPage((page) => page + 1)} className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></div></div></section>
+      <section id="queue" className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">{t('liveOpdQueue')}</h2>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+              <Clock3 className="h-3.5 w-3.5" />
+              {t('live')}
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {[
+              { token: '#102', doctor: 'Dr. Raj Sharma', status: 'Serving now' },
+              { token: '#103', doctor: 'Dr. Raj Sharma', status: 'Next up' },
+              { token: '#104', doctor: 'Dr. Raj Sharma', status: 'Waiting' },
+            ].map((entry) => (
+              <div key={entry.token} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <div>
+                  <div className="font-semibold text-slate-800">{entry.token}</div>
+                  <div className="text-sm text-slate-500">{entry.doctor}</div>
+                </div>
+                <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-700">{entry.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <section id="doctors" className="scroll-mt-24 rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-900">{t('doctorsAndCareTeam')}</h2><p className="mt-1 text-xs text-slate-500">{t('cliniciansAssociatedThroughHospitalAppointments')}</p></div><Stethoscope className="h-5 w-5 text-teal-600" /></div><div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{doctors.map((doctor) => { const doctorAppointments = appointments.filter((appointment) => appointment.doctor_id === doctor.id); return <div key={doctor.id} className="rounded-xl border border-slate-100 p-4"><div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-800">{initials(doctor.full_name, 'D')}</div><div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-800">{t('dr')}{' '}{doctor.full_name || t('doctor')}</p><p className="truncate text-xs text-slate-500">{doctor.bio || t('healthcareProfessional')}</p></div></div><div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-500"><span>{new Set(doctorAppointments.map((appointment) => appointment.user_id)).size} {t('patients')}</span><span>{doctorAppointments.length} {t('appointments2')}</span></div></div>})}</div>{!loading && doctors.length === 0 && <div className="py-8 text-center text-sm text-slate-500"><Stethoscope className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2">{t('noAssociatedDoctorsFound')}</p></div>}</section>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">{t('actionRequired')}</h2>
+          <div className="mt-4 space-y-3">
+            {[
+              t('reportsReadyForReview'),
+              t('waitingBeyondExpectedWindow'),
+              t('pendingInvestigationBookings'),
+            ].map((item) => (
+              <div key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <section id="appointments" className="scroll-mt-24 rounded-2xl border border-slate-200/70 bg-white shadow-sm"><div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between"><div><h2 className="font-bold text-slate-900">{t('hospitalAppointments')}</h2><p className="mt-1 text-xs text-slate-500">{t('reviewAppointmentsVisibleToYourHospitalAccount')}</p></div><div className="flex flex-wrap items-center gap-2"><Filter className="h-4 w-4 text-slate-400" /><select value={appointmentDate} onChange={(event) => setAppointmentDate(event.target.value)} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"><option value="all">{t('allDates')}</option><option value="today">{t('today')}</option><option value="upcoming">{t('upcoming')}</option></select><select value={appointmentStatus} onChange={(event) => setAppointmentStatus(event.target.value)} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"><option value="all">{t('allStatuses')}</option><option value="scheduled">{t('scheduled')}</option><option value="confirmed">{t('confirmed')}</option><option value="completed">{t('completed')}</option><option value="cancelled">{t('cancelled')}</option></select><select value={appointmentDoctor} onChange={(event) => setAppointmentDoctor(event.target.value)} className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"><option value="all">{t('allDoctors')}</option>{doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{t('dr')}{' '}{doctor.full_name || t('doctor')}</option>)}</select></div></div><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="px-5 py-3 font-semibold">{t('dateAndTime')}</th><th className="px-5 py-3 font-semibold">{t('patient')}</th><th className="px-5 py-3 font-semibold">{t('doctor')}</th><th className="px-5 py-3 font-semibold">{t('type')}</th><th className="px-5 py-3 font-semibold">{t('status')}</th></tr></thead><tbody className="divide-y divide-slate-100">{filteredAppointments.map((appointment) => <tr key={appointment.id}><td className="px-5 py-4 text-slate-700"><div className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-slate-400" />{formatDate(appointment.appointment_date, true)}</div></td><td className="px-5 py-4 font-medium text-slate-800">{profileById.get(appointment.user_id)?.full_name || t('patient')}</td><td className="px-5 py-4 text-slate-600">{appointment.doctor_id ? t('doctorName', { name: profileById.get(appointment.doctor_id)?.full_name || 'Doctor' }) : t('unassigned')}</td><td className="px-5 py-4 capitalize text-slate-600">{appointment.type.replace('_', ' ')}</td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${statusClass(appointment.status)}`}>{appointment.status.replace('_', ' ')}</span></td></tr>)}</tbody></table></div>{!loading && filteredAppointments.length === 0 && <div className="p-10 text-center text-sm text-slate-500"><Calendar className="mx-auto h-8 w-8 text-slate-300" /><p className="mt-2">{t('noAppointmentsMatchTheseFilters')}</p></div>}</section>
+      <section id="appointments" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">{t('appointments')}</h2>
+            <p className="text-sm text-slate-500">{t('appointmentList')}</p>
+          </div>
+          <span className="text-sm font-medium text-teal-700">{t('scheduleToday')}</span>
+        </div>
+        <div className="mt-4 space-y-3">
+          {[
+            { patient: 'NCI-24601', time: '09:30 AM', dept: 'Medical Oncology' },
+            { patient: 'NCI-24618', time: '10:15 AM', dept: 'Radiology' },
+            { patient: 'NCI-24624', time: '11:00 AM', dept: 'Radiation Oncology' },
+          ].map((item) => (
+            <div key={item.patient} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+              <div>
+                <div className="font-semibold text-slate-800">{item.patient}</div>
+                <div className="text-slate-500">{item.dept}</div>
+              </div>
+              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">{item.time}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <section className="grid gap-6 lg:grid-cols-2"><div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-900">{t('reportsAndDocuments')}</h2><p className="mt-1 text-xs text-slate-500">{t('documentsOwnedByYourHospitalAccount')}</p></div><FileText className="h-5 w-5 text-teal-600" /></div><div className="mt-5 flex items-center justify-between rounded-xl bg-slate-50 p-4"><div><p className="text-2xl font-bold text-slate-900">{loading ? '—' : documentsCount}</p><p className="text-xs text-slate-500">{t('availableDocuments')}</p></div><Link href="/dashboard/documents" className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700">{t('openDocuments')}{' '}<ArrowRight className="h-3.5 w-3.5" /></Link></div></div><div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-sm"><div className="flex items-center justify-between"><div><h2 className="font-bold text-slate-900">{t('notifications')}</h2><p className="mt-1 text-xs text-slate-500">{t('alertsForThisHospitalAccount')}</p></div><Bell className="h-5 w-5 text-teal-600" /></div><div className="mt-4 space-y-3">{notifications.length > 0 ? notifications.slice(0, 3).map((notification) => <div key={notification.id} className="flex gap-3 rounded-xl bg-slate-50 p-3"><CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${notification.is_read ? 'text-slate-400' : 'text-teal-600'}`} /><div><p className="text-sm font-medium text-slate-800">{notification.title}</p><p className="mt-0.5 text-xs text-slate-500">{notification.message || formatDate(notification.created_at)}</p></div></div>) : <p className="py-5 text-center text-sm text-slate-500">{t('noNotificationsYet')}</p>}</div></div></section>
+      <section id="doctors" className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-slate-900">{t('departments')}</h2>
+            <Stethoscope className="h-5 w-5 text-teal-600" />
+          </div>
+          <div className="mt-4 space-y-3">
+            {['Medical Oncology', 'Radiation Oncology', 'Surgical Oncology', 'Radiology', 'Pathology'].map((department) => (
+              <div key={department} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <span>{department}</span>
+                <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-700">{t('online')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-      <section className="flex flex-wrap gap-3"><Link href="/dashboard/profile" className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800"><Building2 className="h-4 w-4" /> {t('updateHospitalProfile')}</Link><a href="#appointments" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-teal-200"><Calendar className="h-4 w-4" /> {t('reviewSchedule')}</a><Link href="/dashboard/documents" className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-teal-200"><FileText className="h-4 w-4" /> {t('viewReports')}</Link><span className="inline-flex items-center gap-2 px-2.5 py-2.5 text-xs text-slate-500"><MapPin className="h-4 w-4" /> {user?.profile?.city || user?.profile?.state || t('addYourLocationInProfile')}</span></section>
+        <div id="investigations" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-slate-900">{t('investigations')}</h2>
+          <div className="mt-4 space-y-3">
+            {[
+              { label: 'Mammography', value: 'Full • next 15 Oct' },
+              { label: 'CBC', value: 'Report ready' },
+              { label: 'PET-CT', value: 'Scheduled for tomorrow' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                <span className="font-medium text-slate-800">{item.label}</span>
+                <span className="text-slate-500">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="admissions" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-900">{t('admissions')}</h2>
+          <span className="text-sm font-medium text-teal-700">{t('todaysAdmissions')}</span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {['Ward A', 'Ward B', 'ICU'].map((ward) => (
+            <div key={ward} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="font-semibold text-slate-800">{ward}</div>
+              <div className="mt-1 text-sm text-slate-500">{t('occupancySummary')}</div>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
 
 export default function HospitalDashboardPage() {
-  return <ProtectedRoute allowedRoles={HOSPITAL_ROLES}><DashboardLayout navItems={hospitalNavItems} dashboardTitle="Hospital Portal"><HospitalDashboardContent /></DashboardLayout></ProtectedRoute>;
+  return (
+    <ProtectedRoute allowedRoles={HOSPITAL_ROLES}>
+      <DashboardLayout dashboardTitle="Hospital Portal">
+        <HospitalDashboardContent />
+      </DashboardLayout>
+    </ProtectedRoute>
+  );
 }

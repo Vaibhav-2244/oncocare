@@ -123,14 +123,16 @@ export const doctorNavItems: NavItem[] = [
 ];
 
 export const hospitalNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/hospital', icon: LayoutDashboard },
+  { label: 'Command Center', href: '/dashboard/hospital', icon: LayoutDashboard },
   { label: 'Patients', href: '/dashboard/hospital#patients', icon: Users },
-  { label: 'Care Team', href: '/dashboard/hospital#doctors', icon: Users },
+  { label: 'OPD & Live Queue', href: '/dashboard/hospital#queue', icon: Activity },
   { label: 'Appointments', href: '/dashboard/hospital#appointments', icon: Calendar },
-  { label: 'Reports & Documents', href: '/dashboard/documents', icon: FileText },
+  { label: 'Doctors & Departments', href: '/dashboard/hospital#doctors', icon: Users },
+  { label: 'Investigations', href: '/dashboard/hospital#investigations', icon: FlaskConical },
+  { label: 'Admissions/Beds', href: '/dashboard/hospital#admissions', icon: Hospital },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Hospital Profile', href: '/dashboard/profile', icon: Hospital },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Profile', href: '/dashboard/profile', icon: User },
 ];
 
 export const researchNavItems: NavItem[] = [

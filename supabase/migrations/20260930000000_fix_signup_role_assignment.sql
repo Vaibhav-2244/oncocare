@@ -1,37 +1,39 @@
-CREATE OR REPLACE FUNCTION public.set_initial_signup_role(p_role text)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
+-- 1) Clients must never write roles directly.
+DROP POLICY IF EXISTS "insert_own_user_role" ON public.user_roles;
+
+-- 2) Hardened signup trigger
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
+  requested_role text;
   selected_role_id uuid;
+  self_serve_roles constant text[] := ARRAY['patient','family_caregiver','doctor','hospital','pharmacy','research_partner'];
 BEGIN
-  IF auth.uid() IS NULL THEN
-    RETURN;
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', ''))
+  ON CONFLICT (id) DO NOTHING;
+
+  requested_role := NEW.raw_user_meta_data->>'role';
+  IF requested_role IS NULL OR NOT (requested_role = ANY (self_serve_roles)) THEN
+    requested_role := 'patient';
   END IF;
 
-  IF p_role IS NULL OR btrim(p_role) = '' THEN
-    RETURN;
-  END IF;
-
-  SELECT id INTO selected_role_id
-  FROM public.roles
-  WHERE lower(name) = lower(btrim(p_role))
-  LIMIT 1;
-
+  SELECT id INTO selected_role_id FROM public.roles WHERE name = requested_role;
   IF selected_role_id IS NULL THEN
-    RETURN;
+    SELECT id INTO selected_role_id FROM public.roles WHERE name = 'patient';
   END IF;
 
-  INSERT INTO public.user_roles (user_id, role_id)
-  VALUES (auth.uid(), selected_role_id)
+  INSERT INTO public.user_roles (user_id, role_id) VALUES (NEW.id, selected_role_id)
   ON CONFLICT (user_id, role_id) DO NOTHING;
-END;
-$$;
 
-DROP POLICY IF EXISTS "update_own_user_role" ON user_roles;
-CREATE POLICY "update_own_user_role" ON user_roles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  INSERT INTO public.notification_preferences (user_id) VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN NEW;
+END; $$;
+
+-- 3) Backfill missing notification preferences
+INSERT INTO public.notification_preferences (user_id)
+SELECT u.id FROM auth.users u
+WHERE NOT EXISTS (SELECT 1 FROM public.notification_preferences np WHERE np.user_id = u.id)
+ON CONFLICT (user_id) DO NOTHING;
