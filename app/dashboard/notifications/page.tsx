@@ -8,7 +8,7 @@ import {
   CheckCheck, Trash2, MessageSquare, Info, BellRing, type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, ALL_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
@@ -366,7 +366,7 @@ export default function NotificationsPage() {
   const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
 
   return (
-    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
+    <ProtectedRoute allowedRoles={ALL_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <NotificationsContent />
       </DashboardLayout>

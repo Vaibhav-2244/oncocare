@@ -1,380 +1,184 @@
-﻿'use client';
+'use client';
 
-import { useMemo, useState } from 'react';
-import {
-  AlertTriangle,
-  Building2,
-  CheckCircle2,
-  ClipboardCheck,
-  Clock3,
-  Loader2,
-  Plus,
-  ShieldCheck,
-  Stethoscope,
-  Users,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { Building2, Loader2, RefreshCw, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, HOSPITAL_ROLES } from '@/components/auth/dashboard-layout';
-import { useAuth } from '@/lib/auth-context';
-import { useHospitalOrg } from '@/lib/hospital/useHospitalOrg';
+import { getErrorMessage } from '@/lib/errors';
+import { useHospital } from '@/lib/hospital/HospitalProvider';
 import { supabase } from '@/lib/supabase-client';
-import { createHospitalSchema } from '@/lib/validation/hospital';
 
-const defaultForm = {
-  name: '',
-  timezone: 'Asia/Kolkata',
-  patientIdLabel: 'NCI Number',
-  patientIdPrefix: 'NCI-',
-};
+interface WorkspaceCounts {
+  departments: number;
+  doctors: number;
+  patients: number;
+}
 
-function HospitalDashboardContent() {
+const EMPTY_COUNTS: WorkspaceCounts = { departments: 0, doctors: 0, patients: 0 };
+
+export default function HospitalDashboardPage() {
   const t = useTranslations('hospital');
-  const { user } = useAuth();
-  const { org, loading, error } = useHospitalOrg();
-  const [form, setForm] = useState(defaultForm);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const { org, can, refresh: refreshWorkspace } = useHospital();
+  const [counts, setCounts] = useState(EMPTY_COUNTS);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [technicalDetails, setTechnicalDetails] = useState<string | null>(null);
 
-  const heroCards = useMemo(
-    () => [
-      { label: t('commandCenter'), value: org ? 'Live' : '—', tone: 'bg-teal-50 text-teal-700' },
-      { label: t('checkedIn'), value: org ? '18' : '—', tone: 'bg-indigo-50 text-indigo-700' },
-      { label: t('waitingNow'), value: org ? '12' : '—', tone: 'bg-amber-50 text-amber-700' },
-      { label: t('pendingReports'), value: org ? '5' : '—', tone: 'bg-rose-50 text-rose-700' },
-    ],
-    [org, t],
-  );
-
-  const handleCreateHospital = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setFormError(null);
-
+  const loadCounts = useCallback(async () => {
+    if (!org) return;
+    setLoading(true);
+    setError(null);
+    setTechnicalDetails(null);
     try {
-      const payload = createHospitalSchema.parse({
-        name: form.name,
-        timezone: form.timezone,
-        patientIdLabel: form.patientIdLabel,
-        patientIdPrefix: form.patientIdPrefix,
+      const [departments, doctors, patients] = await Promise.all([
+        supabase.from('hospital_departments').select('id', { count: 'exact', head: true }).eq('hospital_id', org.id),
+        supabase.from('hospital_doctors').select('id', { count: 'exact', head: true }).eq('hospital_id', org.id),
+        supabase.from('hospital_patients').select('id', { count: 'exact', head: true }).eq('hospital_id', org.id),
+      ]);
+      const failure = departments.error ?? doctors.error ?? patients.error;
+      if (failure) throw failure;
+      setCounts({
+        departments: departments.count ?? 0,
+        doctors: doctors.count ?? 0,
+        patients: patients.count ?? 0,
       });
-
-      const { data, error: rpcError } = await supabase.rpc('create_hospital_org', {
-        p_name: payload.name,
-        p_timezone: payload.timezone,
-        p_patient_id_label: payload.patientIdLabel,
-        p_patient_id_prefix: payload.patientIdPrefix,
-      });
-
-      if (rpcError) throw rpcError;
-
-      if (!data) {
-        throw new Error('Hospital setup returned no organisation record.');
-      }
-
-      window.location.reload();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : 'Unable to create the hospital organisation.');
+      if (process.env.NODE_ENV === 'development') console.error('Hospital command center data load failed:', err);
+      setError(t('workspaceDataError'));
+      setTechnicalDetails(getErrorMessage(err));
     } finally {
-      setSubmitting(false);
+      setLoading(false);
+    }
+  }, [org, t]);
+
+  useEffect(() => {
+    void loadCounts();
+  }, [loadCounts]);
+
+  const loadDemoData = async () => {
+    if (!org) return;
+    setBusy(true);
+    setError(null);
+    setTechnicalDetails(null);
+    try {
+      const { error: rpcError } = await supabase.rpc('load_demo_data', { p_hospital_id: org.id });
+      if (rpcError) throw rpcError;
+      await refreshWorkspace();
+      await loadCounts();
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') console.error('Hospital demo data load failed:', err);
+      setError(t('demoDataError'));
+      setTechnicalDetails(getErrorMessage(err));
+    } finally {
+      setBusy(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-          <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
-          {t('loadingHospitalContext')}
-        </div>
-      </div>
-    );
+  const requestVerification = async () => {
+    if (!org) return;
+    setBusy(true);
+    setError(null);
+    setTechnicalDetails(null);
+    try {
+      const { error: rpcError } = await supabase.rpc('request_hospital_verification', { p_hospital_id: org.id });
+      if (rpcError) throw rpcError;
+      await refreshWorkspace();
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') console.error('Hospital verification request failed:', err);
+      setError(t('verificationRequestError'));
+      setTechnicalDetails(getErrorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (loading && counts === EMPTY_COUNTS) {
+    return <div className="flex min-h-52 items-center justify-center text-sm text-slate-600" role="status"><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('loadingHospitalContext')}</div>;
   }
 
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-rose-200 bg-rose-50 p-6 text-rose-700 shadow-sm">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="mt-0.5 h-5 w-5" />
-          <div>
-            <h2 className="text-lg font-semibold">{t('hospitalSetupIssue')}</h2>
-            <p className="mt-1 text-sm">{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!org) {
-    return (
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-teal-900 to-emerald-800 p-6 text-white shadow-lg">
-          <div className="flex items-center gap-2 text-sm font-medium text-teal-200">
-            <Building2 className="h-5 w-5" />
-            {t('hospitalOnboarding')}
-          </div>
-          <h1 className="mt-4 text-3xl font-bold">{t('createHospitalOrganisation')}</h1>
-          <p className="mt-3 max-w-xl text-sm text-slate-200">{t('nciWorkflowDescription')}</p>
-        </section>
-
-        <form onSubmit={handleCreateHospital} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-            <Plus className="h-4 w-4 text-teal-600" />
-            {t('newHospitalProfile')}
-          </div>
-
-          <div className="mt-5 space-y-4">
-            <label className="block text-sm font-medium text-slate-700">
-              {t('hospitalName')}
-              <input
-                value={form.name}
-                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
-                placeholder={t('aiimsJhajjarExample')}
-                required
-              />
-            </label>
-
-            <label className="block text-sm font-medium text-slate-700">
-              {t('timezone')}
-              <input
-                value={form.timezone}
-                onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}
-                className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
-              />
-            </label>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm font-medium text-slate-700">
-                {t('patientIdLabel')}
-                <input
-                  value={form.patientIdLabel}
-                  onChange={(event) => setForm((current) => ({ ...current, patientIdLabel: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
-                />
-              </label>
-              <label className="block text-sm font-medium text-slate-700">
-                {t('patientIdPrefix')}
-                <input
-                  value={form.patientIdPrefix}
-                  onChange={(event) => setForm((current) => ({ ...current, patientIdPrefix: event.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:bg-white"
-                />
-              </label>
-            </div>
-
-            {formError && (
-              <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-                {formError}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
-              {submitting ? t('creatingHospital') : t('createHospital')}
-            </button>
-          </div>
-        </form>
-      </div>
-    );
-  }
-
-  if (org.verification_status !== 'verified') {
-    return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-        <div className="flex items-start gap-3">
-          <ShieldCheck className="mt-0.5 h-5 w-5 text-amber-600" />
-          <div>
-            <h2 className="text-lg font-semibold text-amber-900">{t('verificationPending')}</h2>
-            <p className="mt-2 text-sm text-amber-800">{t('verificationPendingDescription')}</p>
-            <div className="mt-4 rounded-xl border border-amber-200 bg-white p-4 text-sm text-amber-900">
-              <div className="font-medium">{org.name}</div>
-              <div className="mt-1 text-amber-700">{org.timezone}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const checklist = [
+    { label: t('checkHospitalName'), complete: Boolean(org?.name.trim()), href: '/dashboard/hospital/settings' },
+    { label: t('checkPatientId'), complete: Boolean(org?.patient_id_label && org.patient_id_prefix), href: '/dashboard/hospital/settings' },
+    { label: t('checkDoctors'), complete: counts.doctors > 0, href: '/dashboard/hospital/doctors' },
+    { label: t('checkSessions'), complete: false, href: '/dashboard/hospital/opd' },
+    { label: t('checkPatients'), complete: counts.patients > 0, href: '/dashboard/hospital/patients' },
+    { label: t('checkDemoData'), complete: Boolean(org?.demo_data_loaded), href: '/dashboard/hospital/settings' },
+  ];
 
   return (
     <div className="space-y-6">
-      <section className="rounded-3xl bg-gradient-to-br from-slate-900 via-teal-900 to-emerald-800 p-6 text-white shadow-lg">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm font-medium text-teal-200">{t('commandCenter')}</p>
-            <h1 className="mt-2 text-3xl font-bold">{org.name}</h1>
-            <p className="mt-2 text-sm text-slate-200">{t('nciWorkflowDescription')}</p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-2 text-sm text-white ring-1 ring-white/20">
-            <CheckCircle2 className="h-4 w-4 text-emerald-300" />
-            {t('verifiedStatus')}
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-teal-800">{t('commandCenter')}</p>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-950">{org?.name}</h1>
+          <p className="mt-1 text-sm text-slate-600">{t('workspaceWorkflow')}</p>
+        </div>
+        {org?.verification_status !== 'verified' && can('config.manage') && (
+          <button type="button" onClick={requestVerification} disabled={busy || Boolean(org?.verification_requested_at)} className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60">
+            {org?.verification_requested_at ? t('verificationRequested') : t('requestVerification')}
+          </button>
+        )}
+      </header>
+
+      {error && (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900" role="alert">
+          <p>{error}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <button type="button" onClick={() => void loadCounts()} className="inline-flex items-center gap-1 font-semibold underline underline-offset-2"><RefreshCw className="h-3.5 w-3.5" />{t('retry')}</button>
+            {technicalDetails && <details><summary className="cursor-pointer font-semibold">{t('showTechnicalDetails')}</summary><pre className="mt-2 max-w-full whitespace-pre-wrap">{technicalDetails}</pre></details>}
           </div>
         </div>
-      </section>
+      )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {heroCards.map((card) => (
-          <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.tone}`}>
-              <ClipboardCheck className="h-5 w-5" />
-            </div>
-            <p className="mt-4 text-2xl font-bold text-slate-900">{card.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</p>
+      <section className="grid gap-3 sm:grid-cols-3" aria-label={t('workspaceOverview')}>
+        {[
+          { label: t('departments'), value: counts.departments },
+          { label: t('doctorsAndCareTeam'), value: counts.doctors },
+          { label: t('registeredPatients'), value: counts.patients },
+        ].map((item) => (
+          <div key={item.label} className="border-l-2 border-teal-700 bg-white px-4 py-3">
+            <p className="text-2xl font-semibold tabular-nums text-slate-950">{loading ? '…' : item.value}</p>
+            <p className="mt-1 text-xs font-medium text-slate-600">{item.label}</p>
           </div>
         ))}
       </section>
 
-      <section id="patients" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
+      <section className="border-t border-slate-200 pt-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">{t(' patientDirectory')}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t('searchByNci')}</p>
+            <h2 className="text-lg font-semibold text-slate-950">{t('setupChecklist')}</h2>
+            <p className="mt-1 text-sm text-slate-600">{t('setupChecklistDescription')}</p>
           </div>
-          <div className="inline-flex items-center gap-2 text-sm font-medium text-teal-700">
-            <Users className="h-4 w-4" />
-            30 {t('patients')}
-          </div>
+          {can('config.manage') && !org?.demo_data_loaded && (
+            <button type="button" onClick={loadDemoData} disabled={busy} className="inline-flex items-center gap-2 rounded-md bg-teal-800 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-900 disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+              {t('loadDemoData')}
+            </button>
+          )}
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {['NCI-24601', 'NCI-24605', 'NCI-24610', 'NCI-24618', 'NCI-24624', 'NCI-24630'].map((identifier) => (
-            <div key={identifier} className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <div className="font-semibold text-slate-800">{identifier}</div>
-              <div className="mt-1 text-slate-500">{t('recentPatientRecord')}</div>
-            </div>
+        <ul className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+          {checklist.map((item) => (
+            <li key={item.label} className="flex items-center justify-between gap-4 py-3 text-sm">
+              <span className="flex items-center gap-3 text-slate-800">
+                <span aria-label={item.complete ? t('complete') : t('incomplete')} className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs ${item.complete ? 'border-emerald-700 bg-emerald-50 text-emerald-800' : 'border-slate-400 text-slate-500'}`}>{item.complete ? '✓' : ''}</span>
+                {item.label}
+              </span>
+              {!item.complete && <Link href={item.href} className="shrink-0 font-medium text-teal-800 underline underline-offset-2">{t('open')}</Link>}
+            </li>
           ))}
-        </div>
-      </section>
-
-      <section id="queue" className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">{t('liveOpdQueue')}</h2>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
-              <Clock3 className="h-3.5 w-3.5" />
-              {t('live')}
-            </span>
-          </div>
-          <div className="mt-4 space-y-3">
-            {[
-              { token: '#102', doctor: 'Dr. Raj Sharma', status: 'Serving now' },
-              { token: '#103', doctor: 'Dr. Raj Sharma', status: 'Next up' },
-              { token: '#104', doctor: 'Dr. Raj Sharma', status: 'Waiting' },
-            ].map((entry) => (
-              <div key={entry.token} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3">
-                <div>
-                  <div className="font-semibold text-slate-800">{entry.token}</div>
-                  <div className="text-sm text-slate-500">{entry.doctor}</div>
-                </div>
-                <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-700">{entry.status}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">{t('actionRequired')}</h2>
-          <div className="mt-4 space-y-3">
-            {[
-              t('reportsReadyForReview'),
-              t('waitingBeyondExpectedWindow'),
-              t('pendingInvestigationBookings'),
-            ].map((item) => (
-              <div key={item} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-500" />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="appointments" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-900">{t('appointments')}</h2>
-            <p className="text-sm text-slate-500">{t('appointmentList')}</p>
-          </div>
-          <span className="text-sm font-medium text-teal-700">{t('scheduleToday')}</span>
-        </div>
-        <div className="mt-4 space-y-3">
-          {[
-            { patient: 'NCI-24601', time: '09:30 AM', dept: 'Medical Oncology' },
-            { patient: 'NCI-24618', time: '10:15 AM', dept: 'Radiology' },
-            { patient: 'NCI-24624', time: '11:00 AM', dept: 'Radiation Oncology' },
-          ].map((item) => (
-            <div key={item.patient} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <div>
-                <div className="font-semibold text-slate-800">{item.patient}</div>
-                <div className="text-slate-500">{item.dept}</div>
-              </div>
-              <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-medium text-slate-700">{item.time}</span>
+        </ul>
+        {counts.patients === 0 && (
+          <div className="mt-5 flex items-start gap-3 border-l-2 border-slate-300 bg-slate-50 p-4">
+            <Users className="mt-0.5 h-5 w-5 text-slate-600" aria-hidden="true" />
+            <div>
+              <h3 className="font-semibold text-slate-900">{t('noPatientsYet')}</h3>
+              <p className="mt-1 text-sm text-slate-600">{t('patientEmptyState')}</p>
+              <Link href="/dashboard/hospital/patients" className="mt-2 inline-block text-sm font-semibold text-teal-800 underline underline-offset-2">{t('openPatientDirectory')}</Link>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section id="doctors" className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">{t('departments')}</h2>
-            <Stethoscope className="h-5 w-5 text-teal-600" />
           </div>
-          <div className="mt-4 space-y-3">
-            {['Medical Oncology', 'Radiation Oncology', 'Surgical Oncology', 'Radiology', 'Pathology'].map((department) => (
-              <div key={department} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-                <span>{department}</span>
-                <span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-medium text-teal-700">{t('online')}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div id="investigations" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">{t('investigations')}</h2>
-          <div className="mt-4 space-y-3">
-            {[
-              { label: 'Mammography', value: 'Full • next 15 Oct' },
-              { label: 'CBC', value: 'Report ready' },
-              { label: 'PET-CT', value: 'Scheduled for tomorrow' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                <span className="font-medium text-slate-800">{item.label}</span>
-                <span className="text-slate-500">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="admissions" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{t('admissions')}</h2>
-          <span className="text-sm font-medium text-teal-700">{t('todaysAdmissions')}</span>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {['Ward A', 'Ward B', 'ICU'].map((ward) => (
-            <div key={ward} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div className="font-semibold text-slate-800">{ward}</div>
-              <div className="mt-1 text-sm text-slate-500">{t('occupancySummary')}</div>
-            </div>
-          ))}
-        </div>
+        )}
       </section>
     </div>
-  );
-}
-
-export default function HospitalDashboardPage() {
-  return (
-    <ProtectedRoute allowedRoles={HOSPITAL_ROLES}>
-      <DashboardLayout dashboardTitle="Hospital Portal">
-        <HospitalDashboardContent />
-      </DashboardLayout>
-    </ProtectedRoute>
   );
 }

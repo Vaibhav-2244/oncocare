@@ -1,15 +1,14 @@
 # Open Questions / Blockers
 
-## Prerequisite check failed
+## Client-document conflicts
 
-The project does not currently satisfy the required security gate in the client requirements.
+None identified. `hospital-dashboard-requirements.md` remains the source of truth; the implementation follows its configurable patient identifier and patient-flow focus (Client sections 1–25).
 
-1. The sidebar is role-derived in `lib/dashboard-nav.ts` and passes that part of the check.
-2. The auth trigger `public.handle_new_user` in `supabase/migrations/20260916000000_fix_role_assignment_and_hospital_access.sql` does not whitelist self-serve roles before assigning the default role. It accepts any role value in `raw_user_meta_data->>'role'` and falls back to `patient` when the role is missing or unknown.
-3. The RBAC schema in `supabase/migrations/20260709024556_create_auth_rbac_schema.sql` explicitly allows authenticated clients to insert into `public.user_roles` via the policy `insert_own_user_role`.
+## Step 1 verification blocker
 
-This violates the requirement that:
-- the `handle_new_user` trigger must whitelist self-serve roles;
-- clients must not be able to insert into `user_roles` directly.
+- The migration `supabase/migrations/20261001100000_hospital_foundation_fix.sql` has not been applied to the target Supabase project in this environment.
+- `scripts/verify-foundation.ts` has not been run against that project. Local Postgres tooling is unavailable here, so tenant isolation, RPC grants, invite acceptance, and demo cleanup are not yet empirically verified.
 
-Until these are corrected, the hospital dashboard foundation cannot be considered secure enough to proceed with the remaining phases.
+## Product clarification
+
+- The client requirements do not specify which legal or institutional documents are required to approve a hospital verification request, or the expected review time. Until supplied, the platform admin verification action is a manual decision and the workspace remains usable while unverified, as directed in Step 1.

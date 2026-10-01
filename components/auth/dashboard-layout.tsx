@@ -89,9 +89,13 @@ export function DashboardLayout({
     ? user.profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.phone?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
-  const dashboardNavItems = navItems ?? getNavItemsForRole(user?.primaryRole ?? null);
+  const isHospitalSharedPage = user?.primaryRole === 'hospital'
+    && (pathname === '/dashboard/notifications' || pathname === '/dashboard/documents');
+  const dashboardNavItems = isHospitalSharedPage
+    ? getNavItemsForRole('hospital')
+    : navItems ?? getNavItemsForRole(user?.primaryRole ?? null);
   const resolvedTitle = getDashboardTitleForRole(user?.primaryRole ?? null);
-  const title = dashboardTitle || resolvedTitle;
+  const title = isHospitalSharedPage ? resolvedTitle : dashboardTitle || resolvedTitle;
 
   const filteredNavItems = searchQuery.trim()
     ? dashboardNavItems.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
@@ -331,34 +335,46 @@ function SidebarContent({
           {dashboardTitle}
         </p>
         <div className="space-y-1">
-          {navItems.map((item) => {
-            const hrefWithoutHash = item.href.split('#')[0];
-            const itemHash = item.href.includes('#') ? `#${item.href.split('#')[1]}` : '';
-            const sameBaseHashItems = navItems.filter(
-              (entry) => entry.href.includes('#') && entry.href.split('#')[0] === hrefWithoutHash,
-            );
-            const pathnameMatches = pathname === hrefWithoutHash || pathname.startsWith(`${hrefWithoutHash}/`);
-            const isActive = item.href.includes('#')
-              ? pathnameMatches && currentHash === itemHash
-              : pathnameMatches && (sameBaseHashItems.length === 0 || currentHash === '');
+          {(() => {
+            const activeRoute = navItems
+              .filter((item) => {
+                if (item.href.includes('#')) return false;
+                if (item.href === '/dashboard/hospital') return pathname === item.href;
+                return pathname === item.href || pathname.startsWith(`${item.href}/`);
+              })
+              .sort((left, right) => right.href.length - left.href.length)[0]?.href;
 
-            return (
-              <Link
-                key={`${item.label}-${item.href}`}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-gradient-to-r from-teal-50 to-emerald-50 text-teal-700 ring-1 ring-teal-200/40'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <item.icon className={cn('h-4 w-4', isActive ? 'text-teal-600' : 'text-slate-400')} />
-                {item.label}
-              </Link>
-            );
-          })}
+            return navItems.map((item) => {
+              const hrefWithoutHash = item.href.split('#')[0];
+              const itemHash = item.href.includes('#') ? `#${item.href.split('#')[1]}` : '';
+              const sameBaseHashItems = navItems.filter(
+                (entry) => entry.href.includes('#') && entry.href.split('#')[0] === hrefWithoutHash,
+              );
+              const pathnameMatches = item.href === '/dashboard/hospital'
+                ? pathname === hrefWithoutHash
+                : pathname === hrefWithoutHash || pathname.startsWith(`${hrefWithoutHash}/`);
+              const isActive = item.href.includes('#')
+                ? pathnameMatches && currentHash === itemHash
+                : pathnameMatches && item.href === activeRoute && (sameBaseHashItems.length === 0 || currentHash === '');
+
+              return (
+                <Link
+                  key={`${item.label}-${item.href}`}
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-gradient-to-r from-teal-50 to-emerald-50 text-teal-700 ring-1 ring-teal-200/40'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <item.icon className={cn('h-4 w-4', isActive ? 'text-teal-600' : 'text-slate-400')} />
+                  {item.label}
+                </Link>
+              );
+            });
+          })()}
         </div>
       </nav>
 

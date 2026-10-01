@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import {
@@ -10,7 +10,7 @@ import {
   FlaskConical, Shield, Sparkles, FileType, type LucideIcon,
 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
+import { DashboardLayout, ALL_ROLES, caregiverNavItems, patientNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
@@ -107,7 +107,6 @@ function DocumentsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [filterCategory, setFilterCategory] = useState<DocumentCategory | 'all'>('all');
   const [actionId, setActionId] = useState<string | null>(null);
-  const uploadFormRef = useRef<HTMLDivElement | null>(null);
 
   // form state
   const [title, setTitle] = useState<string>('');
@@ -136,12 +135,6 @@ function DocumentsContent() {
   useEffect(() => {
     if (user) loadDocuments();
   }, [user, loadDocuments]);
-
-  useEffect(() => {
-    if (showForm) {
-      uploadFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [showForm]);
 
   const resetForm = () => {
     setTitle('');
@@ -261,13 +254,9 @@ function DocumentsContent() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="max-w-2xl">
-          <h1 className="text-3xl font-bold leading-tight tracking-[-0.03em] text-slate-900 sm:text-4xl">
-            {t('documentsAmpMedicalRecords')}
-          </h1>
-          <p className="mt-1 text-sm text-slate-500 sm:text-base">
-            {t('uploadOrganizeAndAnalyzeYourHealthDocuments')}
-          </p>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{t('documentsAmpMedicalRecords')}</h1>
+          <p className="mt-1 text-sm text-slate-500">{t('uploadOrganizeAndAnalyzeYourHealthDocuments')}</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
@@ -278,15 +267,47 @@ function DocumentsContent() {
         </button>
       </div>
 
+      {/* Error banner */}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
+          {error}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {loading
+          ? [0, 1, 2, 3].map((i) => <StatSkeleton key={i} />)
+          : statCards.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+                className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm"
+              >
+                <div
+                  className={cn(
+                    'flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md',
+                    stat.color,
+                  )}
+                >
+                  <stat.icon className="h-5 w-5" />
+                </div>
+                <div className="mt-3 text-2xl font-bold text-slate-900">{stat.value}</div>
+                <div className="text-xs text-slate-500">{stat.label}</div>
+              </motion.div>
+            ))}
+      </div>
+
       {/* Upload form */}
       <AnimatePresence>
         {showForm && (
           <motion.div
-            ref={uploadFormRef}
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="scroll-mt-24 overflow-hidden"
+            className="overflow-hidden"
           >
             <form
               onSubmit={handleSubmit}
@@ -361,39 +382,6 @@ function DocumentsContent() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Error banner */}
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-          {error}
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {loading
-          ? [0, 1, 2, 3].map((i) => <StatSkeleton key={i} />)
-          : statCards.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-                className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm"
-              >
-                <div
-                  className={cn(
-                    'flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md',
-                    stat.color,
-                  )}
-                >
-                  <stat.icon className="h-5 w-5" />
-                </div>
-                <div className="mt-3 text-2xl font-bold text-slate-900">{stat.value}</div>
-                <div className="text-xs text-slate-500">{stat.label}</div>
-              </motion.div>
-            ))}
-      </div>
 
       {/* Category filters */}
       <div className="flex flex-wrap items-center gap-2">
@@ -521,7 +509,7 @@ export default function DocumentsPage() {
   const navItems = user?.primaryRole === 'family_caregiver' ? caregiverNavItems : patientNavItems;
 
   return (
-    <ProtectedRoute allowedRoles={PATIENT_ROLES}>
+    <ProtectedRoute allowedRoles={ALL_ROLES}>
       <DashboardLayout navItems={navItems} dashboardTitle="Patient Dashboard">
         <DocumentsContent />
       </DashboardLayout>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -12,37 +12,57 @@ export default function AuthCallbackPage() {
   const t = useTranslations('auth.callback');
   const router = useRouter();
   const { user, loading, session, refreshUser } = useAuth();
-  const handledRoleRef = useRef(false);
+  const roleResolutionRef = useRef<Promise<void> | null>(null);
+  const [roleResolutionComplete, setRoleResolutionComplete] = useState(false);
 
   useEffect(() => {
     if (loading) return;
+    let active = true;
 
-    const applyStoredRole = async () => {
-      if (!session || handledRoleRef.current) return;
+    if (!session) {
+      setRoleResolutionComplete(true);
+      return () => {
+        active = false;
+      };
+    }
 
-      const role = sessionStorage.getItem('oncocare_signup_role');
-      if (role) {
-        handledRoleRef.current = true;
-        sessionStorage.removeItem('oncocare_signup_role');
-
+    if (!roleResolutionRef.current) {
+      roleResolutionRef.current = (async () => {
+        let role: string | null = null;
         try {
-          await supabase.rpc('set_initial_signup_role', { p_role: role });
+          role = sessionStorage.getItem('oncocare_signup_role');
+          if (role) sessionStorage.removeItem('oncocare_signup_role');
         } catch {
-          // expected for existing users or unsupported roles; ignore and continue
+          role = null;
         }
 
-        await refreshUser();
-        return;
-      }
+        if (role) {
+          try {
+            await supabase.rpc('set_initial_signup_role', { p_role: role });
+          } catch {
+            // OAuth role assignment failures must not block sign-in.
+          }
+        }
 
-      handledRoleRef.current = true;
+        try {
+          await refreshUser();
+        } catch {
+          // The redirect effect handles a user refresh that cannot be completed.
+        }
+      })();
+    }
+
+    void roleResolutionRef.current.then(() => {
+      if (active) setRoleResolutionComplete(true);
+    });
+
+    return () => {
+      active = false;
     };
-
-    void applyStoredRole();
   }, [loading, refreshUser, session]);
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !roleResolutionComplete) return;
 
     if (user) {
       if (!user.primaryRole) {
@@ -53,7 +73,7 @@ export default function AuthCallbackPage() {
     } else {
       router.push('/auth/sign-in');
     }
-  }, [user, loading, router]);
+  }, [user, loading, roleResolutionComplete, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-white">

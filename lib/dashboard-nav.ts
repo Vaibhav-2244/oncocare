@@ -124,14 +124,14 @@ export const doctorNavItems: NavItem[] = [
 
 export const hospitalNavItems: NavItem[] = [
   { label: 'Command Center', href: '/dashboard/hospital', icon: LayoutDashboard },
-  { label: 'Patients', href: '/dashboard/hospital#patients', icon: Users },
-  { label: 'OPD & Live Queue', href: '/dashboard/hospital#queue', icon: Activity },
-  { label: 'Appointments', href: '/dashboard/hospital#appointments', icon: Calendar },
-  { label: 'Doctors & Departments', href: '/dashboard/hospital#doctors', icon: Users },
-  { label: 'Investigations', href: '/dashboard/hospital#investigations', icon: FlaskConical },
-  { label: 'Admissions/Beds', href: '/dashboard/hospital#admissions', icon: Hospital },
+  { label: 'Patients', href: '/dashboard/hospital/patients', icon: Users },
+  { label: 'OPD & Live Queue', href: '/dashboard/hospital/opd', icon: Activity },
+  { label: 'Appointments', href: '/dashboard/hospital/appointments', icon: Calendar },
+  { label: 'Doctors & Departments', href: '/dashboard/hospital/doctors', icon: Users },
+  { label: 'Investigations', href: '/dashboard/hospital/investigations', icon: FlaskConical },
+  { label: 'Admissions/Beds', href: '/dashboard/hospital/admissions', icon: Hospital },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Hospital Settings', href: '/dashboard/hospital/settings', icon: Settings },
   { label: 'Profile', href: '/dashboard/profile', icon: User },
 ];
 
