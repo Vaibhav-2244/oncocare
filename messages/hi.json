@@ -1536,6 +1536,7 @@
         "search": "खोजें...",
         "noResultsFound": "कोई परिणाम नहीं मिला",
         "viewNotifications": "सूचनाएं देखें",
+        "unreadNotificationsCount": "{count} अपठित सूचनाएं",
         "user": "उपयोगकर्ता",
         "profile": "प्रोफ़ाइल",
         "settings": "सेटिंग्स",

@@ -162,6 +162,7 @@ export function DashboardLayout({
           currentHash={currentHash}
           user={user}
           initials={initials}
+          unreadNotificationCount={user?.primaryRole === 'pharmacy' ? unreadNotificationCount : 0}
         />
       </aside>
 
@@ -179,6 +180,7 @@ export function DashboardLayout({
               currentHash={currentHash}
               user={user}
               initials={initials}
+              unreadNotificationCount={user?.primaryRole === 'pharmacy' ? unreadNotificationCount : 0}
               onNavigate={() => setSidebarOpen(false)}
             />
           </aside>
@@ -309,6 +311,7 @@ function SidebarContent({
   currentHash,
   user,
   initials,
+  unreadNotificationCount,
   onNavigate,
 }: {
   navItems: NavItem[];
@@ -317,6 +320,7 @@ function SidebarContent({
   currentHash: string;
   user: ReturnType<typeof useAuth>['user'];
   initials: string;
+  unreadNotificationCount: number;
   onNavigate?: () => void;
 }) {
   const t = useTranslations('components.auth.dashboardLayout');
@@ -370,6 +374,14 @@ function SidebarContent({
                 >
                   <item.icon className={cn('h-4 w-4', isActive ? 'text-teal-600' : 'text-slate-400')} />
                   {item.label}
+                  {item.href === '/dashboard/notifications' && unreadNotificationCount > 0 && (
+                    <span
+                      aria-label={t('unreadNotificationsCount', { count: unreadNotificationCount })}
+                      className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-100 px-1.5 text-xs font-semibold tabular-nums text-rose-700"
+                    >
+                      {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                    </span>
+                  )}
                 </Link>
               );
             });

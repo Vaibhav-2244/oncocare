@@ -59,4 +59,4 @@ Step 1 is not passed until TypeScript and lint pass, static migration checks pas
 - The prototype is `pharmacy_fixed/`; it is read-only UI reference and must remain untouched and unimported.
 - At start, the worktree contained untracked `ddescriptions_hospital_dashboard.docx`, `hospital-dashboard-requirements.md`, and `pharmacy_fixed/`. These are pre-existing user files and must remain untouched.
 - The prototype directory remains untouched and is not imported by the Next.js app.
-- Step 1 implementation commit: `feat: add pharmacy dashboard foundation` (live database gate remains pending).
+- Step 1 implementation commits: `feat: add pharmacy dashboard foundation` and `fix: show pharmacy notification count` (live database gate remains pending).

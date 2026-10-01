@@ -1536,6 +1536,7 @@
         "search": "Search...",
         "noResultsFound": "No results found",
         "viewNotifications": "View notifications",
+        "unreadNotificationsCount": "{count} unread notifications",
         "user": "User",
         "profile": "Profile",
         "settings": "Settings",
