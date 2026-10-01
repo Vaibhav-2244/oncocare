@@ -23,6 +23,7 @@ Step 1 foundation changes are implemented locally. The hosted Supabase migration
 - Added role-checked `ensure_hospital_workspace`, member invitation and management RPCs, patient registration, verification, demo-data, and OAuth role RPCs.
 - Added append-only patient journey events and normalized identifiers.
 - Corrected the OAuth callback ordering so role refresh completes before dashboard redirection.
+- The foundation migration explicitly drops an existing `set_initial_signup_role(text)` signature before recreating it, because PostgreSQL cannot change a function return type with `CREATE OR REPLACE`.
 - Added separate hospital routes, widened notifications/documents access, and preserved the hospital sidebar on those shared pages.
 
 ## Verification

@@ -795,7 +795,9 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.set_initial_signup_role(p_role text)
+DROP FUNCTION IF EXISTS public.set_initial_signup_role(text);
+
+CREATE FUNCTION public.set_initial_signup_role(p_role text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
