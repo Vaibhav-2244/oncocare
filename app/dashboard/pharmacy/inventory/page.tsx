@@ -1,7 +1,7 @@
 'use client';
 
-import { PharmacySectionPage } from '@/components/pharmacy/PharmacySectionPage';
+import { PharmacyInventoryPage } from '@/components/pharmacy/PharmacyInventoryPage';
 
-export default function PharmacyInventoryPage() {
-  return <PharmacySectionPage section="inventory" />;
+export default function InventoryRoute() {
+  return <PharmacyInventoryPage />;
 }

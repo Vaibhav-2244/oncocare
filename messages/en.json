@@ -1163,6 +1163,78 @@
       "open": "Open",
       "unverifiedNote": "Your workspace is usable while unverified. Public listing and patient orders require platform verification."
     },
+    "inventory": {
+      "title": "Inventory",
+      "description": "Track stock batches, available units, and expiry.",
+      "loading": "Loading stock records...",
+      "receive": "Receive stock",
+      "kpis": {
+        "total": "Total SKUs",
+        "low": "Low stock",
+        "expiring": "Expiring soon",
+        "available": "Available units"
+      },
+      "tableTitle": "Live stock overview",
+      "columns": {
+        "product": "Medicine",
+        "stock": "Available stock",
+        "expiry": "Nearest expiry",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "reserved": "Reserved",
+      "empty": "No stock records yet. Receive your first batch to begin tracking inventory.",
+      "actions": {
+        "receive": "Receive",
+        "adjust": "Adjust"
+      },
+      "dialog": {
+        "receiveTitle": "Receive stock",
+        "adjustTitle": "Adjust stock",
+        "batch": "Batch number",
+        "expiry": "Expiry date",
+        "quantity": "Quantity",
+        "supplier": "Supplier",
+        "adjustment": "Adjustment quantity",
+        "reason": "Reason",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving..."
+      }
+    },
+    "medicines": {
+      "title": "Medicines",
+      "description": "Manage medicines and pricing in your pharmacy catalogue.",
+      "loading": "Loading catalogue...",
+      "add": "Add medicine",
+      "catalogue": "Pharmacy catalogue",
+      "search": "Search medicines",
+      "empty": "No medicines match the current filter.",
+      "columns": {
+        "medicine": "Medicine",
+        "schedule": "Schedule",
+        "price": "Price",
+        "gst": "GST",
+        "status": "Status"
+      },
+      "active": "Active",
+      "inactive": "Inactive",
+      "gst": "{value}",
+      "dialog": {
+        "title": "Add medicine",
+        "name": "Medicine name",
+        "generic": "Generic name",
+        "strength": "Strength",
+        "form": "Dosage form",
+        "schedule": "Schedule",
+        "mrp": "MRP",
+        "sellingPrice": "Selling price",
+        "reorder": "Reorder level",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving..."
+      }
+    },
     "sections": {
       "emptyTitle": "Workspace ready",
       "foundationPlaceholder": "This section is connected to your pharmacy workspace. Its data workflows will be enabled in the next implementation step.",

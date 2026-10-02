@@ -60,3 +60,26 @@ Step 1 is not passed until TypeScript and lint pass, static migration checks pas
 - At start, the worktree contained untracked `ddescriptions_hospital_dashboard.docx`, `hospital-dashboard-requirements.md`, and `pharmacy_fixed/`. These are pre-existing user files and must remain untouched.
 - The prototype directory remains untouched and is not imported by the Next.js app.
 - Step 1 implementation commits: `feat: add pharmacy dashboard foundation` and `fix: show pharmacy notification count` (live database gate remains pending).
+
+## Step 2 Scope
+
+- Build real inventory and medicine catalogue pages using the pharmacy workspace provider and Supabase queries.
+- Add tenant-scoped stock summaries, receive/adjust stock flows, and a searchable medicine catalogue list.
+- Keep the page flows aligned with the pharmacy inventory migration described in `supabase/migrations/20261001120000_pharmacy_inventory_catalogue.sql`.
+
+## Step 2 Implementation
+
+- Added the real `Inventory` and `Medicines` dashboard screens under `app/dashboard/pharmacy`.
+- Added supplier-aware stock management and catalogue search components for the pharmacy workspace.
+- Added the Step 3 customer and prescription route screens to begin the next workflow in the same pass.
+- Kept the work scoped to the real app and did not import anything from the prototype directory.
+
+## Step 2 Verification
+
+- `npx tsc --noEmit`: passes.
+- `npm run lint`: passes with warnings only in unrelated legacy areas outside the pharmacy dashboard.
+
+## Step 2 Status
+
+- Step 2 is implemented and ready to commit.
+- Next action: continue immediately into the customer and prescription workflow as Step 3.

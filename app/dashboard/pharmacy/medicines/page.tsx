@@ -1,7 +1,7 @@
 'use client';
 
-import { PharmacySectionPage } from '@/components/pharmacy/PharmacySectionPage';
+import { PharmacyMedicinesPage } from '@/components/pharmacy/PharmacyMedicinesPage';
 
-export default function PharmacyMedicinesPage() {
-  return <PharmacySectionPage section="medicines" />;
+export default function MedicinesRoute() {
+  return <PharmacyMedicinesPage />;
 }
