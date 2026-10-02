@@ -11,6 +11,8 @@
     "dev:with-models": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-with-models.ps1",
     "build": "next build",
     "start": "next start",
+    "check:sql": "tsx scripts/check-sql-syntax.ts",
+    "build:sql": "tsx scripts/build-apply-all.ts",
     "lint": "next lint",
     "extract:i18n": "tsx scripts/extract-i18n-strings.ts",
     "typecheck": "tsc --noEmit"

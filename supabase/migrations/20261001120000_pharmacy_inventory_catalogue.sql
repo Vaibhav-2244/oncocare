@@ -35,9 +35,11 @@ CREATE TABLE IF NOT EXISTS public.pharmacy_stock_batches (
   supplier_name text,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'quarantined', 'expired', 'written_off')),
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (product_id, lower(batch_no))
+  updated_at timestamptz NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_pharmacy_stock_batches_org_batch
+  ON public.pharmacy_stock_batches (pharmacy_id, product_id, lower(btrim(batch_no)));
 
 CREATE TABLE IF NOT EXISTS public.pharmacy_stock_movements (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -61,7 +63,8 @@ ALTER TABLE public.pharmacy_products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pharmacy_stock_batches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pharmacy_stock_movements ENABLE ROW LEVEL SECURITY;
 
-CREATE OR REPLACE VIEW public.pharmacy_product_stock AS
+CREATE OR REPLACE VIEW public.pharmacy_product_stock
+WITH (security_invoker = true) AS
 SELECT
   p.pharmacy_id,
   p.id AS product_id,

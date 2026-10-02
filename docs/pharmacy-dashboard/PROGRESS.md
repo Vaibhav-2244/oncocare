@@ -83,3 +83,9 @@ Step 1 is not passed until TypeScript and lint pass, static migration checks pas
 
 - Step 2 is implemented and ready to commit.
 - Next action: continue immediately into the customer and prescription workflow as Step 3.
+
+## Step 3 Status
+
+- Fixed the broken inventory migration guardrail by replacing the invalid expression-based UNIQUE with a valid table-level plus indexed unique constraint.
+- Added the Step 3 customer and prescription tenant schema and RPCs under `supabase/migrations/20261001130000_pharmacy_customers_prescriptions.sql`.
+- Added `scripts/check-sql-syntax.ts` and `scripts/build-apply-all.ts` and verified the offline migration audit passes for the current pharmacy schema set.

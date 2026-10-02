@@ -123,6 +123,7 @@ AS $$
     WHEN 'orders.progress' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
     WHEN 'prescriptions.read' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
     WHEN 'prescriptions.verify' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist'])
+    WHEN 'prescription.manage' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist'])
     WHEN 'inventory.read' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
     WHEN 'inventory.write' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist'])
     WHEN 'inventory.receive' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
@@ -134,6 +135,7 @@ AS $$
     WHEN 'deliveries.manage' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff', 'delivery_staff'])
     WHEN 'customers.read' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
     WHEN 'customers.write' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
+    WHEN 'customer.manage' THEN p_role = ANY (ARRAY['pharmacy_admin', 'pharmacist', 'store_staff'])
     WHEN 'reports.read' THEN p_role = 'pharmacy_admin'
     WHEN 'settings.manage' THEN p_role = 'pharmacy_admin'
     WHEN 'staff.manage' THEN p_role = 'pharmacy_admin'
