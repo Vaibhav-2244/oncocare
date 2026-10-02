@@ -17,7 +17,7 @@
 - [x] delete HospitalSectionPage + placeholder i18n keys; en+hi strings; tsc; commit "hospital: schema + OPD core"
 
 ## Slice 2: Clinical
-- [ ] FILE C migration passes harness; ConsultDrawer; wire into board + patient record; prescription PDF; commit
+- [x] FILE C migration passes harness; ConsultDrawer; wire into board + patient record; prescription PDF; commit
 
 ## Slice 3: Investigations + Admissions
 - [ ] FILE D migration passes harness; Investigations (4 tabs + order detail + InvestigationOrderPanel); Admissions page; Command Center v2 (full); commit

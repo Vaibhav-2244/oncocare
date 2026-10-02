@@ -20,3 +20,10 @@ This log tracks the user's current Hospital Dashboard build checklist. The prior
 - Removed `HospitalSectionPage` and its placeholder translation string.
 - `npx tsc --noEmit`: passed after the Slice 1 implementation.
 - `npm run test:sql`: applied the fallback migration set and passed the harness smoke assertions for 80 demo patients, the token-102/21-waiting demo queue, 30 sequential queue tokens, emergency priority, wait-range ordering, requeue token preservation, duplicate queue protection, tenant separation, front-desk clinical restrictions, direct-write denial, and anonymous RPC denial.
+
+## Slice 2 implementation
+
+- Added FILE C clinical RPCs for drafts/finalization/amendments, prescriptions, referrals, follow-ups, context reads, and clinical demo seeding.
+- Added and wired the consultation drawer to the live queue; added prescription PDF output and English/Hindi clinical strings.
+- `npm run test:sql`: passed migration application and clinical seed/workflow assertions in PGlite.
+- `npx tsc --noEmit`: passed after Slice 2.
