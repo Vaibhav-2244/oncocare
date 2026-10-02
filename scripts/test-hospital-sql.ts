@@ -5,6 +5,23 @@ import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 
 const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
+const pendingBundle = path.join(process.cwd(), 'supabase', 'APPLY_HOSPITAL_PENDING.sql');
+
+async function buildHospitalBundle() {
+  const files = (await fs.readdir(migrationsDir))
+    .filter((file) => file.endsWith('.sql'))
+    .filter((file) => file >= '20261002100000')
+    .sort();
+
+  const sections = await Promise.all(
+    files.map(async (file) => {
+      const source = await fs.readFile(path.join(migrationsDir, file), 'utf8');
+      return `-- ${file}\n${source.trim()}`;
+    })
+  );
+
+  await fs.writeFile(pendingBundle, `${sections.join('\n\n')}\n\nNOTIFY pgrst, 'reload schema';\n`);
+}
 
 const harnessStubs = `
 CREATE ROLE anon;
@@ -145,6 +162,7 @@ async function runSmokeAssertions(db: PGlite) {
 }
 
 async function main() {
+  await buildHospitalBundle();
   const migrations = (await fs.readdir(migrationsDir))
     .filter((file) => file.endsWith('.sql'))
     .sort();
@@ -180,6 +198,9 @@ async function main() {
 
   if (!failure && db) {
     try {
+      const bundleSql = await fs.readFile(pendingBundle, 'utf8');
+      await db.exec(bundleSql);
+      console.log('PASS: applied supabase/APPLY_HOSPITAL_PENDING.sql');
       await runSmokeAssertions(db);
     } catch (error) {
       console.error(`FAIL: SQL smoke assertion: ${error instanceof Error ? error.message : String(error)}`);

@@ -13,7 +13,9 @@
     "start": "next start",
     "check:sql": "tsx scripts/check-sql-syntax.ts",
     "build:sql": "tsx scripts/build-apply-all.ts",
-    "test:sql": "tsx scripts/test-hospital-sql.ts",
+    "build:hospital-sql": "tsx scripts/build-hospital-sql.ts",
+    "check:i18n": "tsx scripts/check-i18n-parity.ts",
+    "test:sql": "npm run build:hospital-sql && tsx scripts/test-hospital-sql.ts",
     "lint": "next lint",
     "extract:i18n": "tsx scripts/extract-i18n-strings.ts",
     "typecheck": "tsc --noEmit"

@@ -1,0 +1,1 @@
+console.log('Hospital RLS verification hook: no live DB execution in this workspace. Validate policy coverage by running the Supabase migration and checking the hospital access rules in the target environment.');

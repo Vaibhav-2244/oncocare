@@ -708,6 +708,24 @@ NOTIFY pgrst, 'reload schema';
 -- 20261001120000_pharmacy_inventory_catalogue.sql
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+ALTER TABLE public.medicines
+  ADD COLUMN IF NOT EXISTS schedule text,
+  ADD COLUMN IF NOT EXISTS requires_prescription boolean,
+  ADD COLUMN IF NOT EXISTS cold_chain boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS hsn_code text,
+  ADD COLUMN IF NOT EXISTS gst_rate numeric(5,2) NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+
+UPDATE public.medicines
+SET schedule = COALESCE(schedule, CASE WHEN prescription_required THEN 'h' ELSE 'otc' END),
+    requires_prescription = COALESCE(requires_prescription, prescription_required, false);
+
+ALTER TABLE public.medicines
+  ALTER COLUMN schedule SET DEFAULT 'otc',
+  ALTER COLUMN schedule SET NOT NULL,
+  ALTER COLUMN requires_prescription SET DEFAULT false,
+  ALTER COLUMN requires_prescription SET NOT NULL;
+
 CREATE TABLE IF NOT EXISTS public.pharmacy_products (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   pharmacy_id uuid NOT NULL REFERENCES public.pharmacy_orgs(id) ON DELETE CASCADE,
@@ -1272,61 +1290,92 @@ ALTER TABLE public.pharmacies ALTER COLUMN is_verified SET DEFAULT false;
 DROP POLICY IF EXISTS "authenticated_insert_pharmacies" ON public.pharmacies;
 DROP POLICY IF EXISTS "authenticated_update_pharmacies" ON public.pharmacies;
 DROP POLICY IF EXISTS "authenticated_delete_pharmacies" ON public.pharmacies;
+DROP POLICY IF EXISTS "pharmacies_public_read" ON public.pharmacies;
 CREATE POLICY "pharmacies_public_read" ON public.pharmacies FOR SELECT TO public USING (
   org_id IS NULL OR is_verified = true OR public.is_pharmacy_member(org_id)
 );
+DROP POLICY IF EXISTS "pharmacies_block_client_write" ON public.pharmacies;
 CREATE POLICY "pharmacies_block_client_write" ON public.pharmacies FOR INSERT WITH CHECK (false);
+DROP POLICY IF EXISTS "pharmacies_block_client_write_update" ON public.pharmacies;
 CREATE POLICY "pharmacies_block_client_write_update" ON public.pharmacies FOR UPDATE USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "pharmacies_block_client_write_delete" ON public.pharmacies;
 CREATE POLICY "pharmacies_block_client_write_delete" ON public.pharmacies FOR DELETE USING (false);
 
 ALTER TABLE public.pharmacy_reviews ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id) ON DELETE CASCADE DEFAULT auth.uid();
 DROP POLICY IF EXISTS "authenticated_insert_reviews" ON public.pharmacy_reviews;
 DROP POLICY IF EXISTS "authenticated_update_reviews" ON public.pharmacy_reviews;
 DROP POLICY IF EXISTS "authenticated_delete_reviews" ON public.pharmacy_reviews;
+DROP POLICY IF EXISTS "pharmacy_reviews_own_insert" ON public.pharmacy_reviews;
 CREATE POLICY "pharmacy_reviews_own_insert" ON public.pharmacy_reviews FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "pharmacy_reviews_own_update" ON public.pharmacy_reviews;
 CREATE POLICY "pharmacy_reviews_own_update" ON public.pharmacy_reviews FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "pharmacy_reviews_own_delete" ON public.pharmacy_reviews;
 CREATE POLICY "pharmacy_reviews_own_delete" ON public.pharmacy_reviews FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "authenticated_insert_medicines" ON public.medicines;
 DROP POLICY IF EXISTS "authenticated_update_medicines" ON public.medicines;
 DROP POLICY IF EXISTS "authenticated_delete_medicines" ON public.medicines;
+DROP POLICY IF EXISTS "medicines_public_read" ON public.medicines;
 CREATE POLICY "medicines_public_read" ON public.medicines FOR SELECT USING (true);
+DROP POLICY IF EXISTS "medicines_block_client_write" ON public.medicines;
 CREATE POLICY "medicines_block_client_write" ON public.medicines FOR INSERT WITH CHECK (false);
+DROP POLICY IF EXISTS "medicines_block_client_update" ON public.medicines;
 CREATE POLICY "medicines_block_client_update" ON public.medicines FOR UPDATE USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "medicines_block_client_delete" ON public.medicines;
 CREATE POLICY "medicines_block_client_delete" ON public.medicines FOR DELETE USING (false);
 
 DROP POLICY IF EXISTS "authenticated_insert_prices" ON public.medicine_prices;
 DROP POLICY IF EXISTS "authenticated_update_prices" ON public.medicine_prices;
 DROP POLICY IF EXISTS "authenticated_delete_prices" ON public.medicine_prices;
+DROP POLICY IF EXISTS "medicine_prices_public_read" ON public.medicine_prices;
 CREATE POLICY "medicine_prices_public_read" ON public.medicine_prices FOR SELECT USING (true);
+DROP POLICY IF EXISTS "medicine_prices_block_client_write" ON public.medicine_prices;
 CREATE POLICY "medicine_prices_block_client_write" ON public.medicine_prices FOR INSERT WITH CHECK (false);
+DROP POLICY IF EXISTS "medicine_prices_block_client_update" ON public.medicine_prices;
 CREATE POLICY "medicine_prices_block_client_update" ON public.medicine_prices FOR UPDATE USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "medicine_prices_block_client_delete" ON public.medicine_prices;
 CREATE POLICY "medicine_prices_block_client_delete" ON public.medicine_prices FOR DELETE USING (false);
 
 DROP POLICY IF EXISTS "authenticated_insert_generics" ON public.generic_alternatives;
 DROP POLICY IF EXISTS "authenticated_update_generics" ON public.generic_alternatives;
 DROP POLICY IF EXISTS "authenticated_delete_generics" ON public.generic_alternatives;
+DROP POLICY IF EXISTS "generic_alternatives_public_read" ON public.generic_alternatives;
 CREATE POLICY "generic_alternatives_public_read" ON public.generic_alternatives FOR SELECT USING (true);
+DROP POLICY IF EXISTS "generic_alternatives_block_client_write" ON public.generic_alternatives;
 CREATE POLICY "generic_alternatives_block_client_write" ON public.generic_alternatives FOR INSERT WITH CHECK (false);
+DROP POLICY IF EXISTS "generic_alternatives_block_client_update" ON public.generic_alternatives;
 CREATE POLICY "generic_alternatives_block_client_update" ON public.generic_alternatives FOR UPDATE USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "generic_alternatives_block_client_delete" ON public.generic_alternatives;
 CREATE POLICY "generic_alternatives_block_client_delete" ON public.generic_alternatives FOR DELETE USING (false);
 
 ALTER TABLE public.pharmacy_products ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pharmacy_products_member_select" ON public.pharmacy_products;
 CREATE POLICY "pharmacy_products_member_select" ON public.pharmacy_products FOR SELECT TO authenticated USING (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_products_member_modify" ON public.pharmacy_products;
 CREATE POLICY "pharmacy_products_member_modify" ON public.pharmacy_products FOR INSERT TO authenticated WITH CHECK (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_products_member_update" ON public.pharmacy_products;
 CREATE POLICY "pharmacy_products_member_update" ON public.pharmacy_products FOR UPDATE TO authenticated USING (public.is_pharmacy_member(pharmacy_id)) WITH CHECK (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_products_member_delete" ON public.pharmacy_products;
 CREATE POLICY "pharmacy_products_member_delete" ON public.pharmacy_products FOR DELETE TO authenticated USING (public.is_pharmacy_member(pharmacy_id));
 
 ALTER TABLE public.pharmacy_stock_batches ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pharmacy_stock_batches_member_select" ON public.pharmacy_stock_batches;
 CREATE POLICY "pharmacy_stock_batches_member_select" ON public.pharmacy_stock_batches FOR SELECT TO authenticated USING (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_stock_batches_member_modify" ON public.pharmacy_stock_batches;
 CREATE POLICY "pharmacy_stock_batches_member_modify" ON public.pharmacy_stock_batches FOR INSERT TO authenticated WITH CHECK (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_stock_batches_member_update" ON public.pharmacy_stock_batches;
 CREATE POLICY "pharmacy_stock_batches_member_update" ON public.pharmacy_stock_batches FOR UPDATE TO authenticated USING (public.is_pharmacy_member(pharmacy_id)) WITH CHECK (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_stock_batches_member_delete" ON public.pharmacy_stock_batches;
 CREATE POLICY "pharmacy_stock_batches_member_delete" ON public.pharmacy_stock_batches FOR DELETE TO authenticated USING (public.is_pharmacy_member(pharmacy_id));
 
 ALTER TABLE public.pharmacy_stock_movements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "pharmacy_stock_movements_member_select" ON public.pharmacy_stock_movements;
 CREATE POLICY "pharmacy_stock_movements_member_select" ON public.pharmacy_stock_movements FOR SELECT TO authenticated USING (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_stock_movements_member_insert" ON public.pharmacy_stock_movements;
 CREATE POLICY "pharmacy_stock_movements_member_insert" ON public.pharmacy_stock_movements FOR INSERT TO authenticated WITH CHECK (public.is_pharmacy_member(pharmacy_id));
+DROP POLICY IF EXISTS "pharmacy_stock_movements_block_update" ON public.pharmacy_stock_movements;
 CREATE POLICY "pharmacy_stock_movements_block_update" ON public.pharmacy_stock_movements FOR UPDATE USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS "pharmacy_stock_movements_block_delete" ON public.pharmacy_stock_movements;
 CREATE POLICY "pharmacy_stock_movements_block_delete" ON public.pharmacy_stock_movements FOR DELETE USING (false);
 
 NOTIFY pgrst, 'reload schema';
@@ -1353,22 +1402,26 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_customers_pharmacy_phone
 
 ALTER TABLE public.pharmacy_customers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_select" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_select"
   ON public.pharmacy_customers
   FOR SELECT TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_insert" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_insert"
   ON public.pharmacy_customers
   FOR INSERT TO authenticated
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_update" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_update"
   ON public.pharmacy_customers
   FOR UPDATE TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id))
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_delete" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_delete"
   ON public.pharmacy_customers
   FOR DELETE TO authenticated
@@ -1393,22 +1446,26 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_prescriptions_pharmacy_status
 
 ALTER TABLE public.pharmacy_prescriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_select" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_select"
   ON public.pharmacy_prescriptions
   FOR SELECT TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_insert" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_insert"
   ON public.pharmacy_prescriptions
   FOR INSERT TO authenticated
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_update" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_update"
   ON public.pharmacy_prescriptions
   FOR UPDATE TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id))
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_delete" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_delete"
   ON public.pharmacy_prescriptions
   FOR DELETE TO authenticated

@@ -2,6 +2,6 @@
 
 import { HospitalAppointmentsPage } from '@/components/hospital/HospitalAppointmentsPage';
 
-export default function HospitalAppointmentsPage() {
+export default function HospitalAppointmentsRoute() {
   return <HospitalAppointmentsPage />;
 }

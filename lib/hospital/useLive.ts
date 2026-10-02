@@ -17,6 +17,7 @@ export function useLiveData<T>(fetcher: () => Promise<T>, { hospitalId, tables, 
   const [technicalDetails, setTechnicalDetails] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [status, setStatus] = useState<LiveStatus>('reconnecting');
+  const tableKey = tables.join('|');
   fetcherRef.current = fetcher;
 
   const refresh = useCallback(async () => {
@@ -39,8 +40,8 @@ export function useLiveData<T>(fetcher: () => Promise<T>, { hospitalId, tables, 
   useEffect(() => {
     if (!hospitalId) return;
     void refresh();
-    const channel = supabase.channel(`hospital-live-${hospitalId}-${tables.join('-')}`);
-    for (const table of tables) {
+    const channel = supabase.channel(`hospital-live-${hospitalId}-${tableKey.replaceAll('|', '-')}`);
+    for (const table of tableKey ? tableKey.split('|') : []) {
       channel.on('postgres_changes', { event: '*', schema: 'public', table, filter: `hospital_id=eq.${hospitalId}` }, () => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => void refresh(), 500);
@@ -53,7 +54,7 @@ export function useLiveData<T>(fetcher: () => Promise<T>, { hospitalId, tables, 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       void supabase.removeChannel(channel);
     };
-  }, [hospitalId, intervalMs, refresh, tables.join('|')]);
+  }, [hospitalId, intervalMs, refresh, tableKey]);
 
   return { data, loading, error, technicalDetails, refresh, lastUpdated, status };
 }

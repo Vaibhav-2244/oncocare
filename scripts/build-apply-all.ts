@@ -7,8 +7,8 @@ const targetFile = path.join(process.cwd(), 'supabase', 'pharmacy_apply_all.sql'
 const files = fs
   .readdirSync(migrationsDir)
   .filter((file) => file.endsWith('.sql'))
-  .sort()
-  .filter((file) => file >= '20261001110000');
+  .filter((file) => file.includes('_pharmacy_'))
+  .sort();
 
 if (files.length === 0) {
   throw new Error('No pharmacy migrations found in supabase/migrations.');

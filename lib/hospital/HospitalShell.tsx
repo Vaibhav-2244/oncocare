@@ -16,17 +16,18 @@ export function HospitalShell({ children }: { children: ReactNode }) {
   const [sampleBusy, setSampleBusy] = useState(false);
   const [live, setLive] = useState(false);
   const [lastConnected, setLastConnected] = useState<Date | null>(null);
+  const hospitalId = org?.id;
 
   useEffect(() => {
-    if (!org) return;
-    const channel = supabase.channel(`hospital-shell-${org.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hospital_orgs', filter: `id=eq.${org.id}` }, () => setLastConnected(new Date()))
+    if (!hospitalId) return;
+    const channel = supabase.channel(`hospital-shell-${hospitalId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'hospital_orgs', filter: `id=eq.${hospitalId}` }, () => setLastConnected(new Date()))
       .subscribe((status) => {
         setLive(status === 'SUBSCRIBED');
         if (status === 'SUBSCRIBED') setLastConnected(new Date());
       });
     return () => { void supabase.removeChannel(channel); };
-  }, [org?.id]);
+  }, [hospitalId]);
 
   const runSampleAction = async (action: 'load_demo_data' | 'remove_demo_data') => {
     if (!org) return;

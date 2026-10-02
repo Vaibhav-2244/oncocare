@@ -2,6 +2,6 @@
 
 import { HospitalAdmissionsPage } from '@/components/hospital/HospitalAdmissionsPage';
 
-export default function HospitalAdmissionsPage() {
+export default function HospitalAdmissionsRoute() {
   return <HospitalAdmissionsPage />;
 }

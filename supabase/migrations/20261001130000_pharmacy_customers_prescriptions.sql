@@ -19,22 +19,26 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_customers_pharmacy_phone
 
 ALTER TABLE public.pharmacy_customers ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_select" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_select"
   ON public.pharmacy_customers
   FOR SELECT TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_insert" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_insert"
   ON public.pharmacy_customers
   FOR INSERT TO authenticated
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_update" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_update"
   ON public.pharmacy_customers
   FOR UPDATE TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id))
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_customers_member_delete" ON public.pharmacy_customers;
 CREATE POLICY "pharmacy_customers_member_delete"
   ON public.pharmacy_customers
   FOR DELETE TO authenticated
@@ -59,22 +63,26 @@ CREATE INDEX IF NOT EXISTS idx_pharmacy_prescriptions_pharmacy_status
 
 ALTER TABLE public.pharmacy_prescriptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_select" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_select"
   ON public.pharmacy_prescriptions
   FOR SELECT TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_insert" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_insert"
   ON public.pharmacy_prescriptions
   FOR INSERT TO authenticated
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_update" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_update"
   ON public.pharmacy_prescriptions
   FOR UPDATE TO authenticated
   USING (public.is_pharmacy_member(pharmacy_id))
   WITH CHECK (public.is_pharmacy_member(pharmacy_id));
 
+DROP POLICY IF EXISTS "pharmacy_prescriptions_member_delete" ON public.pharmacy_prescriptions;
 CREATE POLICY "pharmacy_prescriptions_member_delete"
   ON public.pharmacy_prescriptions
   FOR DELETE TO authenticated

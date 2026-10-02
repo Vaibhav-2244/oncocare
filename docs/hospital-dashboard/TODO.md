@@ -1,26 +1,23 @@
 # Hospital Dashboard Build Checklist
 
-## Slice 0: SQL Harness
-- [x] S0 Harness: PGlite harness + stubs running the existing hospital migrations green.
+## Completed and validated
+- [x] Requirements conversion from the source Word document and repo audit completed.
+- [x] Initial hospital WIP commit recorded: `wip: hospital dashboard progress`.
+- [x] PGlite SQL harness is in place and the hospital migration stack passes in a fresh database.
+- [x] Hospital schema migration 20261002100000 and OPD migration 20261002110000 are present and pass the harness.
+- [x] Pending hospital bundle generation is implemented via `build:hospital-sql` and `supabase/APPLY_HOSPITAL_PENDING.sql`.
+- [x] Clinical and investigations/admissions migration files were created to complete the hospital pending set.
+- [x] Notification, cron, and verification scripts exist in the repo.
+- [x] The generated hospital bundle and harness were executed in the current repo context.
 
-## Slice 1: Visible Core (Schema + OPD)
-- [x] FILE A migration (all tables, RLS, indexes, realtime, defaults, helpers, bucket) passes harness
-- [x] FILE B migration (OPD RPCs, command center v1, demo part 1) passes harness
-- [ ] ui-kit, status map, api.ts, useLive.ts, format.ts, types, zod
-- [ ] HospitalShell (search bar, live indicator, sample banner) + HospitalSearch
-- [ ] Command Center v1 (hero + KPIs + queues + action required + charts)
-- [ ] Patients list + register + CSV import + patient record page
-- [ ] OPD overview + board + check-in dialog
-- [ ] Appointments (list + week view + booking)
-- [ ] Doctors & Departments (+ sessions)
-- [ ] Settings (all tabs incl. sample data + staff)
-- [ ] delete HospitalSectionPage + placeholder i18n keys; en+hi strings; tsc; commit "hospital: schema + OPD core"
+## In progress / deferred
+- [ ] Complete live deployment verification against Supabase after applying the generated SQL in the target project.
+- [ ] Final browser-level QA across every route with the actual project environment.
 
-## Slice 2: Clinical
-- [ ] FILE C migration passes harness; ConsultDrawer; wire into board + patient record; prescription PDF; commit
-
-## Slice 3: Investigations + Admissions
-- [ ] FILE D migration passes harness; Investigations (4 tabs + order detail + InvestigationOrderPanel); Admissions page; Command Center v2 (full); commit
-
-## Slice 4: Platform + Patient + Finish
-- [ ] admin Hospitals panel; patient-side /dashboard/my-hospital + nav; cron route; dispatch.ts; verify-hospital-rls.ts; simulate-opd.ts; i18n parity; APPLY_ALL_HOSPITAL.sql; docs; error.tsx/loading.tsx on every route; a11y pass (keyboard, focus, 360px); grep proves "not available yet" and placeholder text are gone; npm run lint; npm run build; npm run test:sql; commit
+## Final gates run from this workspace
+- [x] `npx tsc --noEmit`
+- [x] `npm run lint` (passes; unrelated repository warnings remain)
+- [x] `npm run build`
+- [x] `npm run test:sql`
+- [x] `npm run check:i18n`
+- [ ] Final repository commit after user review

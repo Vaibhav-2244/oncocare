@@ -2,6 +2,6 @@
 
 import { HospitalOpdPage } from '@/components/hospital/HospitalOpdPage';
 
-export default function HospitalOpdPage() {
+export default function HospitalOpdRoute() {
   return <HospitalOpdPage />;
 }

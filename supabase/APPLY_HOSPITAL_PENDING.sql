@@ -1,0 +1,2695 @@
+-- 20261002100000_hospital_ops_schema.sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+CREATE TABLE IF NOT EXISTS public.hospital_appointments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  doctor_id uuid NOT NULL REFERENCES public.hospital_doctors(id) ON DELETE CASCADE,
+  department_id uuid REFERENCES public.hospital_departments(id) ON DELETE SET NULL,
+  scheduled_at timestamptz NOT NULL,
+  kind text NOT NULL CHECK (kind IN ('opd', 'follow_up', 'referral')),
+  status text NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'confirmed', 'checked_in', 'in_consultation', 'completed', 'cancelled', 'no_show')),
+  source text NOT NULL DEFAULT 'staff' CHECK (source IN ('staff', 'patient_app', 'referral', 'follow_up')),
+  reason text,
+  cancel_reason text,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_hospital_appointments_hospital_scheduled ON public.hospital_appointments (hospital_id, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_hospital_appointments_patient ON public.hospital_appointments (patient_id);
+
+CREATE TABLE IF NOT EXISTS public.hospital_visits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  visit_date date NOT NULL,
+  checked_in_at timestamptz NOT NULL DEFAULT now(),
+  checked_in_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, patient_id, visit_date)
+);
+CREATE INDEX IF NOT EXISTS idx_hospital_visits_hospital_date ON public.hospital_visits (hospital_id, visit_date);
+
+CREATE TABLE IF NOT EXISTS public.opd_sessions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  doctor_id uuid NOT NULL REFERENCES public.hospital_doctors(id) ON DELETE CASCADE,
+  department_id uuid REFERENCES public.hospital_departments(id) ON DELETE SET NULL,
+  session_date date NOT NULL,
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  room text,
+  default_consult_minutes integer NOT NULL DEFAULT 10 CHECK (default_consult_minutes > 0),
+  last_token integer NOT NULL DEFAULT 0 CHECK (last_token >= 0),
+  status text NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'open', 'paused', 'closed')),
+  delay_note text,
+  opened_at timestamptz,
+  closed_at timestamptz,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_time > start_time),
+  UNIQUE (hospital_id, doctor_id, session_date, start_time)
+);
+CREATE INDEX IF NOT EXISTS idx_opd_sessions_hospital_date ON public.opd_sessions (hospital_id, session_date, status);
+
+CREATE TABLE IF NOT EXISTS public.queue_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  session_id uuid NOT NULL REFERENCES public.opd_sessions(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  appointment_id uuid REFERENCES public.hospital_appointments(id) ON DELETE SET NULL,
+  visit_id uuid REFERENCES public.hospital_visits(id) ON DELETE SET NULL,
+  token_number integer NOT NULL CHECK (token_number > 0),
+  priority_rank smallint NOT NULL DEFAULT 3 CHECK (priority_rank BETWEEN 0 AND 3),
+  priority_reason text,
+  status text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'called', 'in_consultation', 'completed', 'skipped', 'no_show', 'cancelled', 'referred')),
+  is_walk_in boolean NOT NULL DEFAULT false,
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  called_at timestamptz,
+  started_at timestamptz,
+  completed_at timestamptz,
+  est_wait_low_min integer,
+  est_wait_high_min integer,
+  notified_thresholds integer[] NOT NULL DEFAULT '{}',
+  notified_called boolean NOT NULL DEFAULT false,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (session_id, token_number)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_entries_active_patient
+  ON public.queue_entries (session_id, patient_id)
+  WHERE status IN ('waiting', 'called', 'in_consultation');
+CREATE INDEX IF NOT EXISTS idx_queue_entries_session_status_priority
+  ON public.queue_entries (session_id, status, priority_rank, token_number);
+CREATE INDEX IF NOT EXISTS idx_queue_entries_hospital_patient ON public.queue_entries (hospital_id, patient_id, joined_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.consultations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  queue_entry_id uuid REFERENCES public.queue_entries(id) ON DELETE SET NULL,
+  session_id uuid REFERENCES public.opd_sessions(id) ON DELETE SET NULL,
+  doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  complaint text,
+  assessment text,
+  plan text,
+  advice text,
+  status text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'final')),
+  version integer NOT NULL DEFAULT 1 CHECK (version > 0),
+  parent_id uuid REFERENCES public.consultations(id) ON DELETE SET NULL,
+  finalised_at timestamptz,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_consultations_hospital_patient ON public.consultations (hospital_id, patient_id, created_at DESC);
+
+CREATE OR REPLACE FUNCTION public.prevent_final_consultation_update()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public
+AS $trigger$
+BEGIN
+  IF OLD.status = 'final' THEN
+    RAISE EXCEPTION 'Final consultations are immutable; create an amendment' USING ERRCODE = '55000';
+  END IF;
+  RETURN NEW;
+END;
+$trigger$;
+DROP TRIGGER IF EXISTS trg_prevent_final_consultation_update ON public.consultations;
+CREATE TRIGGER trg_prevent_final_consultation_update
+BEFORE UPDATE ON public.consultations
+FOR EACH ROW EXECUTE FUNCTION public.prevent_final_consultation_update();
+REVOKE ALL ON FUNCTION public.prevent_final_consultation_update() FROM PUBLIC, anon, authenticated;
+
+CREATE TABLE IF NOT EXISTS public.prescriptions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  consultation_id uuid NOT NULL REFERENCES public.consultations(id) ON DELETE CASCADE,
+  doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  notes text,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_prescriptions_hospital_patient ON public.prescriptions (hospital_id, patient_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.prescription_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  prescription_id uuid NOT NULL REFERENCES public.prescriptions(id) ON DELETE CASCADE,
+  medicine_name text NOT NULL,
+  dose text,
+  frequency text,
+  duration text,
+  instructions text,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.referrals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  from_consultation_id uuid REFERENCES public.consultations(id) ON DELETE CASCADE,
+  from_doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  to_department_id uuid REFERENCES public.hospital_departments(id) ON DELETE CASCADE,
+  to_doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  priority text NOT NULL DEFAULT 'routine' CHECK (priority IN ('routine', 'urgent', 'clinically_priority', 'emergency')),
+  reason text NOT NULL,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'queued', 'completed', 'cancelled')),
+  queue_entry_id uuid REFERENCES public.queue_entries(id) ON DELETE SET NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.follow_ups (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  consultation_id uuid REFERENCES public.consultations(id) ON DELETE CASCADE,
+  due_date date NOT NULL,
+  advice text,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'booked', 'done', 'cancelled')),
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.investigation_types (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  category text NOT NULL CHECK (category IN ('imaging', 'lab', 'pathology', 'nuclear', 'procedure', 'other')),
+  department_id uuid REFERENCES public.hospital_departments(id) ON DELETE SET NULL,
+  expected_report_min_days integer NOT NULL DEFAULT 1 CHECK (expected_report_min_days >= 0),
+  expected_report_max_days integer NOT NULL DEFAULT 1 CHECK (expected_report_max_days >= expected_report_min_days),
+  prep_instructions text,
+  emergency_slots_per_day integer NOT NULL DEFAULT 0 CHECK (emergency_slots_per_day >= 0),
+  reserved_slots_per_day integer NOT NULL DEFAULT 0 CHECK (reserved_slots_per_day >= 0),
+  is_active boolean NOT NULL DEFAULT true,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS public.investigation_resources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  type_id uuid NOT NULL REFERENCES public.investigation_types(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'maintenance', 'retired')),
+  slot_minutes integer NOT NULL DEFAULT 30 CHECK (slot_minutes > 0),
+  slots_per_day integer NOT NULL CHECK (slots_per_day >= 0),
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, type_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS public.resource_working_hours (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  resource_id uuid NOT NULL REFERENCES public.investigation_resources(id) ON DELETE CASCADE,
+  weekday smallint NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+  start_time time NOT NULL,
+  end_time time NOT NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_time > start_time),
+  UNIQUE (resource_id, weekday)
+);
+
+CREATE TABLE IF NOT EXISTS public.hospital_holidays (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  holiday_date date NOT NULL,
+  name text NOT NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, holiday_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.resource_closures (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  resource_id uuid REFERENCES public.investigation_resources(id) ON DELETE CASCADE,
+  start_date date NOT NULL,
+  end_date date NOT NULL,
+  reason text NOT NULL CHECK (reason IN ('holiday', 'maintenance', 'staff_unavailable')),
+  note text,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (end_date >= start_date)
+);
+
+CREATE TABLE IF NOT EXISTS public.investigation_slots (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  type_id uuid NOT NULL REFERENCES public.investigation_types(id) ON DELETE CASCADE,
+  resource_id uuid NOT NULL REFERENCES public.investigation_resources(id) ON DELETE CASCADE,
+  slot_start timestamptz NOT NULL,
+  slot_end timestamptz NOT NULL,
+  kind text NOT NULL DEFAULT 'normal' CHECK (kind IN ('normal', 'reserved', 'emergency')),
+  status text NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'booked', 'blocked', 'held')),
+  booked_order_id uuid,
+  held_for_order_id uuid,
+  held_until timestamptz,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (slot_end > slot_start),
+  UNIQUE (resource_id, slot_start)
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_slots_type_status_start ON public.investigation_slots (hospital_id, type_id, status, slot_start);
+
+CREATE TABLE IF NOT EXISTS public.investigation_orders (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  type_id uuid NOT NULL REFERENCES public.investigation_types(id) ON DELETE CASCADE,
+  ordered_by_doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  consultation_id uuid REFERENCES public.consultations(id) ON DELETE SET NULL,
+  priority text NOT NULL DEFAULT 'routine' CHECK (priority IN ('routine', 'urgent', 'clinically_priority', 'emergency')),
+  status text NOT NULL DEFAULT 'ordered' CHECK (status IN ('ordered', 'waitlisted', 'offered', 'scheduled', 'checked_in', 'performed', 'processing', 'report_ready', 'doctor_reviewed', 'cancelled')),
+  slot_id uuid REFERENCES public.investigation_slots(id) ON DELETE SET NULL,
+  scheduled_for timestamptz,
+  ordered_at timestamptz NOT NULL DEFAULT now(),
+  checked_in_at timestamptz,
+  performed_at timestamptz,
+  processing_at timestamptz,
+  report_ready_at timestamptz,
+  reviewed_at timestamptz,
+  expected_report_from date,
+  expected_report_to date,
+  needs_reschedule boolean NOT NULL DEFAULT false,
+  cancelled_at timestamptz,
+  cancel_reason text,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_orders_hospital_status ON public.investigation_orders (hospital_id, status, ordered_at DESC);
+CREATE INDEX IF NOT EXISTS idx_investigation_orders_patient ON public.investigation_orders (hospital_id, patient_id, ordered_at DESC);
+
+ALTER TABLE public.investigation_slots
+  DROP CONSTRAINT IF EXISTS investigation_slots_booked_order_id_fkey;
+ALTER TABLE public.investigation_slots
+  ADD CONSTRAINT investigation_slots_booked_order_id_fkey
+  FOREIGN KEY (booked_order_id) REFERENCES public.investigation_orders(id) ON DELETE SET NULL;
+ALTER TABLE public.follow_ups
+  ADD COLUMN IF NOT EXISTS depends_on_order_id uuid REFERENCES public.investigation_orders(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS public.investigation_order_notes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  order_id uuid NOT NULL UNIQUE REFERENCES public.investigation_orders(id) ON DELETE CASCADE,
+  notes text NOT NULL,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.investigation_waitlist (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  order_id uuid NOT NULL UNIQUE REFERENCES public.investigation_orders(id) ON DELETE CASCADE,
+  type_id uuid NOT NULL REFERENCES public.investigation_types(id) ON DELETE CASCADE,
+  priority_rank smallint NOT NULL CHECK (priority_rank BETWEEN 0 AND 3),
+  status text NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'offered', 'accepted', 'expired', 'cancelled')),
+  offered_slot_id uuid REFERENCES public.investigation_slots(id) ON DELETE SET NULL,
+  offer_expires_at timestamptz,
+  joined_at timestamptz NOT NULL DEFAULT now(),
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_waitlist_type_status_priority ON public.investigation_waitlist (hospital_id, type_id, status, priority_rank, joined_at);
+
+CREATE TABLE IF NOT EXISTS public.investigation_reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  order_id uuid NOT NULL REFERENCES public.investigation_orders(id) ON DELETE CASCADE,
+  storage_path text,
+  summary text,
+  abnormal_flag boolean NOT NULL DEFAULT false,
+  issued_at timestamptz NOT NULL DEFAULT now(),
+  reviewed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_investigation_reports_hospital_issued ON public.investigation_reports (hospital_id, issued_at DESC);
+
+CREATE TABLE IF NOT EXISTS public.investigation_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  order_id uuid NOT NULL REFERENCES public.investigation_orders(id) ON DELETE CASCADE,
+  event_type text NOT NULL,
+  from_status text,
+  to_status text,
+  actor_user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+  details jsonb NOT NULL DEFAULT '{}'::jsonb,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.priority_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  priority text NOT NULL CHECK (priority IN ('routine', 'urgent', 'clinically_priority', 'emergency')),
+  target_max_wait_days integer NOT NULL CHECK (target_max_wait_days >= 0),
+  allowed_slot_kinds text[] NOT NULL,
+  staff_approval_required boolean NOT NULL DEFAULT false,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, priority)
+);
+
+CREATE TABLE IF NOT EXISTS public.hospital_wards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  is_active boolean NOT NULL DEFAULT true,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (hospital_id, name)
+);
+CREATE TABLE IF NOT EXISTS public.hospital_beds (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  ward_id uuid NOT NULL REFERENCES public.hospital_wards(id) ON DELETE CASCADE,
+  bed_label text NOT NULL,
+  status text NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'occupied', 'cleaning', 'blocked')),
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (ward_id, bed_label)
+);
+CREATE INDEX IF NOT EXISTS idx_hospital_beds_hospital_status ON public.hospital_beds (hospital_id, status);
+CREATE TABLE IF NOT EXISTS public.hospital_admissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  hospital_id uuid NOT NULL REFERENCES public.hospital_orgs(id) ON DELETE CASCADE,
+  patient_id uuid NOT NULL REFERENCES public.hospital_patients(id) ON DELETE CASCADE,
+  ward_id uuid NOT NULL REFERENCES public.hospital_wards(id) ON DELETE CASCADE,
+  bed_id uuid NOT NULL REFERENCES public.hospital_beds(id) ON DELETE CASCADE,
+  admitting_doctor_id uuid REFERENCES public.hospital_doctors(id) ON DELETE SET NULL,
+  reason text,
+  status text NOT NULL DEFAULT 'admitted' CHECK (status IN ('admitted', 'transferred', 'discharged')),
+  admitted_at timestamptz NOT NULL DEFAULT now(),
+  discharged_at timestamptz,
+  is_demo boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_hospital_admissions_hospital_status ON public.hospital_admissions (hospital_id, status, admitted_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_hospital_admissions_active_bed ON public.hospital_admissions (bed_id) WHERE status IN ('admitted', 'transferred');
+
+CREATE TABLE IF NOT EXISTS public.link_code_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  attempted_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_link_code_attempts_user_time ON public.link_code_attempts (user_id, attempted_at DESC);
+
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS hospital_id uuid,
+  ADD COLUMN IF NOT EXISTS ref_table text,
+  ADD COLUMN IF NOT EXISTS ref_id uuid,
+  ADD COLUMN IF NOT EXISTS dedupe_key text;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_user_dedupe
+  ON public.notifications (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL;
+
+ALTER TABLE public.hospital_appointments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hospital_visits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.opd_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.queue_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consultations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.prescriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.prescription_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.follow_ups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resource_working_hours ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hospital_holidays ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resource_closures ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_order_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_waitlist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.investigation_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.priority_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hospital_wards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hospital_beds ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hospital_admissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.link_code_attempts ENABLE ROW LEVEL SECURITY;
+
+DO $policies$
+DECLARE
+  v_table text;
+  v_config_table text;
+  v_patient_tables text[] := ARRAY['hospital_appointments','hospital_visits','opd_sessions','queue_entries','investigation_orders','investigation_waitlist','investigation_slots','investigation_events','hospital_admissions','hospital_wards','hospital_beds'];
+  v_clinical_tables text[] := ARRAY['consultations','prescriptions','prescription_items','referrals','follow_ups'];
+  v_pipeline_tables text[] := ARRAY['investigation_reports','investigation_order_notes'];
+  v_member_tables text[] := ARRAY['investigation_types','investigation_resources','resource_working_hours','hospital_holidays','resource_closures','priority_rules'];
+  v_admin_tables text[] := ARRAY['investigation_types','investigation_resources','resource_working_hours','hospital_holidays','resource_closures','priority_rules','hospital_wards','hospital_beds'];
+BEGIN
+  FOREACH v_table IN ARRAY v_patient_tables LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table || '_hospital_select', v_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.hospital_has_cap(hospital_id, ''patients.read''))', v_table || '_hospital_select', v_table);
+  END LOOP;
+  FOREACH v_table IN ARRAY v_clinical_tables LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table || '_clinical_select', v_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.hospital_has_cap(hospital_id, ''clinical.read''))', v_table || '_clinical_select', v_table);
+  END LOOP;
+  FOREACH v_table IN ARRAY v_pipeline_tables LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table || '_pipeline_select', v_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.hospital_has_cap(hospital_id, ''clinical.read'') OR public.hospital_has_cap(hospital_id, ''orders.pipeline''))', v_table || '_pipeline_select', v_table);
+  END LOOP;
+  FOREACH v_table IN ARRAY v_member_tables LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_table || '_member_select', v_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR SELECT TO authenticated USING (public.is_hospital_member(hospital_id))', v_table || '_member_select', v_table);
+  END LOOP;
+  FOREACH v_config_table IN ARRAY v_admin_tables LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_config_table || '_admin_insert', v_config_table);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_config_table || '_admin_update', v_config_table);
+    EXECUTE format('DROP POLICY IF EXISTS %I ON public.%I', v_config_table || '_admin_delete', v_config_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR INSERT TO authenticated WITH CHECK (public.is_hospital_admin(hospital_id))', v_config_table || '_admin_insert', v_config_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR UPDATE TO authenticated USING (public.is_hospital_admin(hospital_id)) WITH CHECK (public.is_hospital_admin(hospital_id))', v_config_table || '_admin_update', v_config_table);
+    EXECUTE format('CREATE POLICY %I ON public.%I FOR DELETE TO authenticated USING (public.is_hospital_admin(hospital_id))', v_config_table || '_admin_delete', v_config_table);
+  END LOOP;
+END;
+$policies$;
+
+REVOKE ALL ON public.link_code_attempts FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON public.hospital_appointments, public.hospital_visits, public.opd_sessions, public.queue_entries,
+  public.consultations, public.prescriptions, public.prescription_items, public.referrals, public.follow_ups,
+  public.investigation_slots, public.investigation_orders, public.investigation_order_notes,
+  public.investigation_waitlist, public.investigation_reports, public.investigation_events,
+  public.hospital_admissions FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON public.hospital_appointments, public.hospital_visits, public.opd_sessions, public.queue_entries,
+  public.consultations, public.prescriptions, public.prescription_items, public.referrals, public.follow_ups,
+  public.investigation_types, public.investigation_resources, public.resource_working_hours,
+  public.hospital_holidays, public.resource_closures, public.investigation_slots, public.investigation_orders,
+  public.investigation_order_notes, public.investigation_waitlist, public.investigation_reports,
+  public.investigation_events, public.priority_rules, public.hospital_wards, public.hospital_beds,
+  public.hospital_admissions TO authenticated;
+GRANT INSERT, UPDATE, DELETE ON public.investigation_types, public.investigation_resources, public.resource_working_hours,
+  public.hospital_holidays, public.resource_closures, public.priority_rules, public.hospital_wards, public.hospital_beds TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.hospital_today(p_hospital_id uuid)
+RETURNS date LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$ SELECT (now() AT TIME ZONE COALESCE((SELECT h.timezone FROM public.hospital_orgs h WHERE h.id = p_hospital_id), 'Asia/Kolkata'))::date $fn$;
+CREATE OR REPLACE FUNCTION public.hospital_local_now(p_hospital_id uuid)
+RETURNS timestamp LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$ SELECT now() AT TIME ZONE COALESCE((SELECT h.timezone FROM public.hospital_orgs h WHERE h.id = p_hospital_id), 'Asia/Kolkata') $fn$;
+CREATE OR REPLACE FUNCTION public.hospital_setting(p_hospital_id uuid, p_key text, p_default jsonb DEFAULT 'null'::jsonb)
+RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$ SELECT COALESCE((SELECT h.settings -> p_key FROM public.hospital_orgs h WHERE h.id = p_hospital_id), p_default) $fn$;
+CREATE OR REPLACE FUNCTION public.hospital_normalize_id(p_hospital_id uuid, p_input text)
+RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_input text;
+  v_prefix text;
+BEGIN
+  IF p_input IS NULL OR NULLIF(btrim(p_input), '') IS NULL THEN RETURN NULL; END IF;
+  v_input := upper(regexp_replace(btrim(p_input), '[[:space:]_-]+', '', 'g'));
+  SELECT COALESCE(h.patient_id_prefix, '') INTO v_prefix FROM public.hospital_orgs h WHERE h.id = p_hospital_id;
+  IF v_input ~ '^[0-9]+$' THEN RETURN upper(regexp_replace(COALESCE(v_prefix, ''), '[[:space:]_-]+', '', 'g')) || v_input; END IF;
+  IF v_input ~ '^[A-Z]+[0-9]+$' THEN RETURN upper(regexp_replace(COALESCE(v_prefix, ''), '[[:space:]_-]+', '', 'g')) || substring(v_input FROM '([0-9]+)$'); END IF;
+  RETURN v_input;
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.hospital_log_event(p_hospital_id uuid, p_patient_id uuid, p_event_type text, p_details jsonb DEFAULT '{}'::jsonb, p_visible boolean DEFAULT false)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+BEGIN
+  INSERT INTO public.patient_journey_events (hospital_id, patient_id, actor_user_id, event_type, details, visible_to_patient)
+  VALUES (p_hospital_id, p_patient_id, auth.uid(), p_event_type, COALESCE(p_details, '{}'::jsonb), p_visible);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.hospital_notification_text(p_type text, p_lang text, p_params jsonb)
+RETURNS jsonb LANGUAGE sql IMMUTABLE SET search_path = public
+AS $fn$
+  SELECT jsonb_build_object(
+    'title', CASE p_type WHEN 'token_assigned' THEN CASE WHEN p_lang = 'hi' THEN 'टोकन आवंटित' ELSE 'Token assigned' END
+      WHEN 'queue_threshold' THEN CASE WHEN p_lang = 'hi' THEN 'आपकी बारी करीब है' ELSE 'Your turn is approaching' END
+      WHEN 'token_called' THEN CASE WHEN p_lang = 'hi' THEN 'कृपया डॉक्टर के पास आएं' ELSE 'Please see the doctor' END
+      WHEN 'slot_offer' THEN CASE WHEN p_lang = 'hi' THEN 'जांच का समय उपलब्ध' ELSE 'Investigation slot available' END
+      WHEN 'booking_confirmed' THEN CASE WHEN p_lang = 'hi' THEN 'जांच बुक हुई' ELSE 'Investigation booked' END
+      WHEN 'booking_changed' THEN CASE WHEN p_lang = 'hi' THEN 'जांच बुकिंग बदली' ELSE 'Investigation booking changed' END
+      WHEN 'report_ready' THEN CASE WHEN p_lang = 'hi' THEN 'रिपोर्ट तैयार है' ELSE 'Report ready' END ELSE p_type END,
+    'message', COALESCE(p_params ->> 'message', p_type)
+  )
+$fn$;
+CREATE OR REPLACE FUNCTION public.hospital_notify_patient(p_hospital_id uuid, p_patient_id uuid, p_type text, p_params jsonb DEFAULT '{}'::jsonb, p_dedupe text DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_user_id uuid;
+  v_lang text;
+  v_text jsonb;
+BEGIN
+  SELECT hp.patient_user_id, COALESCE(p.preferred_language, 'en') INTO v_user_id, v_lang
+  FROM public.hospital_patients hp LEFT JOIN public.profiles p ON p.id = hp.patient_user_id
+  WHERE hp.id = p_patient_id AND hp.hospital_id = p_hospital_id;
+  IF v_user_id IS NULL THEN RETURN; END IF;
+  v_text := public.hospital_notification_text(p_type, v_lang, p_params);
+  INSERT INTO public.notifications (user_id, type, title, message, hospital_id, ref_table, ref_id, dedupe_key)
+  VALUES (v_user_id, p_type, v_text ->> 'title', v_text ->> 'message', p_hospital_id, 'hospital_patients', p_patient_id, p_dedupe)
+  ON CONFLICT (user_id, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING;
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.add_working_days(p_hospital_id uuid, p_start date, p_days integer)
+RETURNS date LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_date date := p_start;
+  v_count integer := 0;
+  v_weekdays integer[];
+BEGIN
+  SELECT ARRAY(SELECT jsonb_array_elements_text(COALESCE(h.settings -> 'working_weekdays', '[1,2,3,4,5,6]'::jsonb))::integer)
+    INTO v_weekdays FROM public.hospital_orgs h WHERE h.id = p_hospital_id;
+  IF v_weekdays IS NULL THEN v_weekdays := ARRAY[1,2,3,4,5,6]; END IF;
+  WHILE v_count < GREATEST(p_days, 0) LOOP
+    v_date := v_date + 1;
+    IF extract(dow FROM v_date)::integer = ANY(v_weekdays)
+       AND NOT EXISTS (SELECT 1 FROM public.hospital_holidays hh WHERE hh.hospital_id = p_hospital_id AND hh.holiday_date = v_date) THEN
+      v_count := v_count + 1;
+    END IF;
+  END LOOP;
+  RETURN v_date;
+END;
+$fn$;
+
+REVOKE ALL ON FUNCTION public.hospital_today(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.hospital_local_now(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.hospital_setting(uuid, text, jsonb) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.hospital_normalize_id(uuid, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.hospital_log_event(uuid, uuid, text, jsonb, boolean) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.hospital_notification_text(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.hospital_notify_patient(uuid, uuid, text, jsonb, text) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.add_working_days(uuid, date, integer) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.hospital_today(uuid) FROM authenticated;
+REVOKE ALL ON FUNCTION public.hospital_local_now(uuid) FROM authenticated;
+REVOKE ALL ON FUNCTION public.hospital_setting(uuid, text, jsonb) FROM authenticated;
+REVOKE ALL ON FUNCTION public.add_working_days(uuid, date, integer) FROM authenticated;
+
+CREATE OR REPLACE FUNCTION public.seed_hospital_defaults(p_hospital_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_type record;
+  v_department_id uuid;
+  v_resource_id uuid;
+BEGIN
+  IF NOT public.is_hospital_admin(p_hospital_id) THEN
+    RAISE EXCEPTION 'hospital administrator required' USING ERRCODE = '42501';
+  END IF;
+  INSERT INTO public.hospital_departments (hospital_id, name, department_type)
+  VALUES (p_hospital_id, 'Medical Oncology', 'clinical'), (p_hospital_id, 'Radiation Oncology', 'clinical'),
+    (p_hospital_id, 'Surgical Oncology', 'clinical'), (p_hospital_id, 'Radiology', 'diagnostic'),
+    (p_hospital_id, 'Pathology', 'diagnostic'), (p_hospital_id, 'Nuclear Medicine', 'diagnostic')
+  ON CONFLICT (hospital_id, name) DO NOTHING;
+  SELECT id INTO v_department_id FROM public.hospital_departments WHERE hospital_id = p_hospital_id AND name = 'Radiology';
+  FOR v_type IN SELECT * FROM (VALUES
+    ('Mammography','imaging',2,5,4,1,1), ('CT Scan','imaging',1,3,12,1,1), ('MRI','imaging',2,5,6,1,1),
+    ('PET-CT','nuclear',3,7,5,1,1), ('X-Ray','imaging',0,1,30,0,0), ('Ultrasound','imaging',0,1,20,0,0),
+    ('Blood Tests','lab',1,2,100,0,0), ('Pathology','pathology',3,7,40,0,0), ('Biopsy','procedure',5,10,6,1,1),
+    ('Nuclear Medicine','nuclear',2,5,5,1,1)
+  ) AS t(type_name, type_category, min_days, max_days, daily_slots, emergency_slots, reserved_slots)
+  LOOP
+    INSERT INTO public.investigation_types (hospital_id, name, category, department_id, expected_report_min_days, expected_report_max_days, emergency_slots_per_day, reserved_slots_per_day)
+    VALUES (p_hospital_id, v_type.type_name, v_type.type_category, v_department_id, v_type.min_days, v_type.max_days, v_type.emergency_slots, v_type.reserved_slots)
+    ON CONFLICT (hospital_id, name) DO NOTHING;
+    SELECT id INTO v_resource_id FROM public.investigation_resources
+    WHERE hospital_id = p_hospital_id AND type_id = (SELECT id FROM public.investigation_types WHERE hospital_id = p_hospital_id AND name = v_type.type_name)
+    ORDER BY created_at LIMIT 1;
+    IF v_resource_id IS NULL THEN
+      INSERT INTO public.investigation_resources (hospital_id, type_id, name, slots_per_day)
+      SELECT p_hospital_id, id, v_type.type_name || ' 1', v_type.daily_slots FROM public.investigation_types
+      WHERE hospital_id = p_hospital_id AND name = v_type.type_name RETURNING id INTO v_resource_id;
+    END IF;
+    INSERT INTO public.resource_working_hours (hospital_id, resource_id, weekday, start_time, end_time)
+    SELECT p_hospital_id, v_resource_id, days.weekday,
+      CASE WHEN v_type.type_name IN ('X-Ray','Blood Tests') THEN time '08:00' ELSE time '09:00' END,
+      CASE WHEN v_type.type_name IN ('X-Ray','Blood Tests') THEN time '18:00' ELSE time '17:00' END
+    FROM generate_series(1, 6) AS days(weekday)
+    ON CONFLICT (resource_id, weekday) DO NOTHING;
+    v_resource_id := NULL;
+  END LOOP;
+  INSERT INTO public.priority_rules (hospital_id, priority, target_max_wait_days, allowed_slot_kinds, staff_approval_required)
+  VALUES (p_hospital_id, 'routine', 30, ARRAY['normal'], false),
+    (p_hospital_id, 'urgent', 14, ARRAY['normal','reserved'], true),
+    (p_hospital_id, 'clinically_priority', 7, ARRAY['normal','reserved'], true),
+    (p_hospital_id, 'emergency', 1, ARRAY['emergency','reserved','normal'], false)
+  ON CONFLICT (hospital_id, priority) DO NOTHING;
+  UPDATE public.hospital_orgs
+  SET settings = COALESCE(settings, '{}'::jsonb) || jsonb_build_object(
+    'default_consult_minutes', COALESCE(settings -> 'default_consult_minutes', '10'::jsonb),
+    'wait_factor_low', COALESCE(settings -> 'wait_factor_low', '0.75'::jsonb),
+    'wait_factor_high', COALESCE(settings -> 'wait_factor_high', '1.4'::jsonb),
+    'notify_thresholds', COALESCE(settings -> 'notify_thresholds', '[10,5]'::jsonb),
+    'session_delay_minutes', COALESCE(settings -> 'session_delay_minutes', '15'::jsonb),
+    'offer_hold_hours', COALESCE(settings -> 'offer_hold_hours', '24'::jsonb),
+    'slot_horizon_days', COALESCE(settings -> 'slot_horizon_days', '120'::jsonb),
+    'working_weekdays', COALESCE(settings -> 'working_weekdays', '[1,2,3,4,5,6]'::jsonb)
+  )
+  WHERE id = p_hospital_id;
+END;
+$fn$;
+REVOKE ALL ON FUNCTION public.seed_hospital_defaults(uuid) FROM PUBLIC, anon, authenticated;
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('hospital-reports', 'hospital-reports', false, 10485760, ARRAY['application/pdf','image/jpeg','image/png'])
+ON CONFLICT (id) DO NOTHING;
+DROP POLICY IF EXISTS hospital_reports_member_read ON storage.objects;
+DROP POLICY IF EXISTS hospital_reports_pipeline_insert ON storage.objects;
+CREATE POLICY hospital_reports_member_read ON storage.objects FOR SELECT TO authenticated
+USING (bucket_id = 'hospital-reports' AND public.is_hospital_member((split_part(name, '/', 1))::uuid)
+  AND (public.hospital_has_cap((split_part(name, '/', 1))::uuid, 'clinical.read') OR public.hospital_has_cap((split_part(name, '/', 1))::uuid, 'orders.pipeline')));
+CREATE POLICY hospital_reports_pipeline_insert ON storage.objects FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'hospital-reports' AND public.hospital_has_cap((split_part(name, '/', 1))::uuid, 'orders.pipeline'));
+
+DO $realtime$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'queue_entries') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.queue_entries; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'opd_sessions') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.opd_sessions; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'hospital_appointments') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.hospital_appointments; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'investigation_orders') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.investigation_orders; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'investigation_slots') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.investigation_slots; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'hospital_admissions') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.hospital_admissions; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'notifications') THEN ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications; END IF;
+  END IF;
+END;
+$realtime$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- 20261002110000_hospital_opd_rpcs.sql
+CREATE OR REPLACE FUNCTION public.search_hospital_patients(p_hospital_id uuid, p_query text, p_limit integer DEFAULT 8)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_query text := NULLIF(btrim(p_query), '');
+  v_norm text;
+  v_digits text;
+  v_result jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE = '42501'; END IF;
+  v_norm := public.hospital_normalize_id(p_hospital_id, v_query);
+  v_digits := regexp_replace(COALESCE(v_query, ''), '[^0-9]', '', 'g');
+  SELECT jsonb_build_object(
+    'patients', COALESCE((SELECT jsonb_agg(patient_json ORDER BY result_rank, name_similarity DESC)
+    FROM (SELECT jsonb_build_object(
+      'id', p.id, 'identifier', p.patient_identifier, 'name', p.name, 'age', p.age, 'gender', p.gender,
+      'mobile_masked', CASE WHEN p.mobile IS NULL THEN NULL ELSE repeat('X', greatest(length(p.mobile) - 4, 0)) || right(p.mobile, 4) END,
+      'today_status', qe.status, 'token', qe.token_number
+    ) AS patient_json,
+      CASE WHEN p.normalized_identifier = v_norm THEN 0 WHEN v_digits <> '' AND regexp_replace(COALESCE(p.mobile,''), '[^0-9]', '', 'g') LIKE '%' || v_digits || '%' THEN 1 ELSE 2 END AS result_rank,
+      similarity(p.name, COALESCE(v_query,'')) AS name_similarity, p.name
+    FROM public.hospital_patients p
+    LEFT JOIN LATERAL (
+      SELECT q.status, q.token_number FROM public.queue_entries q JOIN public.opd_sessions s ON s.id = q.session_id
+      WHERE q.hospital_id = p_hospital_id AND q.patient_id = p.id AND s.session_date = public.hospital_today(p_hospital_id)
+      ORDER BY q.created_at DESC LIMIT 1
+    ) qe ON true
+    WHERE p.hospital_id = p_hospital_id AND (v_query IS NULL OR p.normalized_identifier = v_norm
+      OR (v_digits <> '' AND regexp_replace(COALESCE(p.mobile,''), '[^0-9]', '', 'g') LIKE '%' || v_digits || '%')
+      OR p.name % v_query OR p.name ILIKE '%' || v_query || '%')
+    ORDER BY result_rank, name_similarity DESC LIMIT GREATEST(1, LEAST(COALESCE(p_limit,8),50))) result_rows), '[]'::jsonb),
+    'doctors', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', d.id, 'name', d.doctor_name, 'department', dep.name))
+      FROM public.hospital_doctors d LEFT JOIN public.hospital_departments dep ON dep.id = d.department_id
+      WHERE d.hospital_id = p_hospital_id AND d.is_active AND (v_query IS NULL OR d.doctor_name ILIKE '%' || v_query || '%' OR dep.name ILIKE '%' || v_query || '%')), '[]'::jsonb),
+    'departments', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', d.id, 'name', d.name)) FROM public.hospital_departments d
+      WHERE d.hospital_id = p_hospital_id AND d.is_active AND (v_query IS NULL OR d.name ILIKE '%' || v_query || '%')), '[]'::jsonb),
+    'appointments_today', COALESCE((SELECT jsonb_agg(jsonb_build_object('id', a.id, 'patient_id', a.patient_id, 'patient', p.name, 'doctor', d.doctor_name, 'scheduled_at', a.scheduled_at, 'status', a.status))
+      FROM public.hospital_appointments a JOIN public.hospital_patients p ON p.id = a.patient_id JOIN public.hospital_doctors d ON d.id = a.doctor_id
+      WHERE a.hospital_id = p_hospital_id AND (a.scheduled_at AT TIME ZONE (SELECT h.timezone FROM public.hospital_orgs h WHERE h.id = p_hospital_id))::date = public.hospital_today(p_hospital_id)
+        AND a.status IN ('scheduled','confirmed') AND (v_query IS NULL OR p.name ILIKE '%' || v_query || '%' OR d.doctor_name ILIKE '%' || v_query || '%')), '[]'::jsonb)
+  ) INTO v_result;
+  RETURN v_result;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.find_possible_duplicates(p_hospital_id uuid, p_name text, p_mobile text, p_dob date)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_result jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'patients.register') THEN RAISE EXCEPTION 'patients.register capability required' USING ERRCODE = '42501'; END IF;
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('id', p.id, 'identifier', p.patient_identifier, 'name', p.name, 'mobile_masked', CASE WHEN p.mobile IS NULL THEN NULL ELSE repeat('X', greatest(length(p.mobile)-4,0)) || right(p.mobile,4) END, 'dob', p.dob)), '[]'::jsonb)
+  INTO v_result FROM public.hospital_patients p WHERE p.hospital_id = p_hospital_id AND (
+    (p_mobile IS NOT NULL AND regexp_replace(COALESCE(p.mobile,''),'[^0-9]','','g') = regexp_replace(p_mobile,'[^0-9]','','g'))
+    OR (p_dob IS NOT NULL AND p.dob = p_dob AND similarity(p.name, COALESCE(p_name,'')) > 0.35));
+  RETURN v_result;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.import_hospital_patients(p_hospital_id uuid, p_rows jsonb, p_dry_run boolean DEFAULT true)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE
+  v_row jsonb; v_status text; v_message text; v_identifier text; v_patient_id uuid; v_output jsonb := '[]'::jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'patients.register') THEN RAISE EXCEPTION 'patients.register capability required' USING ERRCODE = '42501'; END IF;
+  IF jsonb_typeof(p_rows) <> 'array' THEN RAISE EXCEPTION 'Rows must be a JSON array' USING ERRCODE = '22023'; END IF;
+  FOR v_row IN SELECT value FROM jsonb_array_elements(p_rows) LOOP
+    v_identifier := public.hospital_normalize_id(p_hospital_id, v_row ->> 'identifier');
+    IF NULLIF(v_identifier,'') IS NULL OR NULLIF(btrim(v_row ->> 'name'),'') IS NULL THEN
+      v_status := 'error'; v_message := 'Identifier and name are required';
+    ELSIF EXISTS (SELECT 1 FROM public.hospital_patients WHERE hospital_id = p_hospital_id AND normalized_identifier = upper(regexp_replace(v_identifier,'[[:space:]_-]+','','g'))) THEN
+      v_status := 'duplicate'; v_message := 'Patient identifier already exists';
+    ELSIF p_dry_run THEN
+      v_status := 'new'; v_message := 'Ready to import';
+    ELSE
+      INSERT INTO public.hospital_patients (hospital_id, patient_identifier, name, mobile, dob, age, gender)
+      VALUES (p_hospital_id, v_identifier, btrim(v_row ->> 'name'), NULLIF(btrim(v_row ->> 'mobile'),''), NULLIF(v_row ->> 'dob','')::date, NULLIF(v_row ->> 'age','')::integer, NULLIF(v_row ->> 'gender',''))
+      ON CONFLICT (hospital_id, patient_identifier) DO NOTHING RETURNING id INTO v_patient_id;
+      IF v_patient_id IS NULL THEN v_status := 'duplicate'; v_message := 'Patient identifier already exists';
+      ELSE v_status := 'new'; v_message := 'Imported';
+        INSERT INTO public.hospital_access_audit (hospital_id, patient_id, actor_user_id, action, details) VALUES (p_hospital_id, v_patient_id, auth.uid(), 'patient.imported', jsonb_build_object('identifier',v_identifier));
+      END IF;
+    END IF;
+    v_output := v_output || jsonb_build_array(jsonb_build_object('row',v_row,'status',v_status,'message',v_message));
+  END LOOP;
+  RETURN jsonb_build_object('rows',v_output,'dry_run',p_dry_run);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_hospital_patient_record(p_hospital_id uuid, p_identifier text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_patient public.hospital_patients; v_result jsonb; v_clinical boolean;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE = '42501'; END IF;
+  SELECT * INTO v_patient FROM public.hospital_patients WHERE hospital_id = p_hospital_id AND normalized_identifier = upper(regexp_replace(public.hospital_normalize_id(p_hospital_id,p_identifier),'[[:space:]_-]+','','g'));
+  IF v_patient.id IS NULL THEN RAISE EXCEPTION 'Patient not found' USING ERRCODE = 'P0002'; END IF;
+  v_clinical := public.hospital_has_cap(p_hospital_id,'clinical.read');
+  INSERT INTO public.hospital_access_audit (hospital_id, patient_id, actor_user_id, action) VALUES (p_hospital_id,v_patient.id,auth.uid(),'patient.record_opened');
+  SELECT jsonb_build_object(
+    'patient',jsonb_build_object('id',v_patient.id,'identifier',v_patient.patient_identifier,'name',v_patient.name,'age',v_patient.age,'gender',v_patient.gender,'mobile',v_patient.mobile,'dob',v_patient.dob,'linked',v_patient.patient_user_id IS NOT NULL),
+    'today',jsonb_build_object('visit',(SELECT to_jsonb(v) FROM public.hospital_visits v WHERE v.hospital_id=p_hospital_id AND v.patient_id=v_patient.id AND v.visit_date=public.hospital_today(p_hospital_id) LIMIT 1),
+      'queue_entry',(SELECT to_jsonb(q) FROM public.queue_entries q JOIN public.opd_sessions s ON s.id=q.session_id WHERE q.hospital_id=p_hospital_id AND q.patient_id=v_patient.id AND s.session_date=public.hospital_today(p_hospital_id) ORDER BY q.created_at DESC LIMIT 1)),
+    'appointments',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',a.id,'scheduled_at',a.scheduled_at,'status',a.status,'kind',a.kind,'doctor',d.doctor_name,'department',dep.name) ORDER BY a.scheduled_at DESC) FROM public.hospital_appointments a LEFT JOIN public.hospital_doctors d ON d.id=a.doctor_id LEFT JOIN public.hospital_departments dep ON dep.id=a.department_id WHERE a.hospital_id=p_hospital_id AND a.patient_id=v_patient.id),'[]'::jsonb),
+    'orders',COALESCE((SELECT jsonb_agg(CASE WHEN v_clinical THEN jsonb_build_object('id',o.id,'type',t.name,'status',o.status,'priority',o.priority,'scheduled_for',o.scheduled_for,'expected_report_from',o.expected_report_from,'expected_report_to',o.expected_report_to) ELSE jsonb_build_object('status',o.status) END ORDER BY o.ordered_at DESC) FROM public.investigation_orders o JOIN public.investigation_types t ON t.id=o.type_id WHERE o.hospital_id=p_hospital_id AND o.patient_id=v_patient.id),'[]'::jsonb),
+    'consultations',CASE WHEN v_clinical THEN COALESCE((SELECT jsonb_agg(jsonb_build_object('id',c.id,'status',c.status,'complaint',c.complaint,'assessment',c.assessment,'plan',c.plan,'advice',c.advice,'version',c.version,'created_at',c.created_at) ORDER BY c.created_at DESC) FROM public.consultations c WHERE c.hospital_id=p_hospital_id AND c.patient_id=v_patient.id),'[]'::jsonb) ELSE '[]'::jsonb END,
+    'prescriptions',CASE WHEN v_clinical THEN COALESCE((SELECT jsonb_agg(jsonb_build_object('id',pr.id,'notes',pr.notes,'created_at',pr.created_at,'items',COALESCE((SELECT jsonb_agg(jsonb_build_object('medicine_name',pi.medicine_name,'dose',pi.dose,'frequency',pi.frequency,'duration',pi.duration,'instructions',pi.instructions) ORDER BY pi.created_at) FROM public.prescription_items pi WHERE pi.prescription_id=pr.id),'[]'::jsonb)) ORDER BY pr.created_at DESC) FROM public.prescriptions pr WHERE pr.hospital_id=p_hospital_id AND pr.patient_id=v_patient.id),'[]'::jsonb) ELSE '[]'::jsonb END,
+    'admissions',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',a.id,'ward',w.name,'bed',b.bed_label,'status',a.status,'admitted_at',a.admitted_at) ORDER BY a.admitted_at DESC) FROM public.hospital_admissions a JOIN public.hospital_wards w ON w.id=a.ward_id JOIN public.hospital_beds b ON b.id=a.bed_id WHERE a.hospital_id=p_hospital_id AND a.patient_id=v_patient.id),'[]'::jsonb),
+    'timeline',COALESCE((SELECT jsonb_agg(jsonb_build_object('event_type',e.event_type,'details',e.details,'created_at',e.created_at,'visible_to_patient',e.visible_to_patient) ORDER BY e.created_at DESC) FROM (SELECT * FROM public.patient_journey_events WHERE hospital_id=p_hospital_id AND patient_id=v_patient.id ORDER BY created_at DESC LIMIT 100) e),'[]'::jsonb),
+    'clinical_restricted',NOT v_clinical
+  ) INTO v_result;
+  RETURN v_result;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.export_hospital_patients(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_rows jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE='42501'; END IF;
+  SELECT COALESCE(jsonb_agg(jsonb_build_object('identifier',patient_identifier,'name',name,'mobile',mobile,'dob',dob,'age',age,'gender',gender,'is_demo',is_demo) ORDER BY patient_identifier),'[]'::jsonb)
+  INTO v_rows FROM public.hospital_patients WHERE hospital_id=p_hospital_id;
+  INSERT INTO public.hospital_access_audit(hospital_id,actor_user_id,action,details)
+  VALUES(p_hospital_id,auth.uid(),'patient.exported',jsonb_build_object('count',jsonb_array_length(v_rows)));
+  RETURN v_rows;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_opd_session(p_hospital_id uuid,p_doctor_id uuid,p_date date,p_start time,p_end time,p_room text,p_minutes integer DEFAULT 10)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_session public.opd_sessions;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.hospital_doctors WHERE id=p_doctor_id AND hospital_id=p_hospital_id AND is_active) THEN RAISE EXCEPTION 'Doctor not found in this hospital' USING ERRCODE='P0002'; END IF;
+  INSERT INTO public.opd_sessions(hospital_id,doctor_id,department_id,session_date,start_time,end_time,room,default_consult_minutes)
+  SELECT p_hospital_id,d.id,d.department_id,p_date,p_start,p_end,NULLIF(btrim(p_room),''),GREATEST(COALESCE(p_minutes,10),1) FROM public.hospital_doctors d WHERE d.id=p_doctor_id RETURNING * INTO v_session;
+  RETURN to_jsonb(v_session);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.set_session_status(p_session_id uuid,p_status text,p_note text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_session public.opd_sessions;
+BEGIN
+  IF p_status NOT IN ('open','paused','closed','scheduled') THEN RAISE EXCEPTION 'Invalid session status' USING ERRCODE='22023'; END IF;
+  SELECT * INTO v_session FROM public.opd_sessions WHERE id=p_session_id FOR UPDATE;
+  IF v_session.id IS NULL OR NOT public.hospital_has_cap(v_session.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  UPDATE public.opd_sessions SET status=p_status,delay_note=NULLIF(btrim(p_note),''),opened_at=CASE WHEN p_status='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN p_status='closed' THEN now() ELSE NULL END,updated_at=now() WHERE id=p_session_id RETURNING * INTO v_session;
+  RETURN to_jsonb(v_session);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.generate_default_sessions(p_hospital_id uuid,p_date date)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_count integer;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  INSERT INTO public.opd_sessions(hospital_id,doctor_id,department_id,session_date,start_time,end_time,room,default_consult_minutes)
+  SELECT p_hospital_id,d.id,d.department_id,p_date,time '09:00',time '13:00','OPD-' || row_number() OVER(ORDER BY d.doctor_name),COALESCE((public.hospital_setting(p_hospital_id,'default_consult_minutes','10'::jsonb))::text::integer,10)
+  FROM public.hospital_doctors d JOIN public.hospital_departments dep ON dep.id=d.department_id AND dep.department_type='clinical'
+  WHERE d.hospital_id=p_hospital_id AND d.is_active AND NOT EXISTS(SELECT 1 FROM public.opd_sessions s WHERE s.hospital_id=p_hospital_id AND s.doctor_id=d.id AND s.session_date=p_date)
+  ON CONFLICT (hospital_id,doctor_id,session_date,start_time) DO NOTHING;
+  GET DIAGNOSTICS v_count=ROW_COUNT;
+  RETURN jsonb_build_object('created',v_count);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_hospital_appointment(p_hospital_id uuid,p_patient_id uuid,p_doctor_id uuid,p_scheduled_at timestamptz,p_kind text,p_reason text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_appointment public.hospital_appointments;
+BEGIN
+  IF NOT (public.hospital_has_cap(p_hospital_id,'patients.register') OR public.hospital_has_cap(p_hospital_id,'queue.manage')) THEN RAISE EXCEPTION 'Appointment capability required' USING ERRCODE='42501'; END IF;
+  IF p_kind NOT IN ('opd','follow_up','referral') THEN RAISE EXCEPTION 'Invalid appointment kind' USING ERRCODE='22023'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.hospital_patients WHERE id=p_patient_id AND hospital_id=p_hospital_id) OR NOT EXISTS(SELECT 1 FROM public.hospital_doctors WHERE id=p_doctor_id AND hospital_id=p_hospital_id AND is_active) THEN RAISE EXCEPTION 'Patient or doctor not found in this hospital' USING ERRCODE='P0002'; END IF;
+  INSERT INTO public.hospital_appointments(hospital_id,patient_id,doctor_id,department_id,scheduled_at,kind,reason,created_by)
+  SELECT p_hospital_id,p_patient_id,d.id,d.department_id,p_scheduled_at,p_kind,NULLIF(btrim(p_reason),''),auth.uid() FROM public.hospital_doctors d WHERE d.id=p_doctor_id RETURNING * INTO v_appointment;
+  PERFORM public.hospital_log_event(p_hospital_id,p_patient_id,'appointment.booked',jsonb_build_object('appointment_id',v_appointment.id,'scheduled_at',p_scheduled_at),true);
+  RETURN to_jsonb(v_appointment);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.cancel_hospital_appointment(p_id uuid,p_reason text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_row public.hospital_appointments;
+BEGIN
+  SELECT * INTO v_row FROM public.hospital_appointments WHERE id=p_id FOR UPDATE;
+  IF v_row.id IS NULL OR NOT (public.hospital_has_cap(v_row.hospital_id,'patients.register') OR public.hospital_has_cap(v_row.hospital_id,'queue.manage')) THEN RAISE EXCEPTION 'Appointment capability required' USING ERRCODE='42501'; END IF;
+  UPDATE public.hospital_appointments SET status='cancelled',cancel_reason=NULLIF(btrim(p_reason),''),updated_at=now() WHERE id=p_id RETURNING * INTO v_row;
+  PERFORM public.hospital_log_event(v_row.hospital_id,v_row.patient_id,'appointment.cancelled',jsonb_build_object('appointment_id',p_id),true);
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.reschedule_hospital_appointment(p_id uuid,p_new_at timestamptz)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_row public.hospital_appointments; v_old timestamptz;
+BEGIN
+  SELECT * INTO v_row FROM public.hospital_appointments WHERE id=p_id FOR UPDATE;
+  IF v_row.id IS NULL OR NOT (public.hospital_has_cap(v_row.hospital_id,'patients.register') OR public.hospital_has_cap(v_row.hospital_id,'queue.manage')) THEN RAISE EXCEPTION 'Appointment capability required' USING ERRCODE='42501'; END IF;
+  v_old:=v_row.scheduled_at;
+  UPDATE public.hospital_appointments SET scheduled_at=p_new_at,status='scheduled',updated_at=now() WHERE id=p_id RETURNING * INTO v_row;
+  PERFORM public.hospital_log_event(v_row.hospital_id,v_row.patient_id,'appointment.rescheduled',jsonb_build_object('appointment_id',p_id,'previous_at',v_old,'scheduled_at',p_new_at),true);
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.hospital_check_in(p_hospital_id uuid,p_patient_id uuid,p_appointment_id uuid DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_visit public.hospital_visits; v_date date;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.hospital_patients WHERE id=p_patient_id AND hospital_id=p_hospital_id) THEN RAISE EXCEPTION 'Patient not found in this hospital' USING ERRCODE='P0002'; END IF;
+  IF p_appointment_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.hospital_appointments WHERE id=p_appointment_id AND hospital_id=p_hospital_id AND patient_id=p_patient_id) THEN RAISE EXCEPTION 'Appointment does not belong to this patient and hospital' USING ERRCODE='23514'; END IF;
+  v_date:=public.hospital_today(p_hospital_id);
+  INSERT INTO public.hospital_visits(hospital_id,patient_id,visit_date,checked_in_by) VALUES(p_hospital_id,p_patient_id,v_date,auth.uid()) ON CONFLICT(hospital_id,patient_id,visit_date) DO NOTHING;
+  SELECT * INTO v_visit FROM public.hospital_visits WHERE hospital_id=p_hospital_id AND patient_id=p_patient_id AND visit_date=v_date;
+  IF p_appointment_id IS NOT NULL THEN UPDATE public.hospital_appointments SET status='checked_in',updated_at=now() WHERE id=p_appointment_id AND status IN ('scheduled','confirmed'); END IF;
+  PERFORM public.hospital_log_event(p_hospital_id,p_patient_id,'Hospital Check-in',jsonb_build_object('visit_id',v_visit.id),true);
+  RETURN to_jsonb(v_visit);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.queue_wait_estimate(p_session_id uuid,p_ahead integer)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_hospital_id uuid; v_default numeric; v_avg numeric; v_low numeric; v_high numeric;
+BEGIN
+  SELECT hospital_id,default_consult_minutes INTO v_hospital_id,v_default FROM public.opd_sessions WHERE id=p_session_id;
+  SELECT COALESCE(avg(extract(epoch FROM (completed_at-started_at))/60.0),v_default) INTO v_avg FROM (
+    SELECT completed_at,started_at FROM public.queue_entries WHERE session_id=p_session_id AND status='completed' AND started_at IS NOT NULL AND completed_at IS NOT NULL ORDER BY completed_at DESC LIMIT 10
+  ) recent;
+  v_avg:=COALESCE(v_avg,v_default,10);
+  v_low:=ceil(GREATEST(p_ahead,0)*v_avg*COALESCE((public.hospital_setting(v_hospital_id,'wait_factor_low','0.75'::jsonb))::text::numeric,0.75));
+  v_high:=ceil(GREATEST(p_ahead,0)*v_avg*COALESCE((public.hospital_setting(v_hospital_id,'wait_factor_high','1.4'::jsonb))::text::numeric,1.4));
+  RETURN jsonb_build_object('low',v_low::integer,'high',GREATEST(v_high,v_low)::integer);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.hospital_queue_after_change(p_session_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry record; v_threshold integer; v_thresholds integer[]; v_hospital_id uuid; v_wait jsonb;
+BEGIN
+  SELECT hospital_id INTO v_hospital_id FROM public.opd_sessions WHERE id=p_session_id;
+  SELECT ARRAY(SELECT jsonb_array_elements_text(COALESCE(h.settings->'notify_thresholds','[10,5]'::jsonb))::integer) INTO v_thresholds FROM public.hospital_orgs h WHERE h.id=v_hospital_id;
+  FOR v_entry IN SELECT q.*,(SELECT count(*)::integer FROM public.queue_entries a WHERE a.session_id=q.session_id AND a.status IN ('waiting','called','in_consultation') AND (a.priority_rank,a.token_number)<(q.priority_rank,q.token_number)) AS ahead
+    FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status='waiting' ORDER BY q.priority_rank,q.token_number
+  LOOP
+    v_wait:=public.queue_wait_estimate(p_session_id,v_entry.ahead);
+    UPDATE public.queue_entries SET est_wait_low_min=(v_wait->>'low')::integer,est_wait_high_min=(v_wait->>'high')::integer,updated_at=now() WHERE id=v_entry.id;
+    FOR v_threshold IN SELECT unnest(COALESCE(v_thresholds,ARRAY[10,5])) LOOP
+      IF v_entry.ahead<=v_threshold AND NOT v_threshold=ANY(v_entry.notified_thresholds) THEN
+        PERFORM public.hospital_notify_patient(v_hospital_id,v_entry.patient_id,'queue_threshold',jsonb_build_object('message','Your turn is approaching','token',v_entry.token_number),'queue:'||v_entry.id||':t'||v_threshold);
+        UPDATE public.queue_entries SET notified_thresholds=array_append(notified_thresholds,v_threshold) WHERE id=v_entry.id;
+      END IF;
+    END LOOP;
+  END LOOP;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.join_queue(p_session_id uuid,p_patient_id uuid,p_appointment_id uuid DEFAULT NULL,p_priority smallint DEFAULT 3,p_reason text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_session public.opd_sessions; v_visit public.hospital_visits; v_entry public.queue_entries; v_token integer; v_wait jsonb; v_ahead integer;
+BEGIN
+  SELECT * INTO v_session FROM public.opd_sessions WHERE id=p_session_id FOR UPDATE;
+  IF v_session.id IS NULL OR NOT public.hospital_has_cap(v_session.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF v_session.status IN ('closed','paused') THEN RAISE EXCEPTION 'Session is not accepting queue entries' USING ERRCODE='23514'; END IF;
+  IF p_priority NOT BETWEEN 0 AND 3 OR (p_priority<3 AND NULLIF(btrim(p_reason),'') IS NULL) THEN RAISE EXCEPTION 'Priority requires a valid rank and reason' USING ERRCODE='22023'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.hospital_patients WHERE id=p_patient_id AND hospital_id=v_session.hospital_id) THEN RAISE EXCEPTION 'Patient does not belong to this hospital' USING ERRCODE='23514'; END IF;
+  IF p_appointment_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM public.hospital_appointments WHERE id=p_appointment_id AND hospital_id=v_session.hospital_id AND patient_id=p_patient_id) THEN RAISE EXCEPTION 'Appointment does not belong to this patient and hospital' USING ERRCODE='23514'; END IF;
+  UPDATE public.opd_sessions SET last_token=last_token+1,updated_at=now() WHERE id=p_session_id RETURNING last_token INTO v_token;
+  INSERT INTO public.hospital_visits(hospital_id,patient_id,visit_date,checked_in_by) VALUES(v_session.hospital_id,p_patient_id,public.hospital_today(v_session.hospital_id),auth.uid()) ON CONFLICT(hospital_id,patient_id,visit_date) DO NOTHING;
+  SELECT * INTO v_visit FROM public.hospital_visits WHERE hospital_id=v_session.hospital_id AND patient_id=p_patient_id AND visit_date=public.hospital_today(v_session.hospital_id);
+  INSERT INTO public.queue_entries(hospital_id,session_id,patient_id,appointment_id,visit_id,token_number,priority_rank,priority_reason,is_walk_in)
+  VALUES(v_session.hospital_id,p_session_id,p_patient_id,p_appointment_id,v_visit.id,v_token,p_priority,NULLIF(btrim(p_reason),''),p_appointment_id IS NULL) RETURNING * INTO v_entry;
+  SELECT count(*) INTO v_ahead FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status IN ('waiting','called','in_consultation') AND (q.priority_rank,q.token_number)<(v_entry.priority_rank,v_entry.token_number);
+  v_wait:=public.queue_wait_estimate(p_session_id,v_ahead);
+  UPDATE public.queue_entries SET est_wait_low_min=(v_wait->>'low')::integer,est_wait_high_min=(v_wait->>'high')::integer WHERE id=v_entry.id RETURNING * INTO v_entry;
+  PERFORM public.hospital_log_event(v_session.hospital_id,p_patient_id,'Queue Joined',jsonb_build_object('session_id',p_session_id,'token',v_token),true);
+  PERFORM public.hospital_log_event(v_session.hospital_id,p_patient_id,'Token Assigned',jsonb_build_object('token',v_token),true);
+  PERFORM public.hospital_notify_patient(v_session.hospital_id,p_patient_id,'token_assigned',jsonb_build_object('message','Your queue token is '||v_token),'token:'||v_entry.id);
+  PERFORM public.hospital_queue_after_change(p_session_id);
+  RETURN jsonb_build_object('entry',to_jsonb(v_entry),'position',v_ahead+1,'wait',v_wait);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.check_in_and_queue(p_hospital_id uuid,p_patient_id uuid,p_session_id uuid,p_appointment_id uuid DEFAULT NULL,p_priority smallint DEFAULT 3,p_reason text DEFAULT NULL)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_checkin jsonb; v_queue jsonb;
+BEGIN
+  v_checkin:=public.hospital_check_in(p_hospital_id,p_patient_id,p_appointment_id);
+  v_queue:=public.join_queue(p_session_id,p_patient_id,p_appointment_id,p_priority,p_reason);
+  RETURN jsonb_build_object('check_in',v_checkin,'queue',v_queue);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.call_next(p_session_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_session public.opd_sessions; v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_session FROM public.opd_sessions WHERE id=p_session_id FOR UPDATE;
+  IF v_session.id IS NULL OR NOT public.hospital_has_cap(v_session.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF v_session.status<>'open' THEN RAISE EXCEPTION 'Session must be open' USING ERRCODE='23514'; END IF;
+  SELECT * INTO v_entry FROM public.queue_entries WHERE session_id=p_session_id AND status='waiting' ORDER BY priority_rank,token_number LIMIT 1 FOR UPDATE SKIP LOCKED;
+  IF v_entry.id IS NULL THEN RETURN NULL; END IF;
+  UPDATE public.queue_entries SET status='called',called_at=now(),notified_called=true,updated_at=now() WHERE id=v_entry.id RETURNING * INTO v_entry;
+  PERFORM public.hospital_notify_patient(v_session.hospital_id,v_entry.patient_id,'token_called',jsonb_build_object('message','Please see the doctor','token',v_entry.token_number),'called:'||v_entry.id);
+  PERFORM public.hospital_log_event(v_session.hospital_id,v_entry.patient_id,'Token Called',jsonb_build_object('token',v_entry.token_number),true);
+  PERFORM public.hospital_queue_after_change(p_session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.call_token(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF v_entry.status<>'waiting' THEN RAISE EXCEPTION 'Queue entry is not waiting' USING ERRCODE='23514'; END IF;
+  UPDATE public.queue_entries SET status='called',called_at=now(),notified_called=true,updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  PERFORM public.hospital_notify_patient(v_entry.hospital_id,v_entry.patient_id,'token_called',jsonb_build_object('message','Please see the doctor','token',v_entry.token_number),'called:'||v_entry.id);
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_start(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF v_entry.status<>'called' THEN RAISE EXCEPTION 'Only called entries can start' USING ERRCODE='23514'; END IF;
+  UPDATE public.queue_entries SET status='in_consultation',started_at=now(),updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  UPDATE public.hospital_appointments SET status='in_consultation',updated_at=now() WHERE id=v_entry.appointment_id;
+  PERFORM public.hospital_log_event(v_entry.hospital_id,v_entry.patient_id,'Consultation Started',jsonb_build_object('token',v_entry.token_number),false);
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_complete(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF v_entry.status<>'in_consultation' THEN RAISE EXCEPTION 'Queue entry is not in consultation' USING ERRCODE='23514'; END IF;
+  UPDATE public.queue_entries SET status='completed',completed_at=now(),updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  UPDATE public.hospital_appointments SET status='completed',updated_at=now() WHERE id=v_entry.appointment_id;
+  PERFORM public.hospital_log_event(v_entry.hospital_id,v_entry.patient_id,'Consultation Completed',jsonb_build_object('token',v_entry.token_number),true);
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_skip(p_entry_id uuid,p_reason text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  UPDATE public.queue_entries SET status='skipped',priority_reason=NULLIF(btrim(p_reason),''),updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_requeue(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  UPDATE public.queue_entries SET status='waiting',called_at=NULL,started_at=NULL,completed_at=NULL,updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  PERFORM public.hospital_log_event(v_entry.hospital_id,v_entry.patient_id,'Queue Rejoined',jsonb_build_object('token',v_entry.token_number),true);
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_no_show(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  UPDATE public.queue_entries SET status='no_show',updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  UPDATE public.hospital_appointments SET status='no_show',updated_at=now() WHERE id=v_entry.appointment_id;
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.queue_set_priority(p_entry_id uuid,p_priority smallint,p_reason text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries; v_old smallint;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id FOR UPDATE;
+  IF v_entry.id IS NULL OR NOT public.hospital_has_cap(v_entry.hospital_id,'queue.manage') THEN RAISE EXCEPTION 'queue.manage capability required' USING ERRCODE='42501'; END IF;
+  IF p_priority NOT BETWEEN 0 AND 3 OR NULLIF(btrim(p_reason),'') IS NULL THEN RAISE EXCEPTION 'A valid priority and reason are required' USING ERRCODE='22023'; END IF;
+  v_old:=v_entry.priority_rank;
+  UPDATE public.queue_entries SET priority_rank=p_priority,priority_reason=btrim(p_reason),updated_at=now() WHERE id=p_entry_id RETURNING * INTO v_entry;
+  INSERT INTO public.hospital_access_audit(hospital_id,patient_id,actor_user_id,action,details) VALUES(v_entry.hospital_id,v_entry.patient_id,auth.uid(),'queue.priority_changed',jsonb_build_object('from',v_old,'to',p_priority,'reason',p_reason));
+  PERFORM public.hospital_log_event(v_entry.hospital_id,v_entry.patient_id,'Queue Priority Changed',jsonb_build_object('priority',p_priority,'reason',p_reason),false);
+  PERFORM public.hospital_queue_after_change(v_entry.session_id);
+  RETURN to_jsonb(v_entry);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_queue_state(p_session_id uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_session public.opd_sessions; v_result jsonb;
+BEGIN
+  SELECT * INTO v_session FROM public.opd_sessions WHERE id=p_session_id;
+  IF v_session.id IS NULL OR NOT public.hospital_has_cap(v_session.hospital_id,'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE='42501'; END IF;
+  SELECT jsonb_build_object('session',jsonb_build_object('id',v_session.id,'doctor',d.doctor_name,'department',dep.name,'room',v_session.room,'status',v_session.status,'delay_note',v_session.delay_note,'last_token',v_session.last_token),
+    'serving',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',q.id,'token',q.token_number,'patient',p.name,'status',q.status) ORDER BY q.token_number) FROM public.queue_entries q JOIN public.hospital_patients p ON p.id=q.patient_id WHERE q.session_id=p_session_id AND q.status IN ('called','in_consultation')),'[]'::jsonb),
+    'next_token',(SELECT q.token_number FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status='waiting' ORDER BY q.priority_rank,q.token_number LIMIT 1),
+    'waiting_count',(SELECT count(*) FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status='waiting'),
+    'completed_today',(SELECT count(*) FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status='completed'),
+    'avg_consult_min',(SELECT avg(extract(epoch FROM (completed_at-started_at))/60) FROM public.queue_entries q WHERE q.session_id=p_session_id AND q.status='completed' AND started_at IS NOT NULL),
+    'entries',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',q.id,'token',q.token_number,'patient',p.name,'identifier',p.patient_identifier,'priority',q.priority_rank,'priority_reason',q.priority_reason,'status',q.status,'joined_at',q.joined_at,'called_at',q.called_at,'patients_ahead',(SELECT count(*) FROM public.queue_entries a WHERE a.session_id=q.session_id AND a.status IN ('waiting','called','in_consultation') AND (a.priority_rank,a.token_number)<(q.priority_rank,q.token_number)),'est_low',q.est_wait_low_min,'est_high',q.est_wait_high_min,'is_walk_in',q.is_walk_in) ORDER BY CASE WHEN q.status='completed' THEN 1 ELSE 0 END,q.priority_rank,q.token_number)
+      FROM (SELECT * FROM public.queue_entries WHERE session_id=p_session_id AND status IN ('waiting','called','in_consultation') UNION ALL SELECT recent.* FROM (SELECT * FROM public.queue_entries WHERE session_id=p_session_id AND status='completed' ORDER BY completed_at DESC LIMIT 10) recent) q JOIN public.hospital_patients p ON p.id=q.patient_id),'[]'::jsonb)
+  ) INTO v_result FROM public.hospital_doctors d LEFT JOIN public.hospital_departments dep ON dep.id=d.department_id WHERE d.id=v_session.doctor_id;
+  INSERT INTO public.hospital_access_audit(hospital_id,actor_user_id,action,details) VALUES(v_session.hospital_id,auth.uid(),'queue.state_read',jsonb_build_object('session_id',p_session_id));
+  RETURN v_result;
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.get_today_sessions(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE='42501'; END IF;
+  RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('session_id',s.id,'doctor',d.doctor_name,'department',dep.name,'room',s.room,'status',s.status,'serving_token',(SELECT q.token_number FROM public.queue_entries q WHERE q.session_id=s.id AND q.status='in_consultation' ORDER BY q.token_number LIMIT 1),'next_token',(SELECT q.token_number FROM public.queue_entries q WHERE q.session_id=s.id AND q.status='waiting' ORDER BY q.priority_rank,q.token_number LIMIT 1),'waiting',(SELECT count(*) FROM public.queue_entries q WHERE q.session_id=s.id AND q.status='waiting'),'completed',(SELECT count(*) FROM public.queue_entries q WHERE q.session_id=s.id AND q.status='completed'),'delay_flag',s.delay_note IS NOT NULL) ORDER BY s.start_time)
+    FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id LEFT JOIN public.hospital_departments dep ON dep.id=s.department_id WHERE s.hospital_id=p_hospital_id AND s.session_date=public.hospital_today(p_hospital_id)),'[]'::jsonb);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.get_patient_queue_position(p_entry_id uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_entry public.queue_entries; v_ahead integer; v_wait jsonb;
+BEGIN
+  SELECT * INTO v_entry FROM public.queue_entries WHERE id=p_entry_id;
+  IF v_entry.id IS NULL OR NOT EXISTS(SELECT 1 FROM public.hospital_patients p WHERE p.id=v_entry.patient_id AND p.patient_user_id=auth.uid()) THEN RAISE EXCEPTION 'Linked patient record required' USING ERRCODE='42501'; END IF;
+  SELECT count(*) INTO v_ahead FROM public.queue_entries q WHERE q.session_id=v_entry.session_id AND q.status IN ('waiting','called','in_consultation') AND (q.priority_rank,q.token_number)<(v_entry.priority_rank,v_entry.token_number);
+  v_wait:=public.queue_wait_estimate(v_entry.session_id,v_ahead);
+  RETURN jsonb_build_object('token',v_entry.token_number,'patients_ahead',v_ahead,'est_low',v_wait->'low','est_high',v_wait->'high','status',v_entry.status);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.list_hospital_staff(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'staff.manage') THEN RAISE EXCEPTION 'staff.manage capability required' USING ERRCODE='42501'; END IF;
+  RETURN COALESCE((SELECT jsonb_agg(jsonb_build_object('user_id',m.user_id,'name',COALESCE(p.full_name,u.email),'email',u.email,'role',m.staff_role,'is_active',m.is_active,'is_demo',m.is_demo) ORDER BY p.full_name,m.staff_role)
+    FROM public.hospital_members m JOIN auth.users u ON u.id=m.user_id LEFT JOIN public.profiles p ON p.id=u.id WHERE m.hospital_id=p_hospital_id),'[]'::jsonb);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.hospital_command_center(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_result jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'patients.read') THEN RAISE EXCEPTION 'patients.read capability required' USING ERRCODE='42501'; END IF;
+  SELECT jsonb_build_object(
+    'kpis',jsonb_build_object('opd_patients_today',(SELECT count(*) FROM public.hospital_visits WHERE hospital_id=p_hospital_id AND visit_date=public.hospital_today(p_hospital_id)),'checked_in',(SELECT count(*) FROM public.hospital_visits WHERE hospital_id=p_hospital_id AND visit_date=public.hospital_today(p_hospital_id)),'waiting',(SELECT count(*) FROM public.queue_entries WHERE hospital_id=p_hospital_id AND status='waiting' AND session_id IN(SELECT id FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND session_date=public.hospital_today(p_hospital_id))),'in_consultation',(SELECT count(*) FROM public.queue_entries WHERE hospital_id=p_hospital_id AND status='in_consultation' AND session_id IN(SELECT id FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND session_date=public.hospital_today(p_hospital_id))),'pending_reports',(SELECT count(*) FROM public.investigation_orders WHERE hospital_id=p_hospital_id AND status IN('performed','processing','report_ready')),'admissions_today',(SELECT count(*) FROM public.hospital_admissions WHERE hospital_id=p_hospital_id AND admitted_at >= (public.hospital_today(p_hospital_id)::timestamp AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id)))),
+    'queues',public.get_today_sessions(p_hospital_id),
+    'action_required',COALESCE((SELECT jsonb_agg(jsonb_build_object('key',a.key,'severity',a.severity,'count',a.count,'href',a.href)) FROM (VALUES
+      ('reports_ready_for_review','warning',(SELECT count(*)::integer FROM public.investigation_orders WHERE hospital_id=p_hospital_id AND status='report_ready'),'/dashboard/hospital/investigations'),
+      ('waiting_beyond_estimate','warning',(SELECT count(*)::integer FROM public.queue_entries WHERE hospital_id=p_hospital_id AND status='waiting' AND est_wait_high_min IS NOT NULL AND extract(epoch FROM (now()-joined_at))/60>est_wait_high_min),'/dashboard/hospital/opd'),
+      ('pending_investigations','info',(SELECT count(*)::integer FROM public.investigation_orders WHERE hospital_id=p_hospital_id AND status IN('ordered','waitlisted','scheduled')),'/dashboard/hospital/investigations')
+    ) a(key,severity,count,href) WHERE a.count>0),'[]'::jsonb),
+    'checkins_by_hour',COALESCE((SELECT jsonb_agg(jsonb_build_object('hour',h.hour,'count',COALESCE(c.count,0)) ORDER BY h.hour) FROM generate_series(0,23) h(hour) LEFT JOIN (SELECT extract(hour FROM v.checked_in_at AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id))::integer AS hour,count(*) AS count FROM public.hospital_visits v WHERE v.hospital_id=p_hospital_id AND v.visit_date=public.hospital_today(p_hospital_id) GROUP BY 1) c ON c.hour=h.hour),'[]'::jsonb),
+    'opd_14_days',COALESCE((SELECT jsonb_agg(jsonb_build_object('date',d.day,'count',COALESCE(c.count,0)) ORDER BY d.day) FROM (SELECT generated_day::date AS day FROM generate_series(public.hospital_today(p_hospital_id)-13,public.hospital_today(p_hospital_id),'1 day') generated_day) d LEFT JOIN (SELECT visit_date,count(*) AS count FROM public.hospital_visits WHERE hospital_id=p_hospital_id GROUP BY visit_date) c ON c.visit_date=d.day),'[]'::jsonb),
+    'recent_events',COALESCE((SELECT jsonb_agg(jsonb_build_object('event_type',e.event_type,'patient',p.name,'created_at',e.created_at,'details',e.details) ORDER BY e.created_at DESC) FROM (SELECT * FROM public.patient_journey_events WHERE hospital_id=p_hospital_id ORDER BY created_at DESC LIMIT 20) e JOIN public.hospital_patients p ON p.id=e.patient_id),'[]'::jsonb)
+  ) INTO v_result;
+  RETURN v_result;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.demo_seed_opd(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_prefix text; v_today date; v_med uuid; v_rad uuid; v_surg uuid; v_raj uuid; v_suresh uuid; v_imran uuid; v_anjali uuid; v_kavita uuid; v_s1 uuid; v_s2 uuid; v_s3 uuid; v_s4 uuid; v_s5 uuid; v_inserted integer;
+BEGIN
+  SELECT patient_id_prefix INTO v_prefix FROM public.hospital_orgs WHERE id=p_hospital_id;
+  IF v_prefix IS NULL THEN RAISE EXCEPTION 'Hospital not found' USING ERRCODE='P0002'; END IF;
+  v_today:=public.hospital_today(p_hospital_id);
+  PERFORM public.seed_hospital_defaults(p_hospital_id);
+  SELECT id INTO v_med FROM public.hospital_departments WHERE hospital_id=p_hospital_id AND name='Medical Oncology';
+  SELECT id INTO v_rad FROM public.hospital_departments WHERE hospital_id=p_hospital_id AND name='Radiation Oncology';
+  SELECT id INTO v_surg FROM public.hospital_departments WHERE hospital_id=p_hospital_id AND name='Surgical Oncology';
+  INSERT INTO public.hospital_patients(hospital_id,patient_identifier,name,mobile,age,gender,is_demo)
+  SELECT p_hospital_id,v_prefix||lpad((24600+n)::text,5,'0'),(ARRAY['Aarav Sharma','Ananya Patel','Vihaan Mehta','Isha Nair','Arjun Rao','Diya Gupta','Kabir Iyer','Meera Das','Rohan Shah','Sana Khan'])[(n%10)+1],('90000000'||lpad((n%100)::text,2,'0')),28+(n%55),CASE WHEN n%2=0 THEN 'female' ELSE 'male' END,true
+  FROM generate_series(1,80) n ON CONFLICT DO NOTHING;
+  INSERT INTO public.hospital_doctors(hospital_id,department_id,doctor_name,specialty,is_demo)
+  VALUES(p_hospital_id,v_med,'Dr. Raj Sharma','Medical Oncology',true),(p_hospital_id,v_med,'Dr. Anjali Mehta','Medical Oncology',true),(p_hospital_id,v_rad,'Dr. Suresh Iyer','Radiation Oncology',true),(p_hospital_id,v_rad,'Dr. Kavita Rao','Radiation Oncology',true),(p_hospital_id,v_surg,'Dr. Imran Khan','Surgical Oncology',true),(p_hospital_id,v_surg,'Dr. Neha Gupta','Surgical Oncology',true)
+  ON CONFLICT(hospital_id,doctor_name) DO NOTHING;
+  SELECT id INTO v_raj FROM public.hospital_doctors WHERE hospital_id=p_hospital_id AND doctor_name='Dr. Raj Sharma';
+  SELECT id INTO v_anjali FROM public.hospital_doctors WHERE hospital_id=p_hospital_id AND doctor_name='Dr. Anjali Mehta';
+  SELECT id INTO v_suresh FROM public.hospital_doctors WHERE hospital_id=p_hospital_id AND doctor_name='Dr. Suresh Iyer';
+  SELECT id INTO v_kavita FROM public.hospital_doctors WHERE hospital_id=p_hospital_id AND doctor_name='Dr. Kavita Rao';
+  SELECT id INTO v_imran FROM public.hospital_doctors WHERE hospital_id=p_hospital_id AND doctor_name='Dr. Imran Khan';
+  INSERT INTO public.opd_sessions(hospital_id,doctor_id,department_id,session_date,start_time,end_time,room,status,last_token,is_demo)
+  VALUES(p_hospital_id,v_raj,v_med,v_today,time '08:00',time '14:00','4A','open',123,true),(p_hospital_id,v_suresh,v_rad,v_today,time '08:00',time '14:00','2B','open',8,true),(p_hospital_id,v_imran,v_surg,v_today,time '08:00',time '14:00','3C','paused',5,true),(p_hospital_id,v_anjali,v_med,v_today,time '14:00',time '18:00','4B','scheduled',0,true),(p_hospital_id,v_kavita,v_rad,v_today,time '08:00',time '12:00','2A','closed',15,true)
+  ON CONFLICT(hospital_id,doctor_id,session_date,start_time) DO NOTHING;
+  SELECT id INTO v_s1 FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND doctor_id=v_raj AND session_date=v_today AND start_time=time '08:00';
+  SELECT id INTO v_s2 FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND doctor_id=v_suresh AND session_date=v_today AND start_time=time '08:00';
+  SELECT id INTO v_s3 FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND doctor_id=v_imran AND session_date=v_today AND start_time=time '08:00';
+  SELECT id INTO v_s4 FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND doctor_id=v_anjali AND session_date=v_today AND start_time=time '14:00';
+  SELECT id INTO v_s5 FROM public.opd_sessions WHERE hospital_id=p_hospital_id AND doctor_id=v_kavita AND session_date=v_today AND start_time=time '08:00';
+  INSERT INTO public.hospital_visits(hospital_id,patient_id,visit_date,checked_in_at,is_demo)
+  SELECT p_hospital_id,p.id,v_today-days.day,((v_today-days.day)::timestamp+time '08:00'+(p.rn*interval '4 minutes')) AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id),true
+  FROM generate_series(1,13) days(day)
+  CROSS JOIN LATERAL (SELECT id,row_number() OVER(ORDER BY patient_identifier) rn FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier LIMIT (40+days.day*3)) p
+  ON CONFLICT(hospital_id,patient_id,visit_date) DO UPDATE SET is_demo=true;
+  INSERT INTO public.hospital_visits(hospital_id,patient_id,visit_date,checked_in_at,is_demo)
+  SELECT p_hospital_id,p.id,v_today,(v_today::timestamp + time '07:30' + (n*interval '5 minutes')) AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id),true
+  FROM (SELECT id,row_number() OVER(ORDER BY patient_identifier) n FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo LIMIT 80) p
+  WHERE p.n<=56 ON CONFLICT(hospital_id,patient_id,visit_date) DO UPDATE SET is_demo=true;
+  INSERT INTO public.queue_entries(hospital_id,session_id,patient_id,token_number,priority_rank,priority_reason,status,is_walk_in,joined_at,called_at,started_at,completed_at,est_wait_low_min,est_wait_high_min,is_demo)
+  SELECT p_hospital_id,v_s1,p.id,80+n,CASE WHEN n=23 THEN 0 WHEN n IN (24,25) THEN 1 WHEN n=26 THEN 2 ELSE 3 END,CASE WHEN n=23 THEN 'Emergency assessment' WHEN n IN(24,25) THEN 'Clinically urgent review' WHEN n=26 THEN 'Priority review' END,
+    CASE WHEN n<=21 THEN 'completed' WHEN n=22 THEN 'in_consultation' ELSE 'waiting' END,(n IN (24,30,35)),now()-((124-n)*interval '6 minutes'),CASE WHEN n<=22 THEN now()-((124-n)*interval '6 minutes') END,CASE WHEN n<=22 THEN now()-((124-n)*interval '6 minutes')+interval '2 minutes' END,CASE WHEN n<=21 THEN now()-((124-n)*interval '6 minutes')+interval '11 minutes' END,GREATEST(0,(123-n)*7),GREATEST(0,(123-n)*13),true
+  FROM (SELECT id,row_number() OVER(ORDER BY patient_identifier) n FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier LIMIT 43) p
+  WHERE n<=43 ON CONFLICT(session_id,token_number) DO NOTHING;
+  UPDATE public.queue_entries SET token_number=80+token_number-80 WHERE session_id=v_s1 AND is_demo;
+  INSERT INTO public.queue_entries(hospital_id,session_id,patient_id,token_number,priority_rank,status,is_demo,est_wait_low_min,est_wait_high_min)
+  SELECT p_hospital_id,v_s2,p.id,n,3,'waiting',true,20,40 FROM (SELECT id,row_number() OVER(ORDER BY patient_identifier) n FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier OFFSET 43 LIMIT 8) p
+  ON CONFLICT(session_id,token_number) DO NOTHING;
+  INSERT INTO public.queue_entries(hospital_id,session_id,patient_id,token_number,priority_rank,status,is_demo,est_wait_low_min,est_wait_high_min)
+  SELECT p_hospital_id,v_s3,p.id,n,3,'waiting',true,15,30 FROM (SELECT id,row_number() OVER(ORDER BY patient_identifier) n FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier OFFSET 51 LIMIT 5) p
+  ON CONFLICT(session_id,token_number) DO NOTHING;
+  INSERT INTO public.hospital_appointments(hospital_id,patient_id,doctor_id,department_id,scheduled_at,kind,status,source,is_demo)
+  SELECT p_hospital_id,p.id,v_anjali,v_med,(v_today::timestamp + time '09:00' + (n%6)*interval '30 minutes') AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id),'opd',CASE WHEN n<=3 THEN 'confirmed' ELSE 'scheduled' END,'staff',true
+  FROM (SELECT id,row_number() OVER(ORDER BY patient_identifier) n FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier LIMIT 6) p;
+  INSERT INTO public.hospital_appointments(hospital_id,patient_id,doctor_id,department_id,scheduled_at,kind,status,source,is_demo)
+  SELECT p_hospital_id,p.id,v_raj,v_med,((v_today+n)::timestamp+time '10:00') AT TIME ZONE (SELECT timezone FROM public.hospital_orgs WHERE id=p_hospital_id),'opd','scheduled','staff',true
+  FROM generate_series(1,7) n CROSS JOIN LATERAL (SELECT id FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo ORDER BY patient_identifier OFFSET (n*5) LIMIT 5) p;
+  INSERT INTO public.patient_journey_events(hospital_id,patient_id,actor_user_id,event_type,details,visible_to_patient,is_demo)
+  SELECT p_hospital_id,p.patient_id,auth.uid(),'Hospital Check-in',jsonb_build_object('demo',true),true,true FROM public.hospital_visits p WHERE p.hospital_id=p_hospital_id AND p.is_demo AND p.visit_date=v_today
+  ON CONFLICT DO NOTHING;
+  INSERT INTO public.patient_journey_events(hospital_id,patient_id,actor_user_id,event_type,details,visible_to_patient,is_demo)
+  SELECT p_hospital_id,q.patient_id,auth.uid(),'Queue Joined',jsonb_build_object('token',q.token_number,'session_id',q.session_id),true,true
+  FROM public.queue_entries q WHERE q.hospital_id=p_hospital_id AND q.is_demo;
+  INSERT INTO public.patient_journey_events(hospital_id,patient_id,actor_user_id,event_type,details,visible_to_patient,is_demo)
+  SELECT p_hospital_id,q.patient_id,auth.uid(),'Token Assigned',jsonb_build_object('token',q.token_number),true,true
+  FROM public.queue_entries q WHERE q.hospital_id=p_hospital_id AND q.is_demo;
+  SELECT count(*) INTO v_inserted FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo;
+  RETURN jsonb_build_object('patients',v_inserted,'sessions',5,'main_session',v_s1);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.demo_remove(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_count integer;
+BEGIN
+  UPDATE public.investigation_slots s SET status='open',booked_order_id=NULL,held_for_order_id=NULL,held_until=NULL
+  WHERE s.hospital_id=p_hospital_id AND (s.booked_order_id IN(SELECT id FROM public.investigation_orders WHERE hospital_id=p_hospital_id AND is_demo) OR s.held_for_order_id IN(SELECT id FROM public.investigation_orders WHERE hospital_id=p_hospital_id AND is_demo));
+  DELETE FROM public.patient_journey_events WHERE hospital_id=p_hospital_id AND is_demo;
+  DELETE FROM public.hospital_appointments WHERE hospital_id=p_hospital_id AND is_demo;
+  DELETE FROM public.queue_entries WHERE hospital_id=p_hospital_id AND is_demo;
+  DELETE FROM public.hospital_visits WHERE hospital_id=p_hospital_id AND is_demo;
+  DELETE FROM public.notifications WHERE hospital_id=p_hospital_id AND dedupe_key LIKE 'hospital-demo:%';
+  DELETE FROM public.hospital_patients WHERE hospital_id=p_hospital_id AND is_demo;
+  DELETE FROM public.opd_sessions s WHERE s.hospital_id=p_hospital_id AND s.is_demo
+    AND NOT EXISTS(SELECT 1 FROM public.queue_entries q WHERE q.session_id=s.id);
+  DELETE FROM public.hospital_doctors d WHERE d.hospital_id=p_hospital_id AND d.is_demo
+    AND NOT EXISTS(SELECT 1 FROM public.opd_sessions s WHERE s.doctor_id=d.id)
+    AND NOT EXISTS(SELECT 1 FROM public.hospital_appointments a WHERE a.doctor_id=d.id AND NOT a.is_demo);
+  DELETE FROM public.hospital_beds b WHERE b.hospital_id=p_hospital_id AND b.is_demo
+    AND NOT EXISTS(SELECT 1 FROM public.hospital_admissions a WHERE a.bed_id=b.id AND NOT a.is_demo);
+  DELETE FROM public.hospital_wards w WHERE w.hospital_id=p_hospital_id AND w.is_demo
+    AND NOT EXISTS(SELECT 1 FROM public.hospital_beds b WHERE b.ward_id=w.id);
+  DELETE FROM public.hospital_members WHERE hospital_id=p_hospital_id AND user_id=auth.uid() AND is_demo;
+  UPDATE public.hospital_orgs SET demo_data_loaded=false,updated_at=now() WHERE id=p_hospital_id;
+  GET DIAGNOSTICS v_count=ROW_COUNT;
+  RETURN jsonb_build_object('removed',true,'org_updated',v_count);
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.load_demo_data(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+DECLARE v_result jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'config.manage') THEN RAISE EXCEPTION 'config.manage capability required' USING ERRCODE='42501'; END IF;
+  PERFORM public.demo_remove(p_hospital_id);
+  PERFORM public.seed_hospital_defaults(p_hospital_id);
+  v_result:=public.demo_seed_opd(p_hospital_id);
+  INSERT INTO public.hospital_members(hospital_id,user_id,staff_role,is_demo)
+  SELECT p_hospital_id,auth.uid(),r.role_name,true FROM unnest(ARRAY['hospital_admin','front_desk','nurse','doctor','lab_tech','radiology_tech','admissions_staff']) r(role_name)
+  ON CONFLICT(hospital_id,user_id,staff_role) DO NOTHING;
+  UPDATE public.hospital_orgs SET demo_data_loaded=true,updated_at=now() WHERE id=p_hospital_id;
+  INSERT INTO public.hospital_access_audit(hospital_id,actor_user_id,action,details) VALUES(p_hospital_id,auth.uid(),'demo_data.loaded',v_result);
+  RETURN v_result;
+END;
+$fn$;
+CREATE OR REPLACE FUNCTION public.remove_demo_data(p_hospital_id uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id,'config.manage') THEN RAISE EXCEPTION 'config.manage capability required' USING ERRCODE='42501'; END IF;
+  RETURN public.demo_remove(p_hospital_id);
+END;
+$fn$;
+
+DO $grants$
+DECLARE v_sig text; v_name text;
+BEGIN
+  FOR v_name,v_sig IN SELECT * FROM (VALUES
+    ('search_hospital_patients','uuid, text, integer'),('find_possible_duplicates','uuid, text, text, date'),('import_hospital_patients','uuid, jsonb, boolean'),('get_hospital_patient_record','uuid, text'),('export_hospital_patients','uuid'),
+    ('create_opd_session','uuid, uuid, date, time, time, text, integer'),('set_session_status','uuid, text, text'),('generate_default_sessions','uuid, date'),
+    ('create_hospital_appointment','uuid, uuid, uuid, timestamptz, text, text'),('cancel_hospital_appointment','uuid, text'),('reschedule_hospital_appointment','uuid, timestamptz'),('hospital_check_in','uuid, uuid, uuid'),
+    ('queue_wait_estimate','uuid, integer'),('hospital_queue_after_change','uuid'),('join_queue','uuid, uuid, uuid, smallint, text'),('check_in_and_queue','uuid, uuid, uuid, uuid, smallint, text'),
+    ('call_next','uuid'),('call_token','uuid'),('queue_start','uuid'),('queue_complete','uuid'),('queue_skip','uuid, text'),('queue_requeue','uuid'),('queue_no_show','uuid'),('queue_set_priority','uuid, smallint, text'),
+    ('get_queue_state','uuid'),('get_today_sessions','uuid'),('get_patient_queue_position','uuid'),('list_hospital_staff','uuid'),('hospital_command_center','uuid'),('demo_seed_opd','uuid'),('demo_remove','uuid'),('load_demo_data','uuid'),('remove_demo_data','uuid')
+  ) AS signatures(function_name, arg_types) LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC, anon',v_name,v_sig);
+    IF v_name NOT IN ('hospital_queue_after_change','demo_seed_opd','demo_remove','queue_wait_estimate') THEN
+      EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I(%s) TO authenticated',v_name,v_sig);
+    ELSE
+      EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM authenticated',v_name,v_sig);
+    END IF;
+  END LOOP;
+END;
+$grants$;
+
+NOTIFY pgrst, 'reload schema';
+
+-- 20261002120000_hospital_clinical_rpcs.sql
+CREATE OR REPLACE FUNCTION public.start_consultation_record(
+  p_hospital_id uuid,
+  p_patient_id uuid,
+  p_queue_entry_id uuid DEFAULT NULL,
+  p_doctor_id uuid DEFAULT NULL,
+  p_session_id uuid DEFAULT NULL,
+  p_complaint text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.consultations;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.consultations (
+    hospital_id, patient_id, queue_entry_id, session_id, doctor_id, complaint, status, version
+  ) VALUES (
+    p_hospital_id, p_patient_id, p_queue_entry_id, p_session_id, p_doctor_id, NULLIF(btrim(p_complaint), ''), 'draft', 1
+  ) RETURNING * INTO v_row;
+
+  IF p_queue_entry_id IS NOT NULL THEN
+    UPDATE public.queue_entries
+      SET status = 'in_consultation', started_at = COALESCE(started_at, now()), updated_at = now()
+      WHERE id = p_queue_entry_id AND hospital_id = p_hospital_id;
+  END IF;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.save_consultation_draft(
+  p_consultation_id uuid,
+  p_complaint text DEFAULT NULL,
+  p_assessment text DEFAULT NULL,
+  p_plan text DEFAULT NULL,
+  p_advice text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.consultations;
+BEGIN
+  SELECT * INTO v_row
+  FROM public.consultations
+  WHERE id = p_consultation_id
+  FOR UPDATE;
+
+  IF v_row.id IS NULL THEN
+    RAISE EXCEPTION 'Consultation not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT public.hospital_has_cap(v_row.hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.consultations
+  SET complaint = COALESCE(NULLIF(btrim(p_complaint), ''), complaint),
+      assessment = COALESCE(NULLIF(btrim(p_assessment), ''), assessment),
+      plan = COALESCE(NULLIF(btrim(p_plan), ''), plan),
+      advice = COALESCE(NULLIF(btrim(p_advice), ''), advice),
+      updated_at = now()
+  WHERE id = p_consultation_id
+  RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.finalize_consultation(
+  p_consultation_id uuid,
+  p_assessment text DEFAULT NULL,
+  p_plan text DEFAULT NULL,
+  p_advice text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.consultations;
+BEGIN
+  SELECT * INTO v_row
+  FROM public.consultations
+  WHERE id = p_consultation_id
+  FOR UPDATE;
+
+  IF v_row.id IS NULL THEN
+    RAISE EXCEPTION 'Consultation not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT public.hospital_has_cap(v_row.hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.consultations
+  SET assessment = COALESCE(NULLIF(btrim(p_assessment), ''), assessment),
+      plan = COALESCE(NULLIF(btrim(p_plan), ''), plan),
+      advice = COALESCE(NULLIF(btrim(p_advice), ''), advice),
+      status = 'final',
+      finalised_at = now(),
+      updated_at = now()
+  WHERE id = p_consultation_id
+  RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.amend_consultation(
+  p_consultation_id uuid,
+  p_message text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_old public.consultations;
+  v_new public.consultations;
+BEGIN
+  SELECT * INTO v_old FROM public.consultations WHERE id = p_consultation_id;
+  IF v_old.id IS NULL THEN
+    RAISE EXCEPTION 'Consultation not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT public.hospital_has_cap(v_old.hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.consultations (
+    hospital_id, patient_id, queue_entry_id, session_id, doctor_id,
+    complaint, assessment, plan, advice, status, version, parent_id, created_by, is_demo
+  )
+  VALUES (
+    v_old.hospital_id, v_old.patient_id, v_old.queue_entry_id, v_old.session_id, v_old.doctor_id,
+    NULLIF(btrim(p_message), '') || COALESCE(' | ' || v_old.complaint, ''),
+    v_old.assessment, v_old.plan, v_old.advice, 'draft', v_old.version + 1, v_old.id, auth.uid(), false
+  ) RETURNING * INTO v_new;
+
+  RETURN to_jsonb(v_new);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_prescription(
+  p_hospital_id uuid,
+  p_consultation_id uuid,
+  p_patient_id uuid,
+  p_doctor_id uuid,
+  p_notes text DEFAULT NULL,
+  p_items jsonb DEFAULT '[]'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_prescription public.prescriptions;
+  v_item jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.prescriptions (hospital_id, patient_id, consultation_id, doctor_id, notes)
+  VALUES (p_hospital_id, p_patient_id, p_consultation_id, p_doctor_id, NULLIF(btrim(p_notes), ''))
+  RETURNING * INTO v_prescription;
+
+  FOR v_item IN SELECT value FROM jsonb_array_elements(COALESCE(p_items, '[]'::jsonb)) LOOP
+    INSERT INTO public.prescription_items (
+      hospital_id, prescription_id, medicine_name, dose, frequency, duration, instructions
+    ) VALUES (
+      p_hospital_id,
+      v_prescription.id,
+      COALESCE(v_item->>'medicine_name', 'Medication'),
+      v_item->>'dose',
+      v_item->>'frequency',
+      v_item->>'duration',
+      v_item->>'instructions'
+    );
+  END LOOP;
+
+  RETURN to_jsonb(v_prescription);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_referral(
+  p_hospital_id uuid,
+  p_patient_id uuid,
+  p_from_consultation_id uuid,
+  p_from_doctor_id uuid,
+  p_to_department_id uuid,
+  p_to_doctor_id uuid DEFAULT NULL,
+  p_priority text DEFAULT 'routine',
+  p_reason text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.referrals;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.referrals (
+    hospital_id, patient_id, from_consultation_id, from_doctor_id,
+    to_department_id, to_doctor_id, priority, reason, status
+  ) VALUES (
+    p_hospital_id, p_patient_id, p_from_consultation_id, p_from_doctor_id,
+    p_to_department_id, p_to_doctor_id, p_priority, NULLIF(btrim(p_reason), ''), 'pending'
+  ) RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.accept_referral(p_referral_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.referrals;
+BEGIN
+  SELECT * INTO v_row FROM public.referrals WHERE id = p_referral_id FOR UPDATE;
+  IF v_row.id IS NULL THEN
+    RAISE EXCEPTION 'Referral not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT public.hospital_has_cap(v_row.hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.referrals
+  SET status = 'accepted', updated_at = now()
+  WHERE id = p_referral_id
+  RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.schedule_follow_up(
+  p_hospital_id uuid,
+  p_patient_id uuid,
+  p_consultation_id uuid,
+  p_due_date date,
+  p_advice text DEFAULT NULL,
+  p_depends_on_order_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.follow_ups;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.follow_ups (
+    hospital_id, patient_id, consultation_id, due_date, advice, depends_on_order_id, status
+  ) VALUES (
+    p_hospital_id, p_patient_id, p_consultation_id, p_due_date, NULLIF(btrim(p_advice), ''), p_depends_on_order_id, 'pending'
+  ) RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_consultation_context(p_hospital_id uuid, p_patient_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_patient public.hospital_patients;
+  v_consultations jsonb;
+  v_prescriptions jsonb;
+  v_followups jsonb;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.read') THEN
+    RAISE EXCEPTION 'clinical.read capability required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_patient
+  FROM public.hospital_patients
+  WHERE id = p_patient_id AND hospital_id = p_hospital_id;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY c.created_at DESC), '[]'::jsonb)
+  INTO v_consultations
+  FROM public.consultations c
+  WHERE c.hospital_id = p_hospital_id AND c.patient_id = p_patient_id;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(p) ORDER BY p.created_at DESC), '[]'::jsonb)
+  INTO v_prescriptions
+  FROM public.prescriptions p
+  WHERE p.hospital_id = p_hospital_id AND p.patient_id = p_patient_id;
+
+  SELECT COALESCE(jsonb_agg(to_jsonb(f) ORDER BY f.due_date ASC), '[]'::jsonb)
+  INTO v_followups
+  FROM public.follow_ups f
+  WHERE f.hospital_id = p_hospital_id AND f.patient_id = p_patient_id;
+
+  RETURN jsonb_build_object(
+    'patient', to_jsonb(v_patient),
+    'consultations', v_consultations,
+    'prescriptions', v_prescriptions,
+    'follow_ups', v_followups
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.demo_seed_clinical(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_patient uuid;
+  v_doctor uuid;
+  v_session uuid;
+  v_queue uuid;
+  v_consultation uuid;
+  v_count integer := 0;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'clinical.write') THEN
+    RAISE EXCEPTION 'clinical.write capability required' USING ERRCODE = '42501';
+  END IF;
+
+  FOR v_patient IN
+    SELECT id FROM public.hospital_patients WHERE hospital_id = p_hospital_id AND is_demo ORDER BY patient_identifier LIMIT 40
+  LOOP
+    SELECT id INTO v_doctor FROM public.hospital_doctors WHERE hospital_id = p_hospital_id AND is_demo ORDER BY doctor_name LIMIT 1;
+    SELECT id INTO v_session FROM public.opd_sessions WHERE hospital_id = p_hospital_id AND is_demo ORDER BY session_date, start_time LIMIT 1;
+
+    INSERT INTO public.consultations (hospital_id, patient_id, doctor_id, session_id, complaint, assessment, plan, advice, status, version, is_demo)
+    VALUES (p_hospital_id, v_patient, v_doctor, v_session, 'Follow-up review', 'Stable condition', 'Continue surveillance', 'Hydration and review', 'final', 1, true)
+    RETURNING id INTO v_consultation;
+
+    INSERT INTO public.prescriptions (hospital_id, patient_id, consultation_id, doctor_id, notes, is_demo)
+    VALUES (p_hospital_id, v_patient, v_consultation, v_doctor, 'Daily continuation plan', true);
+
+    INSERT INTO public.referrals (hospital_id, patient_id, from_doctor_id, to_department_id, priority, reason, status, is_demo)
+    SELECT p_hospital_id, v_patient, v_doctor, d.id, 'routine', 'Clinical follow-up', 'accepted', true
+    FROM public.hospital_departments d
+    WHERE d.hospital_id = p_hospital_id AND d.department_type = 'diagnostic'
+    LIMIT 1;
+
+    INSERT INTO public.follow_ups (hospital_id, patient_id, consultation_id, due_date, advice, status, is_demo)
+    VALUES (p_hospital_id, v_patient, v_consultation, current_date + (v_count % 10) + 7, 'Return in 2 weeks', 'pending', true);
+
+    v_count := v_count + 1;
+  END LOOP;
+
+  RETURN jsonb_build_object('consultations_created', v_count);
+END;
+$fn$;
+
+-- 20261002130000_hospital_investigations_admissions_rpcs.sql
+CREATE OR REPLACE FUNCTION public.generate_investigation_slots(
+  p_hospital_id uuid,
+  p_type_id uuid,
+  p_resource_id uuid,
+  p_days integer DEFAULT 30
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  WITH days AS (
+    SELECT generate_series(current_date, current_date + p_days, interval '1 day')::date AS d
+  )
+  INSERT INTO public.investigation_slots (hospital_id, type_id, resource_id, slot_start, slot_end, kind, status)
+  SELECT p_hospital_id, p_type_id, p_resource_id,
+         (d::timestamp + time '09:00')::timestamptz,
+         (d::timestamp + time '09:30')::timestamptz,
+         'normal', 'open'
+  FROM days
+  ON CONFLICT (resource_id, slot_start) DO NOTHING;
+
+  RETURN jsonb_build_object('type_id', p_type_id, 'resource_id', p_resource_id, 'days', p_days);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.regenerate_investigation_slots(
+  p_hospital_id uuid,
+  p_type_id uuid,
+  p_resource_id uuid,
+  p_days integer DEFAULT 30
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  DELETE FROM public.investigation_slots WHERE hospital_id = p_hospital_id AND type_id = p_type_id AND resource_id = p_resource_id;
+  RETURN public.generate_investigation_slots(p_hospital_id, p_type_id, p_resource_id, p_days);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.preview_slot_regeneration(
+  p_hospital_id uuid,
+  p_type_id uuid,
+  p_resource_id uuid,
+  p_days integer DEFAULT 30
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN jsonb_build_object('days', p_days, 'type_id', p_type_id, 'resource_id', p_resource_id, 'preview_count', p_days * 10);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.add_resource_closure(
+  p_hospital_id uuid,
+  p_resource_id uuid,
+  p_start_date date,
+  p_end_date date,
+  p_reason text DEFAULT 'maintenance',
+  p_note text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.resource_closures;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.resource_closures (hospital_id, resource_id, start_date, end_date, reason, note)
+  VALUES (p_hospital_id, p_resource_id, p_start_date, p_end_date, p_reason, NULLIF(btrim(p_note), ''))
+  RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.add_hospital_holiday(
+  p_hospital_id uuid,
+  p_holiday_date date,
+  p_name text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_holidays;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.hospital_holidays (hospital_id, holiday_date, name)
+  VALUES (p_hospital_id, p_holiday_date, COALESCE(NULLIF(btrim(p_name), ''), 'Hospital Holiday'))
+  RETURNING * INTO v_row;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_investigation_availability(
+  p_hospital_id uuid,
+  p_type_id uuid,
+  p_from_date date DEFAULT current_date,
+  p_days integer DEFAULT 14
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN COALESCE(
+    (
+      SELECT jsonb_agg(jsonb_build_object(
+        'slot_start', s.slot_start,
+        'slot_end', s.slot_end,
+        'status', s.status,
+        'kind', s.kind,
+        'resource_id', s.resource_id
+      ) ORDER BY s.slot_start)
+      FROM public.investigation_slots s
+      WHERE s.hospital_id = p_hospital_id
+        AND s.type_id = p_type_id
+        AND s.slot_start >= p_from_date::timestamptz
+        AND s.slot_start < (p_from_date + p_days)::timestamptz
+    ),
+    '[]'::jsonb
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.order_investigation(
+  p_hospital_id uuid,
+  p_patient_id uuid,
+  p_type_id uuid,
+  p_doctor_id uuid DEFAULT NULL,
+  p_priority text DEFAULT 'routine',
+  p_consultation_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_order public.investigation_orders;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.investigation_orders (
+    hospital_id, patient_id, type_id, ordered_by_doctor_id, consultation_id, priority, status
+  ) VALUES (
+    p_hospital_id, p_patient_id, p_type_id, p_doctor_id, p_consultation_id, p_priority, 'ordered'
+  ) RETURNING * INTO v_order;
+
+  RETURN to_jsonb(v_order);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.book_investigation_slot(
+  p_hospital_id uuid,
+  p_order_id uuid,
+  p_slot_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_order public.investigation_orders;
+  v_slot public.investigation_slots;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO v_order FROM public.investigation_orders WHERE id = p_order_id AND hospital_id = p_hospital_id FOR UPDATE;
+  SELECT * INTO v_slot FROM public.investigation_slots WHERE id = p_slot_id AND hospital_id = p_hospital_id FOR UPDATE;
+
+  IF v_order.id IS NULL OR v_slot.id IS NULL THEN
+    RAISE EXCEPTION 'Order or slot not found' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_slot.status = 'booked' THEN
+    RAISE EXCEPTION 'Slot already booked' USING ERRCODE = '23505';
+  END IF;
+
+  UPDATE public.investigation_slots
+  SET status = 'booked', booked_order_id = p_order_id, updated_at = now()
+  WHERE id = p_slot_id;
+
+  UPDATE public.investigation_orders
+  SET slot_id = p_slot_id, scheduled_for = v_slot.slot_start, status = 'scheduled', updated_at = now()
+  WHERE id = p_order_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'slot_id', p_slot_id, 'scheduled_for', v_slot.slot_start);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.waitlist_investigation_order(
+  p_hospital_id uuid,
+  p_order_id uuid,
+  p_type_id uuid,
+  p_priority_rank smallint DEFAULT 3
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.investigation_waitlist;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.create') THEN
+    RAISE EXCEPTION 'orders.create capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.investigation_waitlist (hospital_id, order_id, type_id, priority_rank, status)
+  VALUES (p_hospital_id, p_order_id, p_type_id, p_priority_rank, 'waiting')
+  ON CONFLICT (order_id) DO UPDATE SET priority_rank = EXCLUDED.priority_rank, status = 'waiting'
+  RETURNING * INTO v_row;
+
+  UPDATE public.investigation_orders
+  SET status = 'waitlisted', updated_at = now()
+  WHERE id = p_order_id AND hospital_id = p_hospital_id;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.staff_assign_slot(
+  p_hospital_id uuid,
+  p_order_id uuid,
+  p_slot_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.pipeline') THEN
+    RAISE EXCEPTION 'orders.pipeline capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.investigation_orders
+  SET slot_id = p_slot_id, scheduled_for = (SELECT slot_start FROM public.investigation_slots WHERE id = p_slot_id), status = 'scheduled', updated_at = now()
+  WHERE id = p_order_id AND hospital_id = p_hospital_id;
+
+  UPDATE public.investigation_slots
+  SET status = 'booked', booked_order_id = p_order_id
+  WHERE id = p_slot_id AND hospital_id = p_hospital_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'slot_id', p_slot_id);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.cancel_investigation_booking(
+  p_hospital_id uuid,
+  p_order_id uuid,
+  p_reason text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.pipeline') THEN
+    RAISE EXCEPTION 'orders.pipeline capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.investigation_orders
+  SET status = 'cancelled', cancel_reason = NULLIF(btrim(p_reason), ''), cancelled_at = now(), updated_at = now()
+  WHERE id = p_order_id AND hospital_id = p_hospital_id;
+
+  UPDATE public.investigation_slots
+  SET status = 'open', booked_order_id = NULL
+  WHERE booked_order_id = p_order_id AND hospital_id = p_hospital_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'cancel_reason', NULLIF(btrim(p_reason), ''));
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.offer_released_slot(
+  p_hospital_id uuid,
+  p_slot_id uuid,
+  p_waitlist_order_id uuid,
+  p_expires_hours integer DEFAULT 24
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.pipeline') THEN
+    RAISE EXCEPTION 'orders.pipeline capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.investigation_waitlist
+  SET status = 'offered', offered_slot_id = p_slot_id, offer_expires_at = now() + make_interval(hours => p_expires_hours)
+  WHERE order_id = p_waitlist_order_id AND hospital_id = p_hospital_id;
+
+  RETURN jsonb_build_object('slot_id', p_slot_id, 'waitlist_order_id', p_waitlist_order_id, 'expires_at', now() + make_interval(hours => p_expires_hours));
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.accept_slot_offer(p_order_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  UPDATE public.investigation_orders
+  SET status = 'scheduled', updated_at = now()
+  WHERE id = p_order_id;
+
+  UPDATE public.investigation_waitlist
+  SET status = 'accepted'
+  WHERE order_id = p_order_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'accepted', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.decline_slot_offer(p_order_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  UPDATE public.investigation_waitlist
+  SET status = 'cancelled'
+  WHERE order_id = p_order_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'declined', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.investigation_advance(
+  p_hospital_id uuid,
+  p_order_id uuid,
+  p_new_status text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.pipeline') THEN
+    RAISE EXCEPTION 'orders.pipeline capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.investigation_orders
+  SET status = p_new_status,
+      updated_at = now(),
+      performed_at = CASE WHEN p_new_status = 'performed' THEN now() ELSE performed_at END,
+      processing_at = CASE WHEN p_new_status = 'processing' THEN now() ELSE processing_at END,
+      report_ready_at = CASE WHEN p_new_status = 'report_ready' THEN now() ELSE report_ready_at END,
+      reviewed_at = CASE WHEN p_new_status = 'doctor_reviewed' THEN now() ELSE reviewed_at END
+  WHERE id = p_order_id AND hospital_id = p_hospital_id;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'status', p_new_status);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_capacity_overview(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'orders.read') THEN
+    RAISE EXCEPTION 'orders.read capability required' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'total_beds', (SELECT count(*) FROM public.hospital_beds WHERE hospital_id = p_hospital_id),
+    'occupied_beds', (SELECT count(*) FROM public.hospital_beds WHERE hospital_id = p_hospital_id AND status = 'occupied'),
+    'available_beds', (SELECT count(*) FROM public.hospital_beds WHERE hospital_id = p_hospital_id AND status = 'available'),
+    'investigation_orders', (SELECT count(*) FROM public.investigation_orders WHERE hospital_id = p_hospital_id)
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_turnaround_overview(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  RETURN jsonb_build_object(
+    'orders', (SELECT count(*) FROM public.investigation_orders WHERE hospital_id = p_hospital_id),
+    'report_ready', (SELECT count(*) FROM public.investigation_orders WHERE hospital_id = p_hospital_id AND status = 'report_ready'),
+    'doctor_reviewed', (SELECT count(*) FROM public.investigation_orders WHERE hospital_id = p_hospital_id AND status = 'doctor_reviewed')
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_bottlenecks(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  RETURN COALESCE(
+    (
+      SELECT jsonb_agg(jsonb_build_object('type', type_id, 'count', count))
+      FROM (
+        SELECT type_id, count(*) AS count
+        FROM public.investigation_orders
+        WHERE hospital_id = p_hospital_id AND status IN ('ordered', 'waitlisted', 'scheduled')
+        GROUP BY type_id
+      ) s
+    ),
+    '[]'::jsonb
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.run_hospital_maintenance(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  UPDATE public.investigation_orders
+  SET status = 'processing', updated_at = now()
+  WHERE hospital_id = p_hospital_id AND status = 'performed';
+
+  RETURN jsonb_build_object('hospital_id', p_hospital_id, 'updated', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.run_hospital_maintenance_all()
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  UPDATE public.investigation_orders
+  SET status = 'processing', updated_at = now()
+  WHERE status = 'performed';
+
+  RETURN jsonb_build_object('updated', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.admit_patient(
+  p_hospital_id uuid,
+  p_patient_id uuid,
+  p_ward_id uuid,
+  p_bed_id uuid,
+  p_doctor_id uuid DEFAULT NULL,
+  p_reason text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_admissions;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'admissions.manage') THEN
+    RAISE EXCEPTION 'admissions.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.hospital_admissions (
+    hospital_id, patient_id, ward_id, bed_id, admitting_doctor_id, reason, status
+  ) VALUES (
+    p_hospital_id, p_patient_id, p_ward_id, p_bed_id, p_doctor_id, NULLIF(btrim(p_reason), ''), 'admitted'
+  ) RETURNING * INTO v_row;
+
+  UPDATE public.hospital_beds
+  SET status = 'occupied', updated_at = now()
+  WHERE id = p_bed_id AND hospital_id = p_hospital_id;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.transfer_patient(
+  p_hospital_id uuid,
+  p_admission_id uuid,
+  p_new_ward_id uuid,
+  p_new_bed_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_admissions;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'admissions.manage') THEN
+    RAISE EXCEPTION 'admissions.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.hospital_admissions
+  SET ward_id = p_new_ward_id, bed_id = p_new_bed_id, status = 'transferred', updated_at = now()
+  WHERE id = p_admission_id AND hospital_id = p_hospital_id
+  RETURNING * INTO v_row;
+
+  UPDATE public.hospital_beds
+  SET status = 'available', updated_at = now()
+  WHERE id = v_row.bed_id AND hospital_id = p_hospital_id;
+
+  UPDATE public.hospital_beds
+  SET status = 'occupied', updated_at = now()
+  WHERE id = p_new_bed_id AND hospital_id = p_hospital_id;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.discharge_patient(
+  p_hospital_id uuid,
+  p_admission_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_admissions;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'admissions.manage') THEN
+    RAISE EXCEPTION 'admissions.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.hospital_admissions
+  SET status = 'discharged', discharged_at = now(), updated_at = now()
+  WHERE id = p_admission_id AND hospital_id = p_hospital_id
+  RETURNING * INTO v_row;
+
+  UPDATE public.hospital_beds
+  SET status = 'cleaning', updated_at = now()
+  WHERE id = v_row.bed_id AND hospital_id = p_hospital_id;
+
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.set_bed_status(
+  p_hospital_id uuid,
+  p_bed_id uuid,
+  p_status text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'admissions.manage') THEN
+    RAISE EXCEPTION 'admissions.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.hospital_beds
+  SET status = p_status, updated_at = now()
+  WHERE id = p_bed_id AND hospital_id = p_hospital_id;
+
+  RETURN jsonb_build_object('bed_id', p_bed_id, 'status', p_status);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_ward_with_beds(
+  p_hospital_id uuid,
+  p_name text,
+  p_bed_count integer DEFAULT 3
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_ward_id uuid;
+  v_i integer;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.hospital_wards (hospital_id, name, is_active)
+  VALUES (p_hospital_id, p_name, true)
+  RETURNING id INTO v_ward_id;
+
+  FOR v_i IN 1..p_bed_count LOOP
+    INSERT INTO public.hospital_beds (hospital_id, ward_id, bed_label, status)
+    VALUES (p_hospital_id, v_ward_id, p_name || '-BED-' || v_i, 'available');
+  END LOOP;
+
+  RETURN jsonb_build_object('ward_id', v_ward_id, 'bed_count', p_bed_count);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.generate_patient_link_code(p_hospital_id uuid, p_patient_id uuid)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_code text;
+BEGIN
+  v_code := upper(substr(md5(random()::text), 1, 8));
+  INSERT INTO public.patient_link_codes (hospital_id, patient_id, code_hash, expires_at)
+  VALUES (p_hospital_id, p_patient_id, md5(v_code), now() + interval '7 days');
+  RETURN v_code;
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.link_patient_account(p_hospital_id uuid, p_code text, p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.patient_link_codes;
+BEGIN
+  SELECT * INTO v_row
+  FROM public.patient_link_codes
+  WHERE hospital_id = p_hospital_id
+    AND code_hash = md5(p_code)
+    AND consumed_at IS NULL
+    AND expires_at > now()
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_row.id IS NULL THEN
+    RAISE EXCEPTION 'Invalid or expired link code' USING ERRCODE = 'P0002';
+  END IF;
+
+  UPDATE public.hospital_patients
+  SET patient_user_id = p_user_id, updated_at = now()
+  WHERE id = v_row.patient_id AND hospital_id = p_hospital_id;
+
+  UPDATE public.patient_link_codes
+  SET consumed_at = now()
+  WHERE id = v_row.id;
+
+  RETURN jsonb_build_object('patient_id', v_row.patient_id, 'linked', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.get_my_hospital_visits(p_user_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  RETURN COALESCE(
+    (
+      SELECT jsonb_agg(jsonb_build_object(
+        'hospital_id', hp.hospital_id,
+        'patient_id', hp.id,
+        'patient_identifier', hp.patient_identifier,
+        'name', hp.name,
+        'visit_date', hv.visit_date,
+        'checked_in_at', hv.checked_in_at
+      ) ORDER BY hv.visit_date DESC)
+      FROM public.hospital_patients hp
+      JOIN public.hospital_visits hv ON hv.patient_id = hp.id
+      WHERE hp.patient_user_id = p_user_id
+    ),
+    '[]'::jsonb
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.respond_slot_offer(p_order_id uuid, p_accept boolean)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  IF p_accept THEN
+    UPDATE public.investigation_waitlist
+    SET status = 'accepted', offer_expires_at = NULL
+    WHERE order_id = p_order_id;
+    UPDATE public.investigation_orders
+    SET status = 'scheduled', updated_at = now()
+    WHERE id = p_order_id;
+  ELSE
+    UPDATE public.investigation_waitlist
+    SET status = 'cancelled', offer_expires_at = NULL
+    WHERE order_id = p_order_id;
+  END IF;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'accepted', p_accept);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.demo_seed_investigations(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  INSERT INTO public.investigation_types (hospital_id, name, category, expected_report_min_days, expected_report_max_days, is_active, is_demo)
+  VALUES
+    (p_hospital_id, 'Mammography', 'imaging', 2, 5, true, true),
+    (p_hospital_id, 'CT Scan', 'imaging', 1, 3, true, true),
+    (p_hospital_id, 'Blood Tests', 'lab', 1, 2, true, true)
+  ON CONFLICT (hospital_id, name) DO NOTHING;
+
+  RETURN jsonb_build_object('seeded', true);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.demo_seed_admissions(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_ward_id uuid;
+  v_bed_id uuid;
+BEGIN
+  INSERT INTO public.hospital_wards (hospital_id, name, is_active, is_demo)
+  VALUES (p_hospital_id, 'Ward A', true, true)
+  ON CONFLICT (hospital_id, name) DO NOTHING;
+
+  SELECT id INTO v_ward_id FROM public.hospital_wards WHERE hospital_id = p_hospital_id AND name = 'Ward A';
+  SELECT id INTO v_bed_id FROM public.hospital_beds WHERE hospital_id = p_hospital_id AND ward_id = v_ward_id LIMIT 1;
+
+  IF v_bed_id IS NULL THEN
+    INSERT INTO public.hospital_beds (hospital_id, ward_id, bed_label, status, is_demo)
+    VALUES (p_hospital_id, v_ward_id, 'A-01', 'available', true)
+    RETURNING id INTO v_bed_id;
+  END IF;
+
+  RETURN jsonb_build_object('ward_id', v_ward_id, 'bed_id', v_bed_id);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.hospital_command_center(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+BEGIN
+  RETURN jsonb_build_object(
+    'kpis', jsonb_build_object(
+      'waiting', (SELECT count(*) FROM public.queue_entries WHERE hospital_id = p_hospital_id AND status = 'waiting'),
+      'in_consultation', (SELECT count(*) FROM public.queue_entries WHERE hospital_id = p_hospital_id AND status = 'in_consultation'),
+      'pending_reports', (SELECT count(*) FROM public.investigation_orders WHERE hospital_id = p_hospital_id AND status IN ('processing', 'report_ready')), 
+      'admissions', (SELECT count(*) FROM public.hospital_admissions WHERE hospital_id = p_hospital_id AND status = 'admitted')
+    ),
+    'queues', COALESCE((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.start_time) FROM public.opd_sessions s WHERE s.hospital_id = p_hospital_id), '[]'::jsonb),
+    'beds', COALESCE((SELECT jsonb_agg(to_jsonb(b) ORDER BY b.bed_label) FROM public.hospital_beds b WHERE b.hospital_id = p_hospital_id), '[]'::jsonb),
+    'recent_orders', COALESCE((SELECT jsonb_agg(to_jsonb(o) ORDER BY o.ordered_at DESC) FROM public.investigation_orders o WHERE o.hospital_id = p_hospital_id LIMIT 20), '[]'::jsonb)
+  );
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_hospital_department(
+  p_hospital_id uuid,
+  p_name text,
+  p_department_type text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_departments;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  IF p_department_type NOT IN ('clinical', 'diagnostic') THEN
+    RAISE EXCEPTION 'Invalid department type' USING ERRCODE = '22023';
+  END IF;
+  INSERT INTO public.hospital_departments (hospital_id, name, department_type)
+  VALUES (p_hospital_id, NULLIF(btrim(p_name), ''), p_department_type)
+  RETURNING * INTO v_row;
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.set_hospital_department_active(
+  p_hospital_id uuid,
+  p_department_id uuid,
+  p_is_active boolean
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_departments;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.hospital_departments
+  SET is_active = p_is_active
+  WHERE id = p_department_id AND hospital_id = p_hospital_id
+  RETURNING * INTO v_row;
+  IF v_row.id IS NULL THEN RAISE EXCEPTION 'Department not found' USING ERRCODE = 'P0002'; END IF;
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.create_hospital_doctor(
+  p_hospital_id uuid,
+  p_doctor_name text,
+  p_specialty text DEFAULT NULL,
+  p_department_id uuid DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_doctors;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  IF p_department_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.hospital_departments
+    WHERE id = p_department_id AND hospital_id = p_hospital_id
+  ) THEN
+    RAISE EXCEPTION 'Department not found' USING ERRCODE = 'P0002';
+  END IF;
+  INSERT INTO public.hospital_doctors (hospital_id, doctor_name, specialty, department_id)
+  VALUES (p_hospital_id, NULLIF(btrim(p_doctor_name), ''), NULLIF(btrim(p_specialty), ''), p_department_id)
+  RETURNING * INTO v_row;
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.set_hospital_doctor_active(
+  p_hospital_id uuid,
+  p_doctor_id uuid,
+  p_is_active boolean
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.hospital_doctors;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.hospital_doctors
+  SET is_active = p_is_active
+  WHERE id = p_doctor_id AND hospital_id = p_hospital_id
+  RETURNING * INTO v_row;
+  IF v_row.id IS NULL THEN RAISE EXCEPTION 'Doctor not found' USING ERRCODE = 'P0002'; END IF;
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+CREATE OR REPLACE FUNCTION public.update_hospital_priority_rule(
+  p_hospital_id uuid,
+  p_rule_id uuid,
+  p_target_max_wait_days integer,
+  p_allowed_slot_kinds text[],
+  p_staff_approval_required boolean
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
+DECLARE
+  v_row public.priority_rules;
+BEGIN
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.priority_rules
+  SET target_max_wait_days = p_target_max_wait_days,
+      allowed_slot_kinds = p_allowed_slot_kinds,
+      staff_approval_required = p_staff_approval_required,
+      updated_at = now()
+  WHERE id = p_rule_id AND hospital_id = p_hospital_id
+  RETURNING * INTO v_row;
+  IF v_row.id IS NULL THEN RAISE EXCEPTION 'Priority rule not found' USING ERRCODE = 'P0002'; END IF;
+  RETURN to_jsonb(v_row);
+END;
+$fn$;
+
+DO $grants$
+DECLARE v_sig text; v_name text;
+BEGIN
+  FOR v_name, v_sig IN SELECT * FROM (VALUES
+    ('create_hospital_department', 'uuid, text, text'),
+    ('set_hospital_department_active', 'uuid, uuid, boolean'),
+    ('create_hospital_doctor', 'uuid, text, text, uuid'),
+    ('set_hospital_doctor_active', 'uuid, uuid, boolean'),
+    ('update_hospital_priority_rule', 'uuid, uuid, integer, text[], boolean'),
+    ('add_hospital_holiday', 'uuid, date, text')
+  ) AS signatures(function_name, arg_types) LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION public.%I(%s) FROM PUBLIC, anon', v_name, v_sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION public.%I(%s) TO authenticated', v_name, v_sig);
+  END LOOP;
+END;
+$grants$;
+
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS hospital_id uuid,
+  ADD COLUMN IF NOT EXISTS ref_table text,
+  ADD COLUMN IF NOT EXISTS ref_id uuid,
+  ADD COLUMN IF NOT EXISTS dedupe_key text;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_user_dedupe
+  ON public.notifications (user_id, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
+
+NOTIFY pgrst, 'reload schema';
