@@ -1,7 +1,7 @@
 'use client';
 
-import { HospitalSectionPage } from '@/components/hospital/HospitalSectionPage';
+import { HospitalInvestigationsPage as InvestigationsView } from '@/components/hospital/HospitalInvestigationsPage';
 
 export default function HospitalInvestigationsPage() {
-  return <HospitalSectionPage section="investigations" />;
+  return <InvestigationsView />;
 }

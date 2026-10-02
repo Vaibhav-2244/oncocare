@@ -13,6 +13,7 @@
     "start": "next start",
     "check:sql": "tsx scripts/check-sql-syntax.ts",
     "build:sql": "tsx scripts/build-apply-all.ts",
+    "test:sql": "tsx scripts/test-hospital-sql.ts",
     "lint": "next lint",
     "extract:i18n": "tsx scripts/extract-i18n-strings.ts",
     "typecheck": "tsc --noEmit"
@@ -93,6 +94,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@types/pdf-parse": "^1.1.5",
     "tsx": "^4.23.15"
   }
