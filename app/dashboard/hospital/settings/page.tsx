@@ -1,7 +1,7 @@
 'use client';
 
-import { HospitalSettingsPage as SettingsView } from '@/components/hospital/HospitalSettingsPage';
+import { HospitalSettingsPage } from '@/components/hospital/HospitalSettingsPage';
 
 export default function HospitalSettingsPage() {
-  return <SettingsView />;
+  return <HospitalSettingsPage />;
 }

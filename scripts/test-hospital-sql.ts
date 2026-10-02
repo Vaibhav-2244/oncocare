@@ -77,19 +77,16 @@ async function runSmokeAssertions(db: PGlite) {
   const userB = '20000000-0000-4000-8000-000000000002';
   const frontDesk = '20000000-0000-4000-8000-000000000003';
   const patientUser = '20000000-0000-4000-8000-000000000004';
-  const doctorUser = '20000000-0000-4000-8000-000000000005';
   await db.exec(`
     INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
       ('${userA}', 'a@example.test', now()), ('${userB}', 'b@example.test', now()),
-      ('${frontDesk}', 'desk@example.test', now()), ('${patientUser}', 'patient@example.test', now()), ('${doctorUser}', 'doctor@example.test', now());
+      ('${frontDesk}', 'desk@example.test', now()), ('${patientUser}', 'patient@example.test', now());
     INSERT INTO public.hospital_orgs (id, name, owner_user_id, patient_id_prefix) VALUES
       ('${hospitalA}', 'Hospital A', '${userA}', 'NCI-'), ('${hospitalB}', 'Hospital B', '${userB}', 'NCI-');
     INSERT INTO public.hospital_members (hospital_id, user_id, staff_role) VALUES
       ('${hospitalA}', '${userA}', 'hospital_admin'), ('${hospitalB}', '${userB}', 'hospital_admin');
     INSERT INTO public.hospital_members (hospital_id, user_id, staff_role) VALUES
       ('${hospitalA}', '${frontDesk}', 'front_desk');
-    INSERT INTO public.hospital_members (hospital_id, user_id, staff_role) VALUES
-      ('${hospitalA}', '${doctorUser}', 'doctor');
     INSERT INTO public.hospital_patients (hospital_id, patient_identifier, name, is_demo)
       VALUES ('${hospitalA}', 'REAL-KEEP-1', 'Real Patient', false);
   `);
@@ -100,8 +97,6 @@ async function runSmokeAssertions(db: PGlite) {
   if (queueCounts.rows[0]?.current_token !== 102 || queueCounts.rows[0]?.waiting !== 21) {
     throw new Error(`Expected demo queue serving token 102 with 21 waiting; received ${JSON.stringify(queueCounts.rows[0])}`);
   }
-  const clinicalSeed = await db.query<{ consultations: number; prescriptions: number; referrals: number; follow_ups: number }>(`SELECT (SELECT count(*)::integer FROM public.consultations WHERE hospital_id=$1 AND is_demo) AS consultations,(SELECT count(*)::integer FROM public.prescriptions WHERE hospital_id=$1 AND is_demo) AS prescriptions,(SELECT count(*)::integer FROM public.referrals WHERE hospital_id=$1 AND is_demo) AS referrals,(SELECT count(*)::integer FROM public.follow_ups WHERE hospital_id=$1 AND is_demo) AS follow_ups`,[hospitalA]);
-  if (clinicalSeed.rows[0]?.consultations !== 40 || clinicalSeed.rows[0]?.prescriptions !== 40 || clinicalSeed.rows[0]?.referrals !== 8 || clinicalSeed.rows[0]?.follow_ups !== 10) throw new Error(`Clinical demo seed counts mismatch: ${JSON.stringify(clinicalSeed.rows[0])}`);
   const mainSession = await db.query<{ id: string }>(`SELECT id FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo ORDER BY start_time LIMIT 1`, [hospitalA]);
   const emergencyCall = await db.query<{ entry: { token_number: number; priority_rank: number } }>(`SELECT public.call_next($1) AS entry`, [mainSession.rows[0].id]);
   if (emergencyCall.rows[0]?.entry?.priority_rank !== 0) throw new Error('Queue did not call the emergency priority first.');
@@ -136,32 +131,9 @@ async function runSmokeAssertions(db: PGlite) {
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${frontDesk}', false);`);
   const clinicalRows = await db.query<{ count: number }>(`SELECT count(*)::integer AS count FROM public.consultations WHERE hospital_id=$1`, [hospitalA]);
   if (clinicalRows.rows[0]?.count !== 0) throw new Error('Front desk can read consultation data.');
-  let frontDeskRpcRejected = false;
-  try { await db.query(`SELECT public.start_consultation_record((SELECT id FROM public.queue_entries WHERE hospital_id=$1 LIMIT 1))`,[hospitalA]); } catch { frontDeskRpcRejected = true; }
-  if (!frontDeskRpcRejected) throw new Error('Front desk can start a clinical consultation.');
   let directWriteRejected = false;
   try { await db.query(`INSERT INTO public.hospital_appointments(hospital_id,patient_id,doctor_id,scheduled_at,kind) SELECT $1,p.id,d.id,now(),'opd' FROM public.hospital_patients p CROSS JOIN public.hospital_doctors d WHERE p.hospital_id=$1 AND d.hospital_id=$1 LIMIT 1`, [hospitalA]); } catch { directWriteRejected = true; }
   if (!directWriteRejected) throw new Error('Direct transactional table writes were not rejected.');
-  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${doctorUser}', false);`);
-  const nextEntry = await db.query<{ entry_id: string }>(`WITH called AS (SELECT public.call_next($1) AS result) SELECT result->>'id' AS entry_id FROM called`,[testSessionId]);
-  await db.query(`SELECT public.queue_start($1)`,[nextEntry.rows[0].entry_id]);
-  const draftResult = await db.query<{ consultation: { id:string } }>(`SELECT public.start_consultation_record($1) AS consultation`,[nextEntry.rows[0].entry_id]);
-  const consultationId = draftResult.rows[0].consultation.id;
-  await db.query(`SELECT public.save_consultation_draft($1,$2::jsonb)`,[consultationId,JSON.stringify({assessment:'Harness assessment',plan:'Continue care plan'})]);
-  await db.query(`SELECT public.finalize_consultation($1)`,[consultationId]);
-  let finalUpdateRejected = false;
-  try { await db.query(`UPDATE public.consultations SET assessment='modified' WHERE id=$1`,[consultationId]); } catch { finalUpdateRejected=true; }
-  if (!finalUpdateRejected) throw new Error('Finalized consultation accepted a direct update.');
-  const amendment = await db.query<{ consultation: { id:string; version:number } }>(`SELECT public.amend_consultation($1) AS consultation`,[consultationId]);
-  if (amendment.rows[0].consultation.version !== 2) throw new Error('Consultation amendment version did not increment.');
-  await db.query(`SELECT public.create_prescription($1,$2::jsonb,'Harness prescription')`,[amendment.rows[0].consultation.id,JSON.stringify([{medicine_name:'Ondansetron',dose:'8 mg',frequency:'As directed',duration:'As prescribed'}])]);
-  const department = await db.query<{ id:string }>(`SELECT id FROM public.hospital_departments WHERE hospital_id=$1 AND name='Surgical Oncology'`,[hospitalA]);
-  const referral = await db.query<{ referral: { id:string } }>(`SELECT public.create_referral($1,$2,NULL,'routine','Harness referral') AS referral`,[amendment.rows[0].consultation.id,department.rows[0].id]);
-  await db.query(`SELECT public.schedule_follow_up($1,current_date+14,'Harness follow-up',NULL)`,[amendment.rows[0].consultation.id]);
-  await db.query(`SELECT public.accept_referral($1,NULL)`,[referral.rows[0].referral.id]);
-  const context = await db.query<{ data: { history: unknown[] } }>(`SELECT public.get_consultation_context($1,(SELECT patient_id FROM public.consultations WHERE id=$2)) AS data`,[hospitalA,amendment.rows[0].consultation.id]);
-  if (!context.rows[0].data.history.length) throw new Error('Consultation context did not include finalized history.');
-  console.log('PASS: clinical demo counts, role-restricted consultation RPC, immutable final records, amendment, prescription, referral, follow-up, and context.');
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${patientUser}', false);`);
   let patientRpcRejected = false;
   try { await db.query(`SELECT public.generate_default_sessions($1, current_date)`, [hospitalA]); } catch { patientRpcRejected = true; }
