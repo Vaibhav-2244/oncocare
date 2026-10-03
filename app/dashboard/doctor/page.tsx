@@ -1,199 +1,111 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Calendar, Users, FileText, Stethoscope, TrendingUp,
-  Clock, ArrowRight, Video, Pill, Activity,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { AlertTriangle, CalendarDays, ClipboardList, Loader2, RefreshCw, Users } from 'lucide-react';
+import { DashboardLayout, DOCTOR_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { DOCTOR_ROLES, DashboardLayout, type NavItem } from '@/components/auth/dashboard-layout';
-import { useAuth } from '@/lib/auth-context';
-import { supabase } from '@/lib/supabase-client';
-import { useTranslations } from 'next-intl';
-
-const doctorNavItems: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/doctor', icon: Activity },
-  { label: 'My Patients', href: '/dashboard/doctor', icon: Users },
-  { label: 'Appointments', href: '/dashboard/appointments', icon: Calendar },
-  { label: 'Medical Notes', href: '/dashboard/documents', icon: FileText },
-  { label: 'Teleconsultation', href: '/dashboard/appointments', icon: Video },
-  { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Stethoscope },
-  { label: 'Profile', href: '/dashboard/profile', icon: Users },
-  { label: 'Settings', href: '/dashboard/settings', icon: FileText },
-];
+import { ensureDoctorWorkspace, loadDoctorSummary, type DoctorDashboardSummary } from '@/lib/doctor/api';
 
 function DoctorDashboardContent() {
-  const t = useTranslations('doctor');
-  const { user } = useAuth();
-  const [stats, setStats] = useState({ patients: 0, appointments: 0, notes: 0, teleconsults: 0 });
-  const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
-  const [recentPatients, setRecentPatients] = useState<any[]>([]);
+  const [summary, setSummary] = useState<DoctorDashboardSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    if (!user) return;
+  const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [apptsRes, teleRes, notesRes, upcomingRes, patientsRes] = await Promise.all([
-        supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', user.id),
-        supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('doctor_id', user.id).eq('type', 'teleconsultation'),
-        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('appointments').select('*').eq('doctor_id', user.id).gte('appointment_date', new Date().toISOString()).order('appointment_date', { ascending: true }).limit(5),
-        supabase.from('appointments').select('user_id, appointment_date, reason, status').eq('doctor_id', user.id).order('appointment_date', { ascending: false }).limit(5),
-      ]);
-
-      const patientIds = (patientsRes.data || []).map((p) => p.user_id).filter(Boolean);
-      let patients: any[] = [];
-      if (patientIds.length > 0) {
-        const { data: patientProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email, avatar_url')
-          .in('id', patientIds);
-        patients = patientProfiles || [];
-      }
-
-      setStats({
-        patients: new Set(patientIds).size,
-        appointments: apptsRes.count || 0,
-        notes: notesRes.count || 0,
-        teleconsults: teleRes.count || 0,
-      });
-      setUpcomingAppointments(upcomingRes.data || []);
-      setRecentPatients(patients);
-    } catch {
-      // silently fail
+      await ensureDoctorWorkspace();
+      setSummary(await loadDoctorSummary());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to load the doctor workspace.');
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useEffect(() => {
-    if (!user) return;
-    loadData();
-  }, [user, loadData]);
+    void load();
+  }, [load]);
 
-  const statCards = [
-    { label: 'Total Patients', value: stats.patients, icon: Users, color: 'from-teal-500 to-emerald-500' },
-    { label: 'Appointments', value: stats.appointments, icon: Calendar, color: 'from-blue-500 to-indigo-500' },
-    { label: 'Teleconsultations', value: stats.teleconsults, icon: Video, color: 'from-purple-500 to-pink-500' },
-    { label: 'Medical Notes', value: stats.notes, icon: FileText, color: 'from-amber-500 to-orange-500' },
+  const kpis = summary?.kpis;
+  const cards = [
+    { label: 'Active patients', value: kpis?.active_patients, icon: Users, href: '/dashboard/doctor/patients', tone: 'teal' },
+    { label: 'Appointments today', value: kpis?.appointments_today, icon: CalendarDays, href: '/dashboard/doctor/appointments', tone: 'blue' },
+    { label: 'Needs confirmation', value: kpis?.pending_confirmations, icon: ClipboardList, href: '/dashboard/doctor/appointments', tone: 'amber' },
+    { label: 'High risk', value: kpis?.high_risk, icon: AlertTriangle, href: '/dashboard/doctor/patients?risk=high', tone: 'rose' },
   ];
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">{t('doctorDashboard')}</h1>
-        <p className="mt-1 text-sm text-slate-500">{t('manageYourPatientsAppointmentsAndMedicalNotes')}</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm"
-          >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${stat.color} text-white shadow-md`}>
-              <stat.icon className="h-5 w-5" />
-            </div>
-            <div className="mt-3 text-2xl font-bold text-slate-900">{loading ? '—' : stat.value}</div>
-            <div className="text-xs text-slate-500">{stat.label}</div>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Upcoming appointments */}
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-base font-bold text-slate-900">{t('upcomingAppointments')}</h2>
-              <a href="/dashboard/appointments" className="text-xs font-semibold text-teal-600 hover:underline">{t('viewAll')}</a>
-            </div>
-            <div className="mt-4 space-y-3">
-              {loading ? (
-                [1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-50" />)
-              ) : upcomingAppointments.length > 0 ? (
-                upcomingAppointments.map((apt) => (
-                  <div key={apt.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-                      {apt.type === 'teleconsultation' ? <Video className="h-5 w-5" /> : <Calendar className="h-5 w-5" />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-sm font-semibold text-slate-800">{apt.reason || t('appointment')}</div>
-                      <div className="text-xs text-slate-500">
-                        {new Date(apt.appointment_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {t('at')}{' '}
-                        {new Date(apt.appointment_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                    <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[10px] font-semibold capitalize text-teal-700">
-                      {apt.status}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div className="flex flex-col items-center py-8 text-center">
-                  <Calendar className="h-8 w-8 text-slate-300" />
-                  <p className="mt-2 text-sm text-slate-400">{t('noUpcomingAppointments')}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent patients */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900">{t('recentPatients')}</h2>
-            <div className="mt-4 space-y-3">
-              {loading ? (
-                [1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-xl bg-slate-50" />)
-              ) : recentPatients.length > 0 ? (
-                recentPatients.map((patient) => (
-                  <div key={patient.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-emerald-600 text-xs font-bold text-white">
-                      {patient.full_name?.charAt(0).toUpperCase() || 'P'}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-slate-800">{patient.full_name || t('patient')}</div>
-                      <div className="truncate text-xs text-slate-500">{patient.email}</div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-6 text-center">
-                  <Users className="mx-auto h-6 w-6 text-slate-300" />
-                  <p className="mt-2 text-xs text-slate-400">{t('noPatientsYet')}</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <p className="text-sm font-medium text-teal-700">Doctor workspace</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Good to see you</h1>
+          <p className="mt-1 text-sm text-slate-500">A secure overview of your roster and today&apos;s priorities.</p>
         </div>
+        <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </button>
       </div>
 
-      {/* Quick actions */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: 'Start Teleconsultation', desc: 'Begin a video call', icon: Video, href: '/dashboard/appointments' },
-          { label: 'Write Medical Note', desc: 'Create a patient note', icon: FileText, href: '/dashboard/documents' },
-          { label: 'AI Suggestions', desc: 'Get AI-powered insights', icon: Stethoscope, href: '/dashboard/ai-engine' },
-          { label: 'View Schedule', desc: 'Check your calendar', icon: Calendar, href: '/dashboard/appointments' },
-        ].map((action) => (
-          <a key={action.label} href={action.href} className="group flex flex-col gap-2 rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm transition-all hover:border-teal-200 hover:shadow-md">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
-              <action.icon className="h-4 w-4" />
+      {error && (
+        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {cards.map(({ label, value, icon: Icon, href, tone }) => {
+          const toneClasses = {
+            teal: 'bg-teal-50 text-teal-600',
+            blue: 'bg-blue-50 text-blue-600',
+            amber: 'bg-amber-50 text-amber-600',
+            rose: 'bg-rose-50 text-rose-600',
+          }[tone];
+          return (
+          <Link key={label} href={href} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${toneClasses}`}>
+              <Icon className="h-5 w-5" />
             </div>
+            <p className="mt-4 text-2xl font-bold text-slate-900">{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : value ?? 0}</p>
+            <p className="mt-1 text-sm text-slate-500">{label}</p>
+          </Link>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-5">
+        <section className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold text-slate-900">{action.label}</div>
-              <div className="text-xs text-slate-500">{action.desc}</div>
+              <h2 className="font-semibold text-slate-900">Patients needing attention</h2>
+              <p className="mt-1 text-sm text-slate-500">Review risk and follow-up items from your roster.</p>
             </div>
-            <ArrowRight className="h-3.5 w-3.5 text-slate-300 transition-colors group-hover:text-teal-500" />
-          </a>
-        ))}
+            <Link href="/dashboard/doctor/patients" className="text-sm font-semibold text-teal-700 hover:underline">View roster</Link>
+          </div>
+          <div className="mt-5 divide-y divide-slate-100">
+            {!loading && summary?.attention.length === 0 && <p className="py-8 text-center text-sm text-slate-500">No patients need attention yet.</p>}
+            {summary?.attention.map((patient) => (
+              <Link href={`/dashboard/doctor/patients/${patient.id}`} key={patient.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800">{patient.full_name}</p>
+                  <p className="text-xs text-slate-500">{patient.patient_code} · {patient.cancer_type || 'Cancer care'}</p>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${patient.risk === 'high' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{patient.risk}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+        <section className="lg:col-span-2 rounded-2xl border border-slate-200 bg-slate-900 p-5 text-white shadow-sm">
+          <h2 className="font-semibold">Quick actions</h2>
+          <div className="mt-4 grid gap-2">
+            <Link href="/dashboard/doctor/patients?new=1" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Add a patient</Link>
+            <Link href="/dashboard/doctor/appointments" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Review appointments</Link>
+            <Link href="/dashboard/profile" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Complete professional profile</Link>
+          </div>
+        </section>
       </div>
     </div>
   );
@@ -202,7 +114,7 @@ function DoctorDashboardContent() {
 export default function DoctorDashboardPage() {
   return (
     <ProtectedRoute allowedRoles={DOCTOR_ROLES}>
-      <DashboardLayout navItems={doctorNavItems} dashboardTitle="Doctor Portal">
+      <DashboardLayout dashboardTitle="Doctor workspace">
         <DoctorDashboardContent />
       </DashboardLayout>
     </ProtectedRoute>

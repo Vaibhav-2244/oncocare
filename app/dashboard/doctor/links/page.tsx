@@ -1,0 +1,22 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Copy, Link2 } from 'lucide-react';
+import { DashboardLayout, DOCTOR_ROLES } from '@/components/auth/dashboard-layout';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { ensureDoctorWorkspace, listDoctorPatients, type DoctorPatient } from '@/lib/doctor/api';
+import { supabase } from '@/lib/supabase-client';
+
+type LinkCode = { id: string; doctor_patient_id: string; expires_at: string; redeemed_at: string | null };
+function LinksContent() {
+  const [patients, setPatients] = useState<DoctorPatient[]>([]);
+  const [codes, setCodes] = useState<LinkCode[]>([]);
+  const [selected, setSelected] = useState('');
+  const [newCode, setNewCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => { void (async () => { try { await ensureDoctorWorkspace(); const [roster, linkRows] = await Promise.all([listDoctorPatients(), supabase.rpc('doctor_list_link_codes')]); if (linkRows.error) throw linkRows.error; setPatients(roster.rows); setCodes((linkRows.data || []) as LinkCode[]); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to load link codes.'); } })(); }, []);
+  const create = async () => { setError(null); const { data, error: rpcError } = await supabase.rpc('doctor_create_link_code', { p_doctor_patient_id: selected }); if (rpcError) setError(rpcError.message); else { setNewCode(data as string); const { data: refreshed } = await supabase.rpc('doctor_list_link_codes'); setCodes((refreshed || []) as LinkCode[]); } };
+  const name = (id: string) => patients.find((patient) => patient.id === id)?.full_name || 'Patient';
+  return <div className="max-w-3xl space-y-6"><div><p className="text-sm font-medium text-teal-700">Consent</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Invite a patient</h1><p className="mt-1 text-sm text-slate-500">Generate a one-time code. The patient chooses which data scopes to share when redeeming it.</p></div>{error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}<div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><select value={selected} onChange={(event) => setSelected(event.target.value)} className="min-w-64 rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="">Select patient</option>{patients.filter((patient) => !patient.patient_user_id).map((patient) => <option key={patient.id} value={patient.id}>{patient.full_name} ({patient.patient_code})</option>)}</select><button type="button" disabled={!selected} onClick={() => void create()} className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"><Link2 className="h-4 w-4" /> Generate code</button></div>{newCode && <div className="flex items-center justify-between rounded-2xl border border-teal-200 bg-teal-50 p-5"><div><p className="text-sm font-medium text-teal-800">Share this code once</p><p className="mt-1 font-mono text-2xl font-bold tracking-[0.3em] text-teal-950">{newCode}</p><p className="mt-2 text-xs text-teal-800">It expires in 7 days and is not shown again after leaving this page.</p></div><button type="button" onClick={() => void navigator.clipboard.writeText(newCode)} className="rounded-lg border border-teal-200 bg-white p-2 text-teal-700" aria-label="Copy link code"><Copy className="h-4 w-4" /></button></div>}<div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="divide-y divide-slate-100">{codes.length === 0 ? <p className="px-5 py-10 text-center text-sm text-slate-500">No invitation codes yet.</p> : codes.map((code) => <div key={code.id} className="flex items-center justify-between px-5 py-4"><div><p className="font-medium text-slate-800">{name(code.doctor_patient_id)}</p><p className="text-xs text-slate-500">Expires {new Date(code.expires_at).toLocaleDateString()}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${code.redeemed_at ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{code.redeemed_at ? 'Redeemed' : 'Pending'}</span></div>)}</div></div></div>;
+}
+export default function DoctorLinksPage() { return <ProtectedRoute allowedRoles={DOCTOR_ROLES}><DashboardLayout dashboardTitle="Patient links"><LinksContent /></DashboardLayout></ProtectedRoute>; }

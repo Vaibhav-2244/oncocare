@@ -26,3 +26,15 @@ export function formatWaitRange(low: number | null | undefined, high: number | n
   if (low == null || high == null) return calculating;
   return `${Math.max(0, low)}-${Math.max(low, high)} min`;
 }
+
+export function calculateAge(dob: string): number | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return null;
+  const [year, month, day] = dob.split('-').map(Number);
+  const birthDate = new Date(year, month - 1, day);
+  if (birthDate.getFullYear() !== year || birthDate.getMonth() !== month - 1 || birthDate.getDate() !== day) return null;
+  const today = new Date();
+  if (birthDate > today) return null;
+  let age = today.getFullYear() - year;
+  if (today.getMonth() < month - 1 || (today.getMonth() === month - 1 && today.getDate() < day)) age -= 1;
+  return Math.max(0, age);
+}

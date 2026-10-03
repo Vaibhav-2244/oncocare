@@ -42,7 +42,7 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
   const requestRef = useRef<{ userId: string; promise: Promise<WorkspaceSnapshot> } | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!user || user.primaryRole !== 'hospital') {
+    if (!user || (user.primaryRole !== 'hospital' && user.primaryRole !== 'doctor')) {
       requestRef.current = null;
       dataOwnerUserIdRef.current = null;
       setOrgs([]);
@@ -67,7 +67,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
       let request = requestRef.current;
       if (!request || request.userId !== user.id) {
         const promise = (async (): Promise<WorkspaceSnapshot> => {
-          const { data: ensuredOrg, error: ensureError } = await supabase.rpc('ensure_hospital_workspace');
+          const { data: ensuredOrg, error: ensureError } = await supabase.rpc(
+            user.primaryRole === 'doctor' ? 'ensure_doctor_hospital_workspace' : 'ensure_hospital_workspace',
+          );
           if (ensureError) throw ensureError;
           if (!ensuredOrg) throw new Error('Workspace setup returned no hospital record.');
 

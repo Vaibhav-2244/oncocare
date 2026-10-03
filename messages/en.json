@@ -681,6 +681,15 @@
     "removeDemoData": "Remove demo data",
     "removeDemoDataError": "Demo data could not be removed."
   },
+  "doctorDashboard": {
+    "hospitalOpd": "Hospital OPD",
+    "affiliations": "Hospital affiliations",
+    "noAffiliations": "No hospital affiliations yet.",
+    "verificationRequired": "Doctor verification is required before joining a hospital.",
+    "prescriptionVersion": "Prescription version",
+    "amendPrescription": "Amend prescription",
+    "auditRecorded": "Audit event recorded"
+  },
   "hospitalOps": {
     "searchLabel": "Search hospital records",
     "searchPlaceholder": "Search patient ID, name, token, doctor...",
@@ -751,7 +760,13 @@
     "fullName": "Full name",
     "dateOfBirth": "Date of birth",
     "age": "Age",
+    "ageAutoCalculated": "Calculated from date of birth",
+    "futureDob": "Date of birth cannot be in the future.",
     "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "other": "Other",
+    "preferNotToSay": "Prefer not to say",
     "savePatient": "Save patient",
     "registered": "Patient registered",
     "priority": "Priority",

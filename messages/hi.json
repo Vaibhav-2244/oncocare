@@ -681,6 +681,15 @@
     "removeDemoData": "डेमो डेटा हटाएं",
     "removeDemoDataError": "डेमो डेटा हटाया नहीं जा सका।"
   },
+  "doctorDashboard": {
+    "hospitalOpd": "अस्पताल ओपीडी",
+    "affiliations": "अस्पताल संबद्धताएं",
+    "noAffiliations": "अभी कोई अस्पताल संबद्धता नहीं है।",
+    "verificationRequired": "अस्पताल से जुड़ने से पहले डॉक्टर सत्यापन आवश्यक है।",
+    "prescriptionVersion": "प्रिस्क्रिप्शन संस्करण",
+    "amendPrescription": "प्रिस्क्रिप्शन संशोधित करें",
+    "auditRecorded": "ऑडिट घटना दर्ज की गई"
+  },
   "hospitalOps": {
     "searchLabel": "हॉस्पिटल रिकॉर्ड खोजें",
     "searchPlaceholder": "मरीज़ आईडी, नाम, टोकन, डॉक्टर खोजें...",
@@ -751,7 +760,13 @@
     "fullName": "पूरा नाम",
     "dateOfBirth": "जन्मतिथि",
     "age": "उम्र",
+    "ageAutoCalculated": "जन्मतिथि से गणना की गई",
+    "futureDob": "जन्मतिथि भविष्य की नहीं हो सकती।",
     "gender": "लिंग",
+    "male": "पुरुष",
+    "female": "महिला",
+    "other": "अन्य",
+    "preferNotToSay": "बताना नहीं चाहते",
     "savePatient": "मरीज़ सहेजें",
     "registered": "मरीज़ पंजीकृत हुआ",
     "priority": "प्राथमिकता",

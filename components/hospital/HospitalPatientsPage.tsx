@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import { useHospital } from '@/lib/hospital/HospitalProvider';
 import { supabase } from '@/lib/supabase-client';
 import { callRpc } from '@/lib/hospital/api';
-import { maskMobile } from '@/lib/hospital/format';
+import { calculateAge, maskMobile } from '@/lib/hospital/format';
 import { DataTable, ErrorPanel, StatusChip } from '@/components/hospital/ui-kit';
 import { registerHospitalPatientSchema } from '@/lib/validation/hospital';
 
@@ -83,6 +83,10 @@ export function HospitalPatientsPage() {
   const registerPatient = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!org) return;
+    if (form.dob > todayValue) {
+      setError(t('futureDob'));
+      return;
+    }
     const parsed = registerHospitalPatientSchema.safeParse({ ...form, age: form.age || undefined });
     if (!parsed.success) {
       setError(parsed.error.issues[0]?.message ?? t('registerFailed'));
@@ -90,6 +94,7 @@ export function HospitalPatientsPage() {
     }
     setBusy(true);
     try {
+      // The string "0" is truthy, so infants retain age 0 when submitted.
       await callRpc('register_hospital_patient', { p_hospital_id: org.id, p_identifier: form.identifier, p_name: form.name, p_mobile: form.mobile || null, p_dob: form.dob || null, p_age: form.age ? Number(form.age) : null, p_gender: form.gender || null });
       setModal(null);
       setForm({ identifier: '', name: '', mobile: '', dob: '', age: '', gender: '' });
@@ -148,6 +153,8 @@ export function HospitalPatientsPage() {
   };
 
   const canRegister = can('patients.register');
+  const today = new Date();
+  const todayValue = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const visibleRows = rows;
   if (!org) return null;
   return <div className="space-y-5">
@@ -159,7 +166,7 @@ export function HospitalPatientsPage() {
       <div className="grid gap-3 md:hidden">{visibleRows.map((patient)=><article key={patient.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><div><Link href={`/dashboard/hospital/patients/${encodeURIComponent(patient.patient_identifier)}`} className="font-semibold text-teal-800 underline-offset-4 hover:underline">{patient.patient_identifier}</Link><h2 className="mt-1 font-semibold text-slate-950">{patient.name}</h2></div>{patient.is_demo && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">{t('demo')}</span>}</div><p className="mt-3 text-sm text-slate-600">{patient.age ?? '—'} / {patient.gender ?? '—'} · {maskMobile(patient.mobile)}</p><div className="mt-3 flex flex-wrap gap-2"><StatusChip code={patient.patient_user_id ? 'accepted' : 'pending'} /><StatusChip code={patient.today_status ?? 'pending'} /></div></article>)}</div>
       <div className="flex items-center justify-between"><span className="text-sm text-slate-600">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE,total)} / {total}</span><div className="flex gap-2"><button type="button" disabled={page===0} onClick={()=>setPage((value)=>value-1)} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm disabled:opacity-40">‹</button><button type="button" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage((value)=>value+1)} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm disabled:opacity-40">›</button></div></div>
     </>}
-    {modal==='register' && <Modal title={t('registerPatient')} onClose={()=>setModal(null)}><form onSubmit={registerPatient} className="space-y-3"><Field label={t('identifier')} value={form.identifier} onChange={(identifier)=>setForm({...form,identifier})} required /><Field label={t('fullName')} value={form.name} onChange={(name)=>setForm({...form,name})} required /><Field label={t('mobile')} value={form.mobile} onChange={(mobile)=>setForm({...form,mobile})} /><div className="grid grid-cols-2 gap-3"><Field label={t('dateOfBirth')} type="date" value={form.dob} onChange={(dob)=>setForm({...form,dob})} /><Field label={t('age')} type="number" value={form.age} onChange={(age)=>setForm({...form,age})} /></div><Field label={t('gender')} value={form.gender} onChange={(gender)=>setForm({...form,gender})} /><button type="button" onClick={()=>void checkDuplicates()} className="min-h-10 text-sm font-medium text-teal-800 underline">{t('checkDuplicates')}</button>{duplicates.length>0 && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">{t('possibleDuplicates')}</p>{duplicates.map((item)=><p key={item.identifier}>{item.name} · {item.identifier}</p>)}</div>}<div className="flex justify-end gap-2"><button type="button" onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!canRegister} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('savePatient')}</button></div></form></Modal>}
+    {modal==='register' && <Modal title={t('registerPatient')} onClose={()=>setModal(null)}><form onSubmit={registerPatient} className="space-y-3"><Field label={t('identifier')} value={form.identifier} onChange={(identifier)=>setForm({...form,identifier})} required /><Field label={t('fullName')} value={form.name} onChange={(name)=>setForm({...form,name})} required /><Field label={t('mobile')} value={form.mobile} onChange={(mobile)=>setForm({...form,mobile})} /><div className="grid grid-cols-2 gap-3"><Field label={t('dateOfBirth')} type="date" value={form.dob} max={todayValue} hint={form.dob > todayValue ? t('futureDob') : undefined} onChange={(dob)=>{const calculated = calculateAge(dob); setForm((current)=>({...current,dob,age:calculated !== null ? String(calculated) : current.age}));}} /><Field label={t('age')} type="number" value={form.age} readOnly={Boolean(form.dob)} hint={form.dob ? t('ageAutoCalculated') : undefined} onChange={(age)=>setForm({...form,age})} /></div><label className="block text-sm font-medium text-slate-700">{t('gender')}<select value={form.gender} onChange={(event)=>setForm({...form,gender:event.target.value})} className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"><option value="">—</option><option value="male">{t('male')}</option><option value="female">{t('female')}</option><option value="other">{t('other')}</option><option value="prefer_not_to_say">{t('preferNotToSay')}</option></select></label><button type="button" onClick={()=>void checkDuplicates()} className="min-h-10 text-sm font-medium text-teal-800 underline">{t('checkDuplicates')}</button>{duplicates.length>0 && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">{t('possibleDuplicates')}</p>{duplicates.map((item)=><p key={item.identifier}>{item.name} · {item.identifier}</p>)}</div>}<div className="flex justify-end gap-2"><button type="button" onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!canRegister} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('savePatient')}</button></div></form></Modal>}
     {modal==='import' && <Modal title={t('importCsv')} onClose={()=>setModal(null)}><div className="space-y-3"><textarea rows={7} value={csvText} onChange={(event)=>setCsvText(event.target.value)} placeholder="identifier,name,mobile,dob,age,gender" className="w-full rounded-lg border border-slate-300 p-3 text-sm" /><button type="button" onClick={()=>void previewImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white"><FilePlus2 className="mr-2 inline h-4 w-4" />{t('previewImport')}</button>{importPreview.length>0 && <div className="max-h-52 overflow-auto rounded-lg border border-slate-200">{importPreview.map((item,index)=><div key={index} className="flex justify-between gap-3 border-b px-3 py-2 text-sm"><span>{item.row.identifier} · {item.row.name}</span><span className={item.status==='new'?'text-emerald-800':'text-amber-900'}>{item.status}: {item.message}</span></div>)}</div>}<div className="flex justify-end gap-2"><button onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!importPreview.some((item)=>item.status==='new')} onClick={()=>void confirmImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('confirmImport')}</button></div></div></Modal>}
   </div>;
 }
@@ -167,6 +174,6 @@ export function HospitalPatientsPage() {
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-3" role="presentation" onMouseDown={(event)=>{if(event.target===event.currentTarget)onClose();}}><section role="dialog" aria-modal="true" aria-label={title} className="max-h-[92vh] w-full max-w-xl overflow-auto rounded-xl bg-white p-5 shadow-xl"><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-semibold text-slate-950">{title}</h2><button onClick={onClose} aria-label="Close" className="grid h-10 w-10 place-items-center rounded-md hover:bg-slate-100"><X className="h-4 w-4" /></button></div>{children}</section></div>;
 }
-function Field({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
-  return <label className="block text-sm font-medium text-slate-700">{label}<input required={required} type={type} value={value} onChange={(event)=>onChange(event.target.value)} className="mt-1 h-10 w-full rounded-md border border-slate-300 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700" /></label>;
+function Field({ label, value, onChange, type = 'text', required = false, readOnly = false, max, hint }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; readOnly?: boolean; max?: string; hint?: string }) {
+  return <label className="block text-sm font-medium text-slate-700">{label}<input required={required} type={type} value={value} max={max} readOnly={readOnly} onChange={(event)=>onChange(event.target.value)} className={`mt-1 h-10 w-full rounded-md border border-slate-300 px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 ${readOnly ? 'bg-slate-100 text-slate-600' : ''}`} />{hint && <span className="mt-1 block text-xs font-normal text-slate-500">{hint}</span>}</label>;
 }

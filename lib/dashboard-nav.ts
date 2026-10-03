@@ -21,6 +21,7 @@ import {
   Package,
   Settings,
   ShieldCheck,
+  Stethoscope,
   Siren,
   TrendingUp,
   Truck,
@@ -82,6 +83,7 @@ export const commonNavItems: NavItem[] = [
   { label: 'Lab Reports', href: '/dashboard/lab-reports', icon: FlaskConical },
   { label: 'Second Opinion', href: '/dashboard/second-opinion', icon: FileText },
   { label: 'Care Team', href: '/dashboard/care-team', icon: Users },
+  { label: 'My doctors', href: '/dashboard/my-doctors', icon: Stethoscope },
   { label: 'Caregiver Marketplace', href: '/dashboard/caregiver-marketplace', icon: Users },
   { label: 'Timeline', href: '/dashboard/timeline', icon: Clock },
   { label: 'Community', href: '/dashboard/community', icon: MessageCircle },
@@ -90,8 +92,8 @@ export const commonNavItems: NavItem[] = [
   { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Brain },
   { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { label: 'Emergency', href: '/dashboard/emergency', icon: Siren },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
+  { label: 'Profile', href: '/dashboard/doctor/profile', icon: User },
+  { label: 'Settings', href: '/dashboard/doctor/settings', icon: Settings },
 ];
 
 export const patientNavItems: NavItem[] = [
@@ -118,9 +120,15 @@ export const caregiverNavItems: NavItem[] = [
 
 export const doctorNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/doctor', icon: LayoutDashboard },
-  { label: 'My Patients', href: '/dashboard/doctor#patients', icon: Users },
-  { label: 'Appointments', href: '/dashboard/doctor#appointments', icon: Calendar },
-  { label: 'Medical Notes', href: '/dashboard/documents', icon: FileText },
+  { label: 'My Patients', href: '/dashboard/doctor/patients', icon: Users },
+  { label: 'Appointments', href: '/dashboard/doctor/appointments', icon: Calendar },
+  { label: 'Medical Notes', href: '/dashboard/doctor/consultations', icon: FileText },
+  { label: 'Prescriptions', href: '/dashboard/doctor/prescriptions', icon: Pill },
+  { label: 'Reports', href: '/dashboard/doctor/reports', icon: FlaskConical },
+  { label: 'Treatment plans', href: '/dashboard/doctor/treatment-plans', icon: TrendingUp },
+  { label: 'Patient links', href: '/dashboard/doctor/links', icon: ShieldCheck },
+  { label: 'Messages', href: '/dashboard/doctor/messages', icon: MessageSquare },
+  { label: 'Hospital OPD', href: '/dashboard/hospital/opd', icon: Hospital },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Profile', href: '/dashboard/profile', icon: User },
   { label: 'Settings', href: '/dashboard/settings', icon: Settings },
@@ -163,6 +171,7 @@ export const pharmacyNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/admin', icon: LayoutDashboard },
+  { label: 'Doctor verifications', href: '/dashboard/admin/doctor-verifications', icon: Stethoscope },
   { label: 'User Management', href: '/dashboard/admin#users', icon: Users },
   { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
   { label: 'Pharmacy Admin', href: '/admin', icon: ShieldCheck },
