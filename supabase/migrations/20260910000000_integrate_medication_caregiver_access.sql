@@ -248,7 +248,11 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.generate_today_medication_doses()
+-- The original function may have been created with a different return type.
+-- PostgreSQL cannot change a function return type with CREATE OR REPLACE.
+DROP FUNCTION IF EXISTS public.generate_today_medication_doses();
+
+CREATE FUNCTION public.generate_today_medication_doses()
 RETURNS integer
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
