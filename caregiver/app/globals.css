@@ -1,0 +1,246 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1f2937;
+
+  /* OncoCare+ Brand */
+  --primary: #2ec4b6;
+  --primary-dark: #0f766e;
+  --primary-soft: #e8f8f6;
+
+  /* Neutral */
+  --surface: #ffffff;
+  --surface-muted: #f5f7fa;
+  --border: #e5e7eb;
+  --muted: #9ca3af;
+  --text-secondary: #6b7280;
+
+  /* Status */
+  --success: #22c55e;
+  --success-soft: #ecfdf3;
+
+  --info: #3b82f6;
+  --info-soft: #eff6ff;
+
+  --warning: #f59e0b;
+  --warning-soft: #fffbeb;
+
+  --error: #ef4444;
+  --error-soft: #fef2f2;
+
+  /* Layout */
+  --sidebar-width: 250px;
+  --topbar-height: 72px;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---------- Scrollbars ---------- */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-muted);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ---------- Selection ---------- */
+
+::selection {
+  background: rgba(46, 196, 182, 0.2);
+  color: var(--primary-dark);
+}
+
+/* ---------- Focus ---------- */
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Utility styles ---------- */
+
+.oc-page {
+  min-height: 100vh;
+  background: var(--surface-muted);
+}
+
+.oc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.oc-card-hover {
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.oc-card-hover:hover {
+  transform: translateY(-1px);
+  border-color: #d5dfe0;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes oc-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes oc-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes oc-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.oc-fade-in {
+  animation: oc-fade-in 220ms ease-out;
+}
+
+.oc-slide-in {
+  animation: oc-slide-in 220ms ease-out;
+}
+
+.oc-pulse {
+  animation: oc-pulse 1.8s ease-in-out infinite;
+}
+
+/* ---------- Skeleton ---------- */
+
+.oc-skeleton {
+  background: linear-gradient(
+    90deg,
+    #eef1f3 25%,
+    #f8fafb 50%,
+    #eef1f3 75%
+  );
+  background-size: 200% 100%;
+  animation: oc-skeleton-loading 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes oc-skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ---------- Mobile ---------- */
+
+@media (max-width: 768px) {
+  :root {
+    --topbar-height: 64px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .oc-card {
+    border-radius: var(--radius-md);
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

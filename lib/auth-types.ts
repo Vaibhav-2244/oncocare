@@ -69,7 +69,7 @@ export const roleConfig: Record<RoleName, { displayName: string; description: st
   super_admin: { displayName: 'Super Admin', description: 'Full system access', icon: 'ShieldCheck', dashboardPath: '/dashboard/admin' },
   admin: { displayName: 'Admin', description: 'System administration', icon: 'Settings', dashboardPath: '/dashboard/admin' },
   patient: { displayName: 'Patient', description: 'Cancer patient', icon: 'Heart', dashboardPath: '/dashboard/patient' },
-  family_caregiver: { displayName: 'Family Caregiver', description: 'Caregiver for a patient', icon: 'Users', dashboardPath: '/dashboard/patient' },
+  family_caregiver: { displayName: 'Family Caregiver', description: 'Caregiver for a patient', icon: 'Users', dashboardPath: '/dashboard/caregiver' },
   doctor: { displayName: 'Doctor', description: 'Healthcare provider', icon: 'Stethoscope', dashboardPath: '/dashboard/doctor' },
   hospital: { displayName: 'Hospital', description: 'Healthcare institution', icon: 'Building2', dashboardPath: '/dashboard/hospital' },
   pharmacy: { displayName: 'Pharmacy', description: 'Pharmacy partner', icon: 'Pill', dashboardPath: '/dashboard/pharmacy' },

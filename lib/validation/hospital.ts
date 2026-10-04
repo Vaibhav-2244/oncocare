@@ -10,7 +10,7 @@ export const createHospitalSchema = z.object({
 export type CreateHospitalInput = z.infer<typeof createHospitalSchema>;
 
 export const registerHospitalPatientSchema = z.object({
-  identifier: z.string().trim().min(1).max(80),
+  identifier: z.string().trim().max(80).optional().or(z.literal('')),
   name: z.string().trim().min(2).max(200),
   mobile: z.string().trim().max(24).optional().or(z.literal('')),
   dob: z.string().optional().or(z.literal('')),
