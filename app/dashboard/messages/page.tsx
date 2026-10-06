@@ -16,7 +16,7 @@ import { useTranslations } from 'next-intl';
 
 interface CareTeamMember {
   id: string;
-  user_id: string | null;
+  user_id: string;
   member_name: string;
   role: string;
   specialty: string | null;
@@ -86,11 +86,7 @@ function MessagesContent() {
     setLoadingContacts(true);
     setError(null);
     try {
-      const { data, error: queryError } = await supabase
-        .from('care_team')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('member_name', { ascending: true });
+      const { data, error: queryError } = await supabase.rpc('get_patient_message_contacts');
       if (queryError) throw new Error(queryError.message);
       setContacts((data || []) as CareTeamMember[]);
     } catch (err) {
@@ -109,8 +105,6 @@ function MessagesContent() {
     setLoadingMessages(true);
     setError(null);
     try {
-      // Messages between current user and the selected care team member.
-      // We treat the care_team.id as the recipient_id / sender_id identifier.
       const { data, error: queryError } = await supabase
         .from('messages')
         .select('*')
@@ -129,7 +123,7 @@ function MessagesContent() {
 
   useEffect(() => {
     if (selectedContact) {
-      loadMessages(selectedContact.id);
+      loadMessages(selectedContact.user_id);
     } else {
       setMessages([]);
     }
@@ -150,7 +144,7 @@ function MessagesContent() {
       const { error: updateError } = await supabase
         .from('messages')
         .update({ is_read: true })
-        .eq('sender_id', contact.id)
+        .eq('sender_id', contact.user_id)
         .eq('recipient_id', user.id)
         .eq('is_read', false);
       if (updateError) throw updateError;
@@ -173,7 +167,7 @@ function MessagesContent() {
     const optimistic: MessageRow = {
       id: `temp-${Date.now()}`,
       sender_id: user.id,
-      recipient_id: selectedContact.id,
+      recipient_id: selectedContact.user_id,
       content,
       is_read: false,
       created_at: new Date().toISOString(),
@@ -181,16 +175,10 @@ function MessagesContent() {
     setMessages((prev) => [...prev, optimistic]);
 
     try {
-      const { data, error: insertError } = await supabase
-        .from('messages')
-        .insert({
-          sender_id: user.id,
-          recipient_id: selectedContact.id,
-          content,
-          is_read: false,
-        })
-        .select()
-        .single();
+      const { data, error: insertError } = await supabase.rpc('patient_send_doctor_message', {
+        p_doctor_id: selectedContact.user_id,
+        p_content: content,
+      });
       if (insertError) throw insertError;
       setMessages((prev) =>
         prev.map((m) => (m.id === optimistic.id ? (data as MessageRow) : m)),

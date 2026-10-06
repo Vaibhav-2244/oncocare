@@ -59,7 +59,7 @@ export interface BplVerification {
 
 export async function fetchBplPatients(verified_only = false) {
   const query = supabase
-    .from('bpl_patients')
+    .from('bpl_public_patients')
     .select('*')
     .order('created_at', { ascending: false });
 
@@ -74,7 +74,7 @@ export async function fetchBplPatients(verified_only = false) {
 
 export async function fetchBplPatientById(patientId: number) {
   const { data, error } = await supabase
-    .from('bpl_patients')
+    .from('bpl_public_patients')
     .select('*')
     .eq('id', patientId)
     .single();
@@ -87,7 +87,7 @@ export async function searchBplPatients(query: string) {
   const searchTerm = `%${query.toLowerCase()}%`;
   
   const { data, error } = await supabase
-    .from('bpl_patients')
+    .from('bpl_public_patients')
     .select('*')
     .or(`name.ilike.${searchTerm},cancer_type.ilike.${searchTerm},location.ilike.${searchTerm}`)
     .eq('verified', true)
@@ -98,9 +98,11 @@ export async function searchBplPatients(query: string) {
 }
 
 export async function createBplPatient(patientData: Omit<BplPatient, 'id' | 'created_at' | 'updated_at'>) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Authentication required');
   const { data, error } = await supabase
     .from('bpl_patients')
-    .insert([patientData])
+    .insert([{ ...patientData, created_by: user.id }])
     .select();
 
   if (error) throw error;

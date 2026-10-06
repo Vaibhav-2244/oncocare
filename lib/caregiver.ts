@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase-client';
+import { getCaregiverNotifications, type CaregiverNotification } from '@/lib/caregiver-medication';
 
 export type CaregiverRelationshipStatus = 'active' | 'pending' | 'revoked';
 
@@ -94,11 +95,16 @@ export async function getCaregiverPatientById(patientId: string): Promise<Caregi
 }
 
 export async function getCaregiverDashboardStats() {
-  const patients = await getCaregiverPatients();
+  const [patients, notificationsResponse] = await Promise.all([
+    getCaregiverPatients(),
+    getCaregiverNotifications(),
+  ]);
+  if (notificationsResponse.error) throw notificationsResponse.error;
+
   return {
     totalPatients: patients.length,
     activePatients: patients.filter((patient) => patient.status === 'active').length,
     pendingLinks: patients.filter((patient) => patient.status === 'pending').length,
-    notifications: 0,
+    notifications: (notificationsResponse.data as CaregiverNotification[] | null || []).filter((notification) => !notification.is_read).length,
   };
 }

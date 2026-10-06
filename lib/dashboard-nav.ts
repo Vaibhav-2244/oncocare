@@ -92,8 +92,8 @@ export const commonNavItems: NavItem[] = [
   { label: 'AI Engine', href: '/dashboard/ai-engine', icon: Brain },
   { label: 'Messages', href: '/dashboard/messages', icon: MessageSquare },
   { label: 'Emergency', href: '/dashboard/emergency', icon: Siren },
-  { label: 'Profile', href: '/dashboard/doctor/profile', icon: User },
-  { label: 'Settings', href: '/dashboard/doctor/settings', icon: Settings },
+  { label: 'Profile', href: '/dashboard/profile', icon: User },
+  { label: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 
 export const patientNavItems: NavItem[] = [

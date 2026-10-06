@@ -9,15 +9,19 @@ export default function CaregiverDashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState({ totalPatients: 0, activePatients: 0, pendingLinks: 0, notifications: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       try {
         const next = await getCaregiverDashboardStats();
-        if (active) setStats(next);
-      } catch {
-        if (active) setStats({ totalPatients: 0, activePatients: 0, pendingLinks: 0, notifications: 0 });
+        if (active) {
+          setStats(next);
+          setError(null);
+        }
+      } catch (loadError) {
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Unable to load caregiver data.');
       } finally {
         if (active) setLoading(false);
       }
@@ -49,6 +53,11 @@ export default function CaregiverDashboardPage() {
             <div className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${color}`}>
               <Icon className="h-5 w-5" />
             </div>
+            {error && (
+              <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+                {error}
+              </div>
+            )}
             <div className="mt-4 text-3xl font-bold text-slate-900">{loading ? '—' : value}</div>
             <div className="text-sm text-slate-500">{label}</div>
           </div>

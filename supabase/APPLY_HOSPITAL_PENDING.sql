@@ -3812,7 +3812,143 @@ $fn$;
 GRANT EXECUTE ON FUNCTION public.import_hospital_patients(uuid, jsonb, boolean) TO authenticated;
 NOTIFY pgrst, 'reload schema';
 
--- 20261004000000_auto_generate_hospital_patient_ids.sql
+-- 20261004000000_repair_caregiver_role_access.sql
+-- Repair role assignments for users created before the role-assignment trigger
+-- was hardened, and allow caregivers to read profiles for linked patients.
+
+INSERT INTO public.roles (name, display_name, description) VALUES
+  ('family_caregiver', 'Family Caregiver', 'Family member managing care for a patient')
+ON CONFLICT (name) DO NOTHING;
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  requested_role text;
+  selected_role_id uuid;
+  self_serve_roles constant text[] := ARRAY[
+    'patient',
+    'family_caregiver',
+    'doctor',
+    'hospital',
+    'pharmacy',
+    'research_partner'
+  ];
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', '')
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  requested_role := NEW.raw_user_meta_data->>'role';
+  IF requested_role IS NULL OR NOT (requested_role = ANY (self_serve_roles)) THEN
+    requested_role := 'patient';
+  END IF;
+
+  SELECT id
+  INTO selected_role_id
+  FROM public.roles
+  WHERE name = requested_role;
+
+  INSERT INTO public.user_roles (user_id, role_id)
+  VALUES (NEW.id, selected_role_id)
+  ON CONFLICT (user_id, role_id) DO NOTHING;
+
+  INSERT INTO public.notification_preferences (user_id)
+  VALUES (NEW.id)
+  ON CONFLICT (user_id) DO NOTHING;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Restore a role for legacy users. Explicit signup metadata wins only when
+-- the account currently has no role or only the default patient role.
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT
+  u.id,
+  r.id
+FROM auth.users u
+JOIN public.roles r
+  ON r.name = CASE
+    WHEN u.raw_user_meta_data->>'role' IN (
+      'patient',
+      'family_caregiver',
+      'doctor',
+      'hospital',
+      'pharmacy',
+      'research_partner'
+    ) THEN u.raw_user_meta_data->>'role'
+    ELSE 'patient'
+  END
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.user_roles existing
+  WHERE existing.user_id = u.id
+)
+ON CONFLICT (user_id, role_id) DO NOTHING;
+
+WITH requested_roles AS (
+  SELECT
+    u.id AS user_id,
+    r.id AS role_id
+  FROM auth.users u
+  JOIN public.roles r
+    ON r.name = u.raw_user_meta_data->>'role'
+  WHERE u.raw_user_meta_data->>'role' IN (
+    'family_caregiver',
+    'doctor',
+    'hospital',
+    'pharmacy',
+    'research_partner'
+  )
+),
+patient_only_users AS (
+  SELECT ur.user_id
+  FROM public.user_roles ur
+  JOIN public.roles r ON r.id = ur.role_id
+  GROUP BY ur.user_id
+  HAVING count(*) = 1 AND bool_and(r.name = 'patient')
+)
+UPDATE public.user_roles ur
+SET role_id = requested.role_id
+FROM requested_roles requested
+JOIN patient_only_users patient_only
+  ON patient_only.user_id = requested.user_id
+WHERE ur.user_id = requested.user_id;
+
+INSERT INTO public.notification_preferences (user_id)
+SELECT u.id
+FROM auth.users u
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.notification_preferences preferences
+  WHERE preferences.user_id = u.id
+)
+ON CONFLICT (user_id) DO NOTHING;
+
+DROP POLICY IF EXISTS "caregiver_read_linked_patient_profiles" ON public.profiles;
+CREATE POLICY "caregiver_read_linked_patient_profiles"
+ON public.profiles
+FOR SELECT
+TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.caregiver_relationships relationship
+    WHERE relationship.caregiver_id = auth.uid()
+      AND relationship.patient_id = profiles.id
+      AND relationship.status IN ('active', 'pending')
+  )
+);
+
+-- 20261004000001_auto_generate_hospital_patient_ids.sql
 CREATE OR REPLACE FUNCTION public.next_hospital_patient_identifier(p_hospital_id uuid)
 RETURNS text
 LANGUAGE plpgsql
@@ -3939,5 +4075,797 @@ GRANT EXECUTE ON FUNCTION public.next_hospital_patient_identifier(uuid) TO authe
 REVOKE ALL ON FUNCTION public.register_hospital_patient(uuid, text, text, text, date, integer, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.register_hospital_patient(uuid, text, text, text, date, integer, text) TO authenticated;
 NOTIFY pgrst, 'reload schema';
+
+-- 20261005000000_notify_patient_doctor_messages.sql
+-- Keep patient-to-doctor messaging and in-app notifications in one transaction.
+
+CREATE OR REPLACE FUNCTION public.patient_send_doctor_message(p_doctor_id uuid, p_content text)
+RETURNS public.messages
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_patient_id uuid;
+  v_message public.messages;
+BEGIN
+  SELECT dp.id INTO v_patient_id
+  FROM public.doctor_patients dp
+  JOIN public.doctor_consents c ON c.doctor_patient_id = dp.id
+    AND c.revoked_at IS NULL
+    AND dp.doctor_id = p_doctor_id
+  WHERE dp.patient_user_id = auth.uid()
+  LIMIT 1;
+
+  IF v_patient_id IS NULL OR p_content IS NULL OR btrim(p_content) = '' THEN
+    RAISE EXCEPTION 'Active doctor consent and message content are required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.messages (sender_id, recipient_id, content)
+  VALUES (auth.uid(), p_doctor_id, btrim(p_content))
+  RETURNING * INTO v_message;
+
+  INSERT INTO public.notifications (user_id, title, message, type)
+  VALUES (p_doctor_id, 'New message from your patient', btrim(p_content), 'message');
+
+  RETURN v_message;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.patient_send_doctor_message(uuid, text) TO authenticated;
+
+-- 20261006000000_sync_clinical_sources.sql
+-- Connect doctor and hospital clinical records to the patient-owned clinical views.
+
+ALTER TABLE public.medications
+  ADD COLUMN IF NOT EXISTS source_key text,
+  ADD COLUMN IF NOT EXISTS source_doctor_prescription_id uuid
+    REFERENCES public.doctor_prescriptions(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS medications_source_key_unique
+  ON public.medications (source_key)
+  WHERE source_key IS NOT NULL;
+
+ALTER TABLE public.treatments
+  ADD COLUMN IF NOT EXISTS source_key text,
+  ADD COLUMN IF NOT EXISTS source_doctor_treatment_plan_id uuid
+    REFERENCES public.doctor_treatment_plans(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS treatments_source_key_unique
+  ON public.treatments (source_key)
+  WHERE source_key IS NOT NULL;
+
+CREATE OR REPLACE FUNCTION public.sync_doctor_prescription_to_patient(
+  p_prescription_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  prescription_row public.doctor_prescriptions;
+  patient_user_id uuid;
+  item jsonb;
+  item_index integer := 0;
+  medicine_name text;
+  medicine_dose text;
+BEGIN
+  SELECT dp.*
+  INTO prescription_row
+  FROM public.doctor_prescriptions dp
+  JOIN public.doctor_patients roster ON roster.id = dp.doctor_patient_id
+  WHERE dp.id = p_prescription_id;
+
+  SELECT roster.patient_user_id
+  INTO patient_user_id
+  FROM public.doctor_patients roster
+  WHERE roster.id = prescription_row.doctor_patient_id;
+
+  IF prescription_row.id IS NULL OR patient_user_id IS NULL THEN
+    RETURN;
+  END IF;
+
+  IF prescription_row.status IN ('cancelled', 'expired') THEN
+    UPDATE public.medications
+    SET is_active = false
+    WHERE source_doctor_prescription_id = prescription_row.id;
+  ELSE
+    FOR item IN SELECT value FROM jsonb_array_elements(prescription_row.items)
+    LOOP
+      medicine_name := NULLIF(btrim(COALESCE(item->>'medicine', item->>'name', '')), '');
+      medicine_dose := NULLIF(btrim(COALESCE(item->>'dose', item->>'dosage', '')), '');
+      IF medicine_name IS NOT NULL THEN
+        INSERT INTO public.medications (
+          user_id, name, dosage, frequency, times, notes, is_active,
+          source_key, source_doctor_prescription_id
+        )
+        VALUES (
+          patient_user_id, medicine_name, COALESCE(medicine_dose, 'As directed'),
+          COALESCE(NULLIF(item->>'frequency', ''), 'as directed'),
+          COALESCE(item->'times', '[]'::jsonb),
+          prescription_row.notes, true,
+          prescription_row.id::text || ':' || item_index::text, prescription_row.id
+        )
+        ON CONFLICT (source_key) DO UPDATE SET
+          name = EXCLUDED.name,
+          dosage = EXCLUDED.dosage,
+          frequency = EXCLUDED.frequency,
+          times = EXCLUDED.times,
+          notes = EXCLUDED.notes,
+          is_active = true,
+          source_doctor_prescription_id = EXCLUDED.source_doctor_prescription_id;
+      END IF;
+      item_index := item_index + 1;
+    END LOOP;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.notifications
+    WHERE user_id = patient_user_id
+      AND type = 'prescription'
+      AND message = 'Prescription ' || prescription_row.prescription_no || ' is now available.'
+      AND created_at > now() - interval '5 minutes'
+  ) THEN
+    INSERT INTO public.notifications (user_id, title, message, type)
+    VALUES (
+      patient_user_id,
+      'Prescription updated',
+      'Prescription ' || prescription_row.prescription_no || ' is now available.',
+      'prescription'
+    );
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.doctor_create_prescription(
+  p_patient_id uuid,
+  p_items jsonb,
+  p_valid_until date DEFAULT NULL,
+  p_notes text DEFAULT NULL
+)
+RETURNS public.doctor_prescriptions
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  created public.doctor_prescriptions;
+  next_no integer;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.doctor_has_role() THEN
+    RAISE EXCEPTION 'Doctor role is required' USING ERRCODE = '42501';
+  END IF;
+  IF jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) < 1 THEN
+    RAISE EXCEPTION 'At least one prescription item is required' USING ERRCODE = '22023';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.doctor_patients
+    WHERE id = p_patient_id AND doctor_id = auth.uid() AND status = 'active'
+  ) THEN
+    RAISE EXCEPTION 'Patient is not in your roster' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT count(*) + 1 INTO next_no
+  FROM public.doctor_prescriptions WHERE doctor_id = auth.uid();
+
+  INSERT INTO public.doctor_prescriptions (
+    doctor_id, doctor_patient_id, prescription_no, items, valid_until, notes
+  )
+  VALUES (
+    auth.uid(), p_patient_id,
+    'RX-' || to_char(current_date, 'YYYYMMDD') || '-' || lpad(next_no::text, 4, '0'),
+    p_items, p_valid_until, p_notes
+  )
+  RETURNING * INTO created;
+
+  PERFORM public.sync_doctor_prescription_to_patient(created.id);
+  RETURN created;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sync_doctor_treatment_plan_to_patient(
+  p_plan_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  plan_row public.doctor_treatment_plans;
+  patient_user_id uuid;
+BEGIN
+  SELECT plan.*
+  INTO plan_row
+  FROM public.doctor_treatment_plans plan
+  JOIN public.doctor_patients roster ON roster.id = plan.doctor_patient_id
+  WHERE plan.id = p_plan_id;
+  SELECT roster.patient_user_id
+  INTO patient_user_id
+  FROM public.doctor_patients roster
+  WHERE roster.id = plan_row.doctor_patient_id;
+
+  IF plan_row.id IS NULL OR patient_user_id IS NULL THEN RETURN; END IF;
+
+  INSERT INTO public.treatments (
+    user_id, type, name, status, notes, progress,
+    source_key, source_doctor_treatment_plan_id
+  )
+  VALUES (
+    patient_user_id, 'other', plan_row.name,
+    CASE plan_row.status
+      WHEN 'active' THEN 'active'
+      WHEN 'completed' THEN 'completed'
+      WHEN 'cancelled' THEN 'cancelled'
+      ELSE 'planned'
+    END,
+    plan_row.protocol, round(plan_row.progress_percent)::integer,
+    plan_row.id::text, plan_row.id
+  )
+  ON CONFLICT (source_key) DO UPDATE SET
+    name = EXCLUDED.name,
+    status = EXCLUDED.status,
+    notes = EXCLUDED.notes,
+    progress = EXCLUDED.progress,
+    source_doctor_treatment_plan_id = EXCLUDED.source_doctor_treatment_plan_id;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.notifications
+    WHERE user_id = patient_user_id
+      AND type = 'treatment'
+      AND message = 'Treatment plan "' || plan_row.name || '" was updated.'
+      AND created_at > now() - interval '5 minutes'
+  ) THEN
+    INSERT INTO public.notifications (user_id, title, message, type)
+    VALUES (
+      patient_user_id, 'Treatment plan updated',
+      'Treatment plan "' || plan_row.name || '" was updated.', 'treatment'
+    );
+  END IF;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.sync_doctor_treatment_plan_trigger()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  PERFORM public.sync_doctor_treatment_plan_to_patient(NEW.id);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS sync_doctor_treatment_plan ON public.doctor_treatment_plans;
+CREATE TRIGGER sync_doctor_treatment_plan
+AFTER INSERT OR UPDATE OF name, protocol, progress_percent, status
+ON public.doctor_treatment_plans
+FOR EACH ROW EXECUTE FUNCTION public.sync_doctor_treatment_plan_trigger();
+
+CREATE OR REPLACE FUNCTION public.doctor_get_patient_live_data(p_doctor_patient_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  patient_user uuid;
+  granted text[];
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.doctor_has_role() THEN
+    RAISE EXCEPTION 'Doctor role is required' USING ERRCODE = '42501';
+  END IF;
+  SELECT p.patient_user_id, c.scopes INTO patient_user, granted
+  FROM public.doctor_patients p
+  JOIN public.doctor_consents c
+    ON c.doctor_patient_id = p.id AND c.revoked_at IS NULL
+  WHERE p.id = p_doctor_patient_id AND p.doctor_id = auth.uid();
+  IF patient_user IS NULL THEN
+    RAISE EXCEPTION 'Patient has not granted active consent' USING ERRCODE = '42501';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'symptoms', CASE WHEN 'symptoms' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(s) ORDER BY s.recorded_at DESC)
+        FROM public.symptoms s WHERE s.user_id = patient_user), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'medications', CASE WHEN 'medications' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(m) ORDER BY m.created_at DESC)
+        FROM public.medications m WHERE m.user_id = patient_user), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'treatments', CASE WHEN 'treatments' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t.created_at DESC)
+        FROM public.treatments t WHERE t.user_id = patient_user), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'timeline', CASE WHEN 'timeline' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(t) ORDER BY t.event_date DESC)
+        FROM public.health_timeline t WHERE t.user_id = patient_user), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'doctor_prescriptions', CASE WHEN 'prescriptions' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.created_at DESC)
+        FROM public.doctor_prescriptions p
+        JOIN public.doctor_patients dp ON dp.id = p.doctor_patient_id
+        WHERE dp.id = p_doctor_patient_id), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'doctor_treatment_plans', CASE WHEN 'treatments' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(p) ORDER BY p.updated_at DESC)
+        FROM public.doctor_treatment_plans p
+        WHERE p.doctor_patient_id = p_doctor_patient_id), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'doctor_consultations', CASE WHEN 'consultations' = ANY(granted) THEN
+      COALESCE((SELECT jsonb_agg(to_jsonb(c) ORDER BY c.updated_at DESC)
+        FROM public.doctor_consultations c
+        WHERE c.doctor_patient_id = p_doctor_patient_id), '[]'::jsonb)
+      ELSE '[]'::jsonb END,
+    'consent_scopes', to_jsonb(granted)
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_patient_message_contacts()
+RETURNS TABLE (
+  id uuid,
+  user_id uuid,
+  member_name text,
+  role text,
+  specialty text,
+  phone text,
+  email text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT dp.id, dp.doctor_id, COALESCE(profile.full_name, 'Doctor'),
+    'doctor', doctor_profile.specialization, profile.phone, profile.email
+  FROM public.doctor_patients dp
+  JOIN public.doctor_consents c
+    ON c.doctor_patient_id = dp.id
+    AND c.patient_user_id = auth.uid()
+    AND c.revoked_at IS NULL
+  LEFT JOIN public.profiles profile ON profile.id = dp.doctor_id
+  LEFT JOIN public.doctor_profiles doctor_profile ON doctor_profile.user_id = dp.doctor_id
+  WHERE dp.patient_user_id = auth.uid()
+  ORDER BY profile.full_name;
+$$;
+
+CREATE OR REPLACE FUNCTION public.link_patient_account(
+  p_hospital_id uuid,
+  p_code text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  link_row public.patient_link_codes;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO link_row
+  FROM public.patient_link_codes
+  WHERE hospital_id = p_hospital_id
+    AND code_hash = md5(upper(btrim(p_code)))
+    AND consumed_at IS NULL
+    AND expires_at > now()
+  ORDER BY created_at DESC
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1;
+  IF link_row.id IS NULL THEN
+    RAISE EXCEPTION 'Invalid or expired link code' USING ERRCODE = 'P0002';
+  END IF;
+  UPDATE public.hospital_patients
+  SET patient_user_id = auth.uid(), updated_at = now()
+  WHERE id = link_row.patient_id
+    AND hospital_id = p_hospital_id
+    AND (patient_user_id IS NULL OR patient_user_id = auth.uid());
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Patient account is already linked' USING ERRCODE = '42501';
+  END IF;
+  UPDATE public.patient_link_codes SET consumed_at = now()
+  WHERE id = link_row.id AND consumed_at IS NULL;
+  RETURN jsonb_build_object('patient_id', link_row.patient_id, 'linked', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.link_patient_account(uuid, text, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.link_patient_account(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_patient_message_contacts() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.doctor_get_patient_live_data(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.notify_hospital_patient_event()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  recipient uuid;
+  event_type text;
+  title text;
+  body text;
+  item_row record;
+BEGIN
+  IF TG_TABLE_NAME = 'hospital_admissions' THEN
+    SELECT patient_user_id INTO recipient FROM public.hospital_patients WHERE id = NEW.patient_id;
+    event_type := 'admission';
+    title := CASE WHEN NEW.status = 'discharged' THEN 'Hospital discharge updated' ELSE 'Hospital admission updated' END;
+    body := 'Your hospital admission status is now ' || NEW.status || '.';
+  ELSIF TG_TABLE_NAME = 'investigation_reports' THEN
+    SELECT hp.patient_user_id INTO recipient
+    FROM public.investigation_orders o
+    JOIN public.hospital_patients hp ON hp.id = o.patient_id
+    WHERE o.id = NEW.order_id;
+    event_type := 'investigation';
+    title := 'Investigation report available';
+    body := 'A new investigation report is available in your clinical records.';
+  ELSIF TG_TABLE_NAME = 'prescriptions' THEN
+    SELECT hp.patient_user_id INTO recipient
+    FROM public.hospital_patients hp WHERE hp.id = NEW.patient_id;
+    event_type := 'prescription';
+    title := 'Hospital prescription updated';
+    body := 'A hospital prescription was added to your clinical records.';
+    IF recipient IS NOT NULL THEN
+      FOR item_row IN
+        SELECT * FROM public.prescription_items WHERE prescription_id = NEW.id
+      LOOP
+        INSERT INTO public.medications (
+          user_id, name, dosage, frequency, notes, is_active, source_key
+        )
+        VALUES (
+          recipient,
+          item_row.medicine_name,
+          COALESCE(item_row.dose, 'As directed'),
+          COALESCE(item_row.frequency, 'As directed'),
+          concat_ws(' ', item_row.duration, item_row.instructions),
+          true,
+          'hospital-prescription:' || NEW.id::text || ':' || item_row.id::text
+        )
+        ON CONFLICT (source_key) DO UPDATE SET
+          name = EXCLUDED.name,
+          dosage = EXCLUDED.dosage,
+          frequency = EXCLUDED.frequency,
+          notes = EXCLUDED.notes,
+          is_active = true;
+      END LOOP;
+    END IF;
+  ELSIF TG_TABLE_NAME = 'consultations' THEN
+    SELECT hp.patient_user_id INTO recipient
+    FROM public.hospital_patients hp WHERE hp.id = NEW.patient_id;
+    event_type := 'consultation';
+    title := 'Hospital consultation updated';
+    body := 'A hospital consultation was updated in your clinical records.';
+  ELSE
+    RETURN NEW;
+  END IF;
+
+  IF recipient IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.notifications
+    WHERE user_id = recipient AND type = event_type
+      AND message = body AND created_at > now() - interval '5 minutes'
+  ) THEN
+    INSERT INTO public.notifications (user_id, title, message, type)
+    VALUES (recipient, title, body, event_type);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS notify_hospital_admission ON public.hospital_admissions;
+CREATE TRIGGER notify_hospital_admission
+AFTER INSERT OR UPDATE OF status ON public.hospital_admissions
+FOR EACH ROW EXECUTE FUNCTION public.notify_hospital_patient_event();
+
+DROP TRIGGER IF EXISTS notify_hospital_report ON public.investigation_reports;
+CREATE TRIGGER notify_hospital_report
+AFTER INSERT ON public.investigation_reports
+FOR EACH ROW EXECUTE FUNCTION public.notify_hospital_patient_event();
+
+DROP TRIGGER IF EXISTS notify_hospital_prescription ON public.prescriptions;
+CREATE TRIGGER notify_hospital_prescription
+AFTER INSERT ON public.prescriptions
+FOR EACH ROW EXECUTE FUNCTION public.notify_hospital_patient_event();
+
+CREATE OR REPLACE FUNCTION public.sync_hospital_prescription_item()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  recipient uuid;
+BEGIN
+  SELECT hp.patient_user_id INTO recipient
+  FROM public.prescriptions p
+  JOIN public.hospital_patients hp ON hp.id = p.patient_id
+  WHERE p.id = NEW.prescription_id;
+
+  IF recipient IS NOT NULL THEN
+    INSERT INTO public.medications (
+      user_id, name, dosage, frequency, notes, is_active, source_key
+    )
+    VALUES (
+      recipient,
+      NEW.medicine_name,
+      COALESCE(NEW.dose, 'As directed'),
+      COALESCE(NEW.frequency, 'As directed'),
+      concat_ws(' ', NEW.duration, NEW.instructions),
+      true,
+      'hospital-prescription:' || NEW.prescription_id::text || ':' || NEW.id::text
+    )
+    ON CONFLICT (source_key) DO UPDATE SET
+      name = EXCLUDED.name,
+      dosage = EXCLUDED.dosage,
+      frequency = EXCLUDED.frequency,
+      notes = EXCLUDED.notes,
+      is_active = true;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS sync_hospital_prescription_item ON public.prescription_items;
+CREATE TRIGGER sync_hospital_prescription_item
+AFTER INSERT OR UPDATE ON public.prescription_items
+FOR EACH ROW EXECUTE FUNCTION public.sync_hospital_prescription_item();
+
+DROP TRIGGER IF EXISTS notify_hospital_consultation ON public.consultations;
+CREATE TRIGGER notify_hospital_consultation
+AFTER INSERT OR UPDATE OF status ON public.consultations
+FOR EACH ROW WHEN (NEW.status = 'final')
+EXECUTE FUNCTION public.notify_hospital_patient_event();
+
+-- 20261006010000_harden_bpl_and_demo_access.sql
+-- Restrict BPL reads to the intentionally public fundraising surface and keep
+-- hospital demo data unavailable to ordinary production staff.
+
+DROP POLICY IF EXISTS "auth_view_all_patients" ON public.bpl_patients;
+DROP POLICY IF EXISTS "public_view_verified_patients" ON public.bpl_patients;
+
+CREATE POLICY "bpl_owner_read" ON public.bpl_patients
+FOR SELECT TO authenticated
+USING (
+  created_by = auth.uid()
+  OR EXISTS (
+    SELECT 1
+    FROM public.user_roles ur
+    JOIN public.roles r ON r.id = ur.role_id
+    WHERE ur.user_id = auth.uid() AND r.name IN ('admin', 'super_admin')
+  )
+);
+
+CREATE POLICY "bpl_public_verified_read" ON public.bpl_patients
+FOR SELECT TO anon, authenticated
+USING (verified = true);
+
+CREATE OR REPLACE VIEW public.bpl_public_patients
+WITH (security_invoker = true)
+AS
+SELECT
+  id, name, age, gender, cancer_type, stage, location, treatment,
+  goal_amount, raised_amount, donors_count, urgent, image_url, summary,
+  verified, created_at, updated_at
+FROM public.bpl_patients;
+
+GRANT SELECT ON public.bpl_public_patients TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.load_demo_data(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_setting('app.environment', true) NOT IN ('development', 'staging') THEN
+    RAISE EXCEPTION 'Demo data is disabled outside development and staging'
+      USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  RAISE EXCEPTION 'Use the development/staging demo bundle to load sample data'
+    USING ERRCODE = '0A000';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.remove_demo_data(p_hospital_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF current_setting('app.environment', true) NOT IN ('development', 'staging') THEN
+    RAISE EXCEPTION 'Demo data is disabled outside development and staging'
+      USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.hospital_has_cap(p_hospital_id, 'config.manage') THEN
+    RAISE EXCEPTION 'config.manage capability required' USING ERRCODE = '42501';
+  END IF;
+  RAISE EXCEPTION 'Demo data removal must be performed by the staging maintenance job'
+    USING ERRCODE = '0A000';
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.load_demo_data(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.remove_demo_data(uuid) FROM PUBLIC, anon, authenticated;
+
+-- 20261006020000_harden_hospital_privileged_rpcs.sql
+-- Close remaining unauthenticated and cross-patient hospital RPC paths.
+
+CREATE OR REPLACE FUNCTION public.generate_patient_link_code(
+  p_hospital_id uuid,
+  p_patient_id uuid
+)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  raw_code text;
+BEGIN
+  IF auth.uid() IS NULL
+     OR NOT public.hospital_has_cap(p_hospital_id, 'patients.register')
+     OR NOT EXISTS (
+       SELECT 1 FROM public.hospital_patients
+       WHERE id = p_patient_id AND hospital_id = p_hospital_id
+     ) THEN
+    RAISE EXCEPTION 'Hospital patient-link permission is required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  raw_code := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12));
+  INSERT INTO public.patient_link_codes (
+    hospital_id, patient_id, code_hash, expires_at
+  )
+  VALUES (
+    p_hospital_id, p_patient_id,
+    encode(digest(raw_code, 'sha256'), 'hex'),
+    now() + interval '7 days'
+  );
+  RETURN raw_code;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.link_patient_account(
+  p_hospital_id uuid,
+  p_code text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  link_row public.patient_link_codes;
+BEGIN
+  IF auth.uid() IS NULL OR NULLIF(btrim(p_code), '') IS NULL THEN
+    RAISE EXCEPTION 'Authentication and link code are required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  SELECT * INTO link_row
+  FROM public.patient_link_codes
+  WHERE hospital_id = p_hospital_id
+    AND code_hash IN (
+      encode(digest(upper(btrim(p_code)), 'sha256'), 'hex'),
+      md5(upper(btrim(p_code)))
+    )
+    AND consumed_at IS NULL
+    AND expires_at > now()
+  ORDER BY created_at DESC
+  FOR UPDATE SKIP LOCKED
+  LIMIT 1;
+
+  IF link_row.id IS NULL THEN
+    RAISE EXCEPTION 'Invalid or expired link code' USING ERRCODE = 'P0002';
+  END IF;
+
+  UPDATE public.hospital_patients
+  SET patient_user_id = auth.uid(), updated_at = now()
+  WHERE id = link_row.patient_id
+    AND hospital_id = p_hospital_id
+    AND (patient_user_id IS NULL OR patient_user_id = auth.uid());
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Patient account is already linked' USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.patient_link_codes
+  SET consumed_at = now()
+  WHERE id = link_row.id AND consumed_at IS NULL;
+
+  RETURN jsonb_build_object('patient_id', link_row.patient_id, 'linked', true);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.get_my_hospital_visits()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT COALESCE(
+    jsonb_agg(jsonb_build_object(
+      'hospital_id', hp.hospital_id,
+      'patient_id', hp.id,
+      'patient_identifier', hp.patient_identifier,
+      'name', hp.name,
+      'visit_date', hv.visit_date,
+      'checked_in_at', hv.checked_in_at
+    ) ORDER BY hv.visit_date DESC),
+    '[]'::jsonb
+  )
+  FROM public.hospital_patients hp
+  JOIN public.hospital_visits hv ON hv.patient_id = hp.id
+  WHERE hp.patient_user_id = auth.uid();
+$$;
+
+CREATE OR REPLACE FUNCTION public.respond_slot_offer(
+  p_order_id uuid,
+  p_accept boolean
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  order_row public.investigation_orders;
+BEGIN
+  SELECT o.*
+  INTO order_row
+  FROM public.investigation_orders o
+  JOIN public.investigation_waitlist w ON w.order_id = o.id
+  JOIN public.hospital_patients hp ON hp.id = o.patient_id
+  WHERE o.id = p_order_id
+    AND hp.patient_user_id = auth.uid()
+    AND w.status = 'offered'
+    AND w.offer_expires_at > now()
+  FOR UPDATE;
+
+  IF order_row.id IS NULL THEN
+    RAISE EXCEPTION 'Active investigation offer not found'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_accept THEN
+    UPDATE public.investigation_waitlist
+    SET status = 'accepted', offer_expires_at = NULL
+    WHERE order_id = p_order_id AND status = 'offered';
+    UPDATE public.investigation_orders
+    SET status = 'scheduled', updated_at = now()
+    WHERE id = p_order_id AND status IN ('offered', 'waitlisted');
+  ELSE
+    UPDATE public.investigation_waitlist
+    SET status = 'cancelled', offer_expires_at = NULL
+    WHERE order_id = p_order_id AND status = 'offered';
+    UPDATE public.investigation_orders
+    SET status = 'cancelled', cancelled_at = now(), updated_at = now()
+    WHERE id = p_order_id AND status IN ('offered', 'waitlisted');
+  END IF;
+
+  RETURN jsonb_build_object('order_id', p_order_id, 'accepted', p_accept);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.generate_patient_link_code(uuid, uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.link_patient_account(uuid, text, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.get_my_hospital_visits(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.respond_slot_offer(uuid, boolean) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.demo_seed_investigations(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.demo_seed_admissions(uuid) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.generate_patient_link_code(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.link_patient_account(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_my_hospital_visits() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.respond_slot_offer(uuid, boolean) TO authenticated;
 
 NOTIFY pgrst, 'reload schema';
