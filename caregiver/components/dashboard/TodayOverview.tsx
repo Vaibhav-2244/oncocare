@@ -39,11 +39,11 @@ export function TodayOverview() {
     <section>
       <div className="mb-4">
         <h2 className="text-lg font-bold text-gray-900">
-          Today&apos;s overview
+          Today's overview
         </h2>
 
         <p className="mt-1 text-sm text-gray-500">
-          A quick view of the areas you&apos;ll use
+          A quick view of the areas you'll use
           throughout the day.
         </p>
       </div>

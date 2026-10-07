@@ -364,7 +364,7 @@ export function TodayMedicationSchedule({
 
               <div>
                 <h2 className="text-lg font-semibold text-[#1F2937]">
-                  Today&apos;s medication schedule
+                  Today's medication schedule
                 </h2>
 
                 <p className="mt-1 text-sm text-gray-500">
@@ -411,7 +411,7 @@ export function TodayMedicationSchedule({
           <div className="mt-5">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium text-gray-500">
-                Today&apos;s progress
+                Today's progress
               </span>
 
               <span className="text-xs font-semibold text-[#0F766E]">
@@ -613,7 +613,7 @@ export function TodayMedicationSchedule({
         <p className="text-xs leading-5 text-gray-500">
           Medication details are read-only for caregivers.
           Recording a dose only updates the execution status;
-          it does not change the patient&apos;s prescription.
+          it does not change the patient's prescription.
         </p>
       </div>
     </section>

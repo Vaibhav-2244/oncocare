@@ -1359,7 +1359,7 @@ export default function DietPlanDashboard() {
                 <Leaf className="h-5 w-5" />
               </div>
               <p className="text-sm leading-5 text-slate-600">
-                {t('everyStepCountsBeKindToYourselfÂProgressTakesTime')}{' '}</p>
+                {t('everyStepCountsBeKindToYourselfProgressTakesTime')}{' '}</p>
             </div>
 
             <p className="mx-auto mt-6 max-w-3xl pb-8 text-center text-xs leading-5 text-slate-400">
@@ -1703,7 +1703,7 @@ function ChangeMealSheet({
                 <h3 className="text-sm font-semibold text-slate-900">
                   {t('whyWouldYouLikeADifferentOption')}{' '}</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  {t('optionalÂOneReasonAppliesToAllSelectedMeals')}{' '}</p>
+                  {t('optionalOneReasonAppliesToAllSelectedMeals')}{' '}</p>
               </div>
               {replacementReason && (
                 <button

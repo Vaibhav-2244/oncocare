@@ -26,7 +26,7 @@ export function DashboardHeader({
         </h1>
 
         <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
-          Coordinate today&apos;s care, stay on top of
+          Coordinate today's care, stay on top of
           important updates, and keep your assigned
           patients supported.
         </p>

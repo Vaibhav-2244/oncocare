@@ -145,7 +145,7 @@ export default function TimelinePage({
 
             <p className="mt-2 text-sm text-gray-500">
               You are not authorized to view this
-              patient&apos;s timeline.
+              patient's timeline.
             </p>
           </Card>
         </div>

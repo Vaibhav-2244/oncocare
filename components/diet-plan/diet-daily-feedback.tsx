@@ -28,17 +28,17 @@ const OPTIONS: Array<{
 }> = [
   {
     sentiment: "positive",
-    emoji: "ðŸ™‚",
+    emoji: "🙂",
     label: "Pretty good",
   },
   {
     sentiment: "neutral",
-    emoji: "ðŸ˜",
+    emoji: "😐",
     label: "It was okay",
   },
   {
     sentiment: "negative",
-    emoji: "ðŸ™",
+    emoji: "🙁",
     label: "Not great",
   },
 ];

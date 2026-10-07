@@ -27,6 +27,7 @@ const tabs: { id: Tab; label: string; icon: typeof User }[] = [
 function ProfileContent() {
   const t = useTranslations('profile');
   const { user, refreshUser, signOut } = useAuth();
+  const doctorManagedByHospital = user?.primaryRole === 'doctor';
   const [activeTab, setActiveTab] = useState<Tab>('personal');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -253,7 +254,7 @@ function ProfileContent() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2">
-        {tabs.map((tab) => (
+        {tabs.filter((tab) => !doctorManagedByHospital || tab.id !== 'security').map((tab) => (
           <button
             key={tab.id}
             onClick={() => { setActiveTab(tab.id); setError(null); setSaved(false); }}
@@ -373,7 +374,7 @@ function ProfileContent() {
         )}
 
         {/* Security */}
-        {activeTab === 'security' && (
+        {activeTab === 'security' && !doctorManagedByHospital && (
           <form onSubmit={handleChangePassword} className="space-y-4">
             <h3 className="text-base font-bold text-slate-900">{t('changePassword')}</h3>
             <div className="space-y-4">

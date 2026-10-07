@@ -87,7 +87,7 @@ export function MedicationSummary({
 
           <div>
             <h2 className="font-semibold text-[#1F2937]">
-              Today&apos;s medications
+              Today's medications
             </h2>
 
             <p className="mt-0.5 text-sm text-gray-500">

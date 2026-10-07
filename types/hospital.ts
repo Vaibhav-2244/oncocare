@@ -56,6 +56,11 @@ export interface HospitalDoctor {
   user_id: string | null;
   department_id: string | null;
   specialty: string | null;
+  doctor_identifier?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  registration_no?: string | null;
+  registration_council?: string | null;
   is_active: boolean;
   created_at: string;
   is_demo?: boolean;

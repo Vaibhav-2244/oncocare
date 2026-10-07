@@ -288,7 +288,7 @@ export default function DashboardPage() {
 
                   <div>
                     <h2 className="font-semibold text-gray-900">
-                      Today&apos;s care workspace
+                      Today's care workspace
                     </h2>
 
                     <p className="mt-1 text-sm leading-6 text-gray-500">
@@ -362,7 +362,7 @@ export default function DashboardPage() {
                 <p className="mt-4 text-sm leading-6 text-gray-500">
                   Lumi can help you navigate the caregiver
                   workspace and organize care activities. Lumi
-                  does not replace the patient&apos;s doctor or make
+                  does not replace the patient's doctor or make
                   clinical decisions.
                 </p>
 

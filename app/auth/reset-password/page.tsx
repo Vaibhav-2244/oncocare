@@ -27,6 +27,9 @@ export default function ResetPasswordPage() {
         router.push('/auth/forgot-password');
         return;
       }
+      if (session.user.user_metadata?.role === 'doctor') {
+        setError('Doctor passwords are managed by your hospital administrator.');
+      }
       setVerifying(false);
     };
     checkSession();
@@ -34,6 +37,11 @@ export default function ResetPasswordPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const { data: current } = await supabase.auth.getUser();
+    if (current.user?.user_metadata?.role === 'doctor') {
+      setError('Doctor passwords are managed by your hospital administrator.');
+      return;
+    }
 
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');

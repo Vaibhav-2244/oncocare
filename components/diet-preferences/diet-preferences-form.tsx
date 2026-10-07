@@ -288,15 +288,15 @@ function getAcknowledgement(
       preferences.dietType
     ) {
       case "vegan":
-        return "Got it â€” weâ€™ll keep the plan fully plant-based.";
+        return "Got it — we’ll keep the plan fully plant-based.";
       case "vegetarian":
-        return "Got it â€” weâ€™ll keep meat and fish out of your plan.";
+        return "Got it — we’ll keep meat and fish out of your plan.";
       case "eggetarian":
-        return "Got it â€” weâ€™ll keep the plan vegetarian and can include eggs.";
+        return "Got it — we’ll keep the plan vegetarian and can include eggs.";
       case "non_vegetarian":
-        return "Got it â€” weâ€™ll keep your usual eating pattern in mind.";
+        return "Got it — we’ll keep your usual eating pattern in mind.";
       default:
-        return "Got it â€” weâ€™ll use what you tell us without making assumptions.";
+        return "Got it — we’ll use what you tell us without making assumptions.";
     }
   }
 
@@ -305,17 +305,17 @@ function getAcknowledgement(
       preferences.allergies.length >
       0
     ) {
-      return "Thanks â€” those foods will be treated as hard exclusions when your plan is checked.";
+      return "Thanks — those foods will be treated as hard exclusions when your plan is checked.";
     }
 
     if (
       preferences.intolerances.length >
       0
     ) {
-      return "Thanks â€” weâ€™ll keep those intolerances in mind when building your meals.";
+      return "Thanks — we’ll keep those intolerances in mind when building your meals.";
     }
 
-    return "Thanks â€” weâ€™ll keep this part simple and only use what you actually told us.";
+    return "Thanks — we’ll keep this part simple and only use what you actually told us.";
   }
 
   if (step === 3) {
@@ -323,14 +323,14 @@ function getAcknowledgement(
       preferences.preferredFoods.length >
       0
     ) {
-      return "Lovely â€” weâ€™ll look for ways to bring more of those familiar foods into future plans.";
+      return "Lovely — we’ll look for ways to bring more of those familiar foods into future plans.";
     }
 
-    return "Got it â€” your dislikes and preferences will help keep future options practical.";
+    return "Got it — your dislikes and preferences will help keep future options practical.";
   }
 
   if (step === 4) {
-    return `Got it â€” weâ€™ll work around a ${preferences.mealCount ?? 5}-meal rhythm and the times you selected.`;
+    return `Got it — we’ll work around a ${preferences.mealCount ?? 5}-meal rhythm and the times you selected.`;
   }
 
   if (step === 5) {
@@ -338,20 +338,20 @@ function getAcknowledgement(
       preferences.appetite
     ) {
       case "low":
-        return "Got it â€” future plans can lean toward smaller, practical options where the evidence supports it.";
+        return "Got it — future plans can lean toward smaller, practical options where the evidence supports it.";
       case "variable":
-        return "Got it â€” weâ€™ll keep your day flexible rather than assuming every meal will feel the same.";
+        return "Got it — we’ll keep your day flexible rather than assuming every meal will feel the same.";
       case "increased":
-        return "Got it â€” weâ€™ll keep your usual hunger pattern in mind.";
+        return "Got it — we’ll keep your usual hunger pattern in mind.";
       default:
-        return "Got it â€” weâ€™ll keep your usual appetite pattern in mind.";
+        return "Got it — we’ll keep your usual appetite pattern in mind.";
     }
   }
 
   return preferences.nutritionGoals.length >
     0
-    ? "Almost there â€” these goals will help shape future nutrition plans."
-    : "Almost there â€” you can change these preferences whenever your needs change.";
+    ? "Almost there — these goals will help shape future nutrition plans."
+    : "Almost there — you can change these preferences whenever your needs change.";
 }
 
 export default function DietPreferencesForm() {
@@ -1075,7 +1075,7 @@ export default function DietPreferencesForm() {
                 <p className="text-xs font-semibold uppercase tracking-[0.13em] text-slate-400">
                   {t('makeItYours')}{' '}</p>
                 <h2 className="mt-1 text-2xl font-semibold text-slate-950">
-                  {t('whatSoundsGoodÂAndWhatDoesnAposT')}{' '}</h2>
+                  {t('whatSoundsGoodAndWhatDoesnt')}{' '}</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
                   {t('theseArePersonalPreferencesNotMedicalRestrictionsYouCanBeAsSpecificAsYouLike')}{' '}</p>
 

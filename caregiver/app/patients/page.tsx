@@ -109,7 +109,7 @@ export default function PatientsPage() {
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
                   Patient assignments are loaded only after the
                   external OncoCare+ authentication layer provides
-                  the caregiver&apos;s authenticated Supabase
+                  the caregiver's authenticated Supabase
                   session.
                 </p>
               </div>

@@ -43,7 +43,7 @@ function DoctorDashboardContent() {
         <div>
           <p className="text-sm font-medium text-teal-700">Doctor workspace</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Good to see you</h1>
-          <p className="mt-1 text-sm text-slate-500">A secure overview of your roster and today&apos;s priorities.</p>
+          <p className="mt-1 text-sm text-slate-500">A secure overview of your roster and today{"'"}s priorities.</p>
         </div>
         <button type="button" onClick={() => void load()} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
           <RefreshCw className="h-4 w-4" /> Refresh

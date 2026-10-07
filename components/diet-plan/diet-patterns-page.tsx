@@ -51,11 +51,11 @@ function sentimentLabel(
 ): string {
   switch (value) {
     case "positive":
-      return "ðŸ™‚ Felt good";
+      return "🙂 Felt good";
     case "neutral":
-      return "ðŸ˜ Felt okay";
+      return "😐 Felt okay";
     case "negative":
-      return "ðŸ™ Didn't feel great";
+      return "🙁 Didn't feel great";
     default:
       return "No check-in yet";
   }
