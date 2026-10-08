@@ -75,6 +75,30 @@ CREATE TABLE public.symptoms (
   recorded_at timestamptz DEFAULT now(),
   created_at timestamptz DEFAULT now()
 );
+ALTER TABLE public.symptoms ENABLE ROW LEVEL SECURITY;
+CREATE POLICY symptoms_test_owner ON public.symptoms
+  FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.symptoms TO authenticated;
+CREATE TABLE public.side_effect_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL DEFAULT auth.uid() REFERENCES auth.users(id) ON DELETE CASCADE,
+  name text NOT NULL,
+  severity integer NOT NULL DEFAULT 5 CHECK (severity BETWEEN 1 AND 10),
+  trend text NOT NULL DEFAULT 'Stable' CHECK (trend IN ('Improving', 'Stable', 'Getting worse')),
+  duration text,
+  notes text,
+  what_helped jsonb DEFAULT '[]'::jsonb,
+  recorded_at timestamptz DEFAULT now(),
+  follow_up_at timestamptz,
+  follow_up_status text DEFAULT 'scheduled' CHECK (follow_up_status IN ('scheduled', 'due', 'completed')),
+  follow_up_completed_at timestamptz,
+  source text DEFAULT 'dashboard',
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.side_effect_entries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY side_effect_entries_test_owner ON public.side_effect_entries
+  FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.side_effect_entries TO authenticated;
 CREATE TABLE public.medications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -102,6 +126,10 @@ CREATE TABLE public.treatments (
   progress integer DEFAULT 0,
   created_at timestamptz DEFAULT now()
 );
+ALTER TABLE public.treatments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY treatments_test_owner ON public.treatments
+  FOR ALL TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.treatments TO authenticated;
 CREATE TABLE public.health_timeline (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -278,6 +306,10 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const nurseB = '20000000-0000-4000-8000-000000000008';
   const patientA = '20000000-0000-4000-8000-000000000009';
   const patientB = '20000000-0000-4000-8000-000000000010';
+  const bplBucket = await db.query<{ id: string; public: boolean }>(
+    `SELECT id, public FROM storage.buckets WHERE id='bpl-patients'`
+  );
+  if (!bplBucket.rows[0]?.public) throw new Error('The public BPL patient-photo bucket was not provisioned.');
   await db.exec(`
     RESET ROLE;
     INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
@@ -334,6 +366,27 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       SELECT c.hospital_id,c.patient_id,c.id,c.doctor_id FROM public.consultations c
       WHERE c.hospital_id='${hospitalA}' AND c.complaint='Follow-up';
   `);
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientA}',false);`);
+  await db.exec(`
+    INSERT INTO public.symptoms (user_id,name,severity) VALUES ('${patientA}','Fatigue',5);
+    INSERT INTO public.treatments (
+      user_id,type,name,status,start_date,scheduled_date,scheduled_time,location,doctor,reminder,progress
+    ) VALUES (
+      '${patientA}','chemotherapy','Regression treatment','planned',current_date,current_date,time '09:00',
+      'Clinic','Dr Test',true,0
+    );
+    INSERT INTO public.side_effect_entries (
+      user_id,name,severity,trend,duration,what_helped,cancer_type,treatment_type,journey_phase
+    ) VALUES (
+      '${patientA}','Nausea',4,'Stable','Today','[]'::jsonb,'Breast','Chemotherapy','Treatment'
+    );
+  `);
+  let foreignSymptomRejected = false;
+  try {
+    await db.query(`INSERT INTO public.symptoms (user_id,name,severity) VALUES ($1,'Unauthorized',5)`, [patientB]);
+  } catch { foreignSymptomRejected = true; }
+  if (!foreignSymptomRejected) throw new Error('A patient inserted a symptom record into another user account.');
+  await db.exec('RESET ROLE');
   const ids = await db.query<{ doctor_a_row: string; doctor_b_row: string }>(`
     SELECT
       (SELECT id FROM public.hospital_doctors WHERE user_id='${doctorA}') AS doctor_a_row,

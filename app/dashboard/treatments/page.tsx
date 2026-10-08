@@ -252,8 +252,14 @@ function TreatmentTrackerContent() {
     setError(null);
 
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.user || session.user.id !== user.id) {
+        throw new Error('Your sign-in session has expired. Please sign in again before saving treatment details.');
+      }
+
       const payload = {
-        user_id: user.id,
+        user_id: session.user.id,
         type: form.type,
         name: form.name.trim(),
         status: form.status,

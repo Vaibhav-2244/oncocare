@@ -66,6 +66,7 @@ export default function BplDonationsPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   // Load data
   useEffect(() => {
@@ -172,23 +173,36 @@ export default function BplDonationsPage() {
       return;
     }
     setError(null);
+    setNotice(null);
+    let uploadedFilePath: string | null = null;
+    let photoWarning: string | null = null;
     try {
       let imageUrl = BPL_PATIENT_PLACEHOLDER;
 
       if (imageFile) {
-        const filePath = `${user.id}/${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
+        const extensionByType: Record<string, string> = {
+          'image/jpeg': 'jpg',
+          'image/png': 'png',
+          'image/webp': 'webp',
+        };
+        const extension = extensionByType[imageFile.type];
+        if (!extension) throw new Error('Choose a JPG, PNG, or WebP patient photo.');
+        const filePath = `${user.id}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await supabase.storage
           .from('bpl-patients')
           .upload(filePath, imageFile);
 
         if (uploadError) {
-          throw new Error(`Patient photo upload failed: ${uploadError.message}`);
+          photoWarning = uploadError.message.toLowerCase().includes('bucket not found')
+            ? 'Patient registered without a photo. The bpl-patients storage bucket is missing; apply the latest Supabase migration to enable photo uploads.'
+            : `Patient registered without a photo. Photo upload failed: ${uploadError.message}`;
+        } else {
+          uploadedFilePath = filePath;
+          const { data: urlData } = supabase.storage
+            .from('bpl-patients')
+            .getPublicUrl(filePath);
+          imageUrl = urlData.publicUrl;
         }
-
-        const { data: urlData } = supabase.storage
-          .from('bpl-patients')
-          .getPublicUrl(filePath);
-        imageUrl = urlData.publicUrl;
       }
 
       const patientData = {
@@ -206,17 +220,27 @@ export default function BplDonationsPage() {
         urgent: false,
         image_url: imageUrl,
         donors_count: 0,
-        created_by: user!.id,
+        created_by: user.id,
       };
 
       await createBplPatient(patientData);
+      uploadedFilePath = null;
       setShowRegister(false);
+      if (photoWarning) setNotice(photoWarning);
 
-      // Refresh patients
-      const updatedPatients = await fetchBplPatients();
-      setPatients(updatedPatients);
-      setFilteredPatients(updatedPatients);
+      try {
+        const updatedPatients = await fetchBplPatients();
+        setPatients(updatedPatients);
+        setFilteredPatients(updatedPatients);
+      } catch (refreshError) {
+        const message = refreshError instanceof Error ? refreshError.message : 'Refresh the page to see the new patient.';
+        setNotice((current) => [current, `Patient registered, but the patient list could not refresh: ${message}`].filter(Boolean).join(' '));
+      }
     } catch (error) {
+      if (uploadedFilePath) {
+        const { error: cleanupError } = await supabase.storage.from('bpl-patients').remove([uploadedFilePath]);
+        if (cleanupError) console.error('Failed to clean up unlinked patient photo:', cleanupError);
+      }
       console.error('Patient registration failed:', error);
       setError(error instanceof Error ? error.message : 'Patient registration failed. Please try again.');
     }
@@ -296,6 +320,12 @@ export default function BplDonationsPage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="BPL Donations">
+        {notice && (
+          <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} className="font-semibold">{t('dismiss')}</button>
+          </div>
+        )}
         {error && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">
             <span>{error}</span>

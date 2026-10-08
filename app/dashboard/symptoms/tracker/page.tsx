@@ -68,6 +68,12 @@ export default function SideEffectTrackerPage() {
     setError(null);
 
     try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.user || session.user.id !== user.id) {
+        throw new Error('Your sign-in session has expired. Please sign in again before saving side effects.');
+      }
+
       const nextRecord: SideEffectRecord = {
         id: crypto.randomUUID(),
         name: symptom,
@@ -83,7 +89,7 @@ export default function SideEffectTrackerPage() {
       };
 
       const { data, error: insertError } = await supabase.from('side_effect_entries').insert({
-        user_id: user.id,
+        user_id: session.user.id,
         name: nextRecord.name,
         severity: nextRecord.severity,
         trend: nextRecord.trend,

@@ -133,15 +133,29 @@ export default function SymptomCheckerPage() {
     setSaving(true);
     setError(null);
     try {
-      const { error: insertError } = await supabase.from('symptoms').insert({
-        user_id: user.id,
-        name: assessment.symptom,
-        severity: assessment.severity,
-        notes: `${assessment.notes || ''}${assessment.notes && assessment.trend ? ' | ' : ''}${assessment.trend} - ${assessment.duration}`.trim() || null,
-        recorded_at: new Date().toISOString(),
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) throw sessionError;
+      if (!session?.access_token || session.user.id !== user.id) {
+        throw new Error('Your sign-in session has expired. Please sign in again, then save the assessment.');
+      }
+
+      const response = await fetch('/api/symptoms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          name: assessment.symptom,
+          severity: assessment.severity,
+          notes: `${assessment.notes || ''}${assessment.notes && assessment.trend ? ' | ' : ''}${assessment.trend} - ${assessment.duration}`.trim() || null,
+        }),
       });
 
-      if (insertError) throw insertError;
+      const result = await response.json() as { success?: boolean; error?: string };
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Unable to save the assessment.');
+      }
       setError(null);
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: `I’ve saved your symptom entry for ${assessment.symptom}. Keep monitoring it and contact your care team if it worsens or if you develop urgent symptoms.` }]);
     } catch (err) {

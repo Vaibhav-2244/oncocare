@@ -109,6 +109,9 @@ export function AuthProvider({
             setUser(null);
           }
         }
+      } else if (mounted) {
+        setUser(null);
+        setSession(null);
       }
       if (mounted) setLoading(false);
     };

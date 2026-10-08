@@ -15,7 +15,6 @@ export async function POST(request: NextRequest) {
       name?: string;
       severity?: number;
       notes?: string;
-      recordedAt?: string;
     };
 
     const name = body.name?.trim();
@@ -33,13 +32,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
     }
 
-    const token = authHeader.replace('Bearer ', '').trim();
+    const token = authHeader.slice('Bearer '.length).trim();
+    if (!token) {
+      return NextResponse.json({ success: false, error: 'Authentication required.' }, { status: 401 });
+    }
     const client = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { headers: { Authorization: `Bearer ${token}` } },
     });
 
-    const { data: userData, error: userError } = await client.auth.getUser();
+    const { data: userData, error: userError } = await client.auth.getUser(token);
     if (userError || !userData.user) {
       return NextResponse.json({ success: false, error: 'Invalid or expired session.' }, { status: 401 });
     }
@@ -51,7 +53,7 @@ export async function POST(request: NextRequest) {
         name,
         severity,
         notes: body.notes?.trim() || null,
-        recorded_at: body.recordedAt || new Date().toISOString(),
+        recorded_at: new Date().toISOString(),
       })
       .select()
       .single();
