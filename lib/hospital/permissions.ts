@@ -20,6 +20,7 @@ const ROLE_CAPABILITIES: Record<string, HospitalCapability[]> = {
   nurse: ['patients.read', 'patients.register', 'queue.manage', 'clinical.read', 'admissions.read'],
   doctor: ['patients.read', 'queue.manage', 'clinical.read', 'clinical.write', 'orders.create', 'admissions.read'],
   admissions_staff: ['patients.read', 'patients.register', 'admissions.manage', 'admissions.read'],
+  care_coordinator: ['patients.read', 'patients.register', 'queue.manage'],
   lab_tech: ['patients.read', 'orders.pipeline'],
   radiology_tech: ['patients.read', 'orders.pipeline'],
 };

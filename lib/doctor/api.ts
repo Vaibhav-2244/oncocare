@@ -35,6 +35,34 @@ export interface DoctorDashboardSummary {
   };
 }
 
+export interface DoctorHospitalProfile {
+  hospital_id: string;
+  hospital_name: string;
+  doctor_row_id: string;
+  doctor_identifier: string | null;
+  employee_id: string | null;
+  full_name: string;
+  designation: string | null;
+  specialty: string | null;
+  subspecialty: string | null;
+  qualifications: string | null;
+  registration_no: string | null;
+  registration_council: string | null;
+  years_experience: number | null;
+  department: string | null;
+  joining_date: string | null;
+  employment_type: string | null;
+  employment_status: string;
+  opd_room: string | null;
+  shift_schedule: Array<{ day: number; start: string; end: string }>;
+  emergency_available: boolean;
+  official_email: string | null;
+  official_phone: string | null;
+  verification_status: string | null;
+  is_active: boolean;
+  care_team: Array<{ assignment_id: string; user_id: string; name: string; email: string; role: string; department: string | null }>;
+}
+
 function rpcError(message: string): Error {
   return new Error(`Doctor workspace request failed: ${message}`);
 }
@@ -49,6 +77,12 @@ export async function loadDoctorSummary() {
   const { data, error } = await supabase.rpc('doctor_dashboard_summary');
   if (error) throw rpcError(error.message);
   return data as DoctorDashboardSummary;
+}
+
+export async function loadDoctorHospitalProfile() {
+  const { data, error } = await supabase.rpc('doctor_hospital_profile');
+  if (error) throw rpcError(error.message);
+  return (data ?? []) as DoctorHospitalProfile[];
 }
 
 export async function listDoctorPatients(filters: Record<string, unknown> = {}) {
