@@ -968,7 +968,36 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
     || result.investigations !== 2 || result.notifications !== 3) {
     throw new Error(`Hospital dashboard seed data is incomplete or escaped its target: ${JSON.stringify(result)}`);
   }
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${adminId}',false);`);
+  const patientRecord = await db.query<{ identifier: string | null }>(
+    `SELECT public.get_hospital_patient_record($1,'DEMO-ONCO-001')->'patient'->>'identifier' AS identifier`,
+    [hospitalId]
+  );
+  if (patientRecord.rows[0]?.identifier !== 'DEMO-ONCO-001') {
+    throw new Error('Letter-prefixed patient identifiers must resolve to their exact patient record.');
+  }
+  const assignedDoctor = await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_doctors WHERE hospital_id=$1 AND is_demo ORDER BY doctor_name LIMIT 1`,
+    [hospitalId]
+  );
+  const assignedPatient = await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier='DEMO-ONCO-001'`,
+    [hospitalId]
+  );
+  await db.query(
+    `SELECT public.assign_hospital_patient_doctor($1,$2,$3)`,
+    [hospitalId, assignedPatient.rows[0].id, assignedDoctor.rows[0].id]
+  );
+  const assignment = await db.query<{ assigned_doctor_id: string | null }>(
+    `SELECT assigned_doctor_id FROM public.hospital_patients WHERE id=$1`,
+    [assignedPatient.rows[0].id]
+  );
+  if (assignment.rows[0]?.assigned_doctor_id !== assignedDoctor.rows[0].id) {
+    throw new Error('Active doctors must be assignable to patients in a pending hospital.');
+  }
+  await db.exec('RESET ROLE');
   console.log('PASS: test-hospital seed creates patient, OPD, queue, appointment, admission, investigation, and notification fixtures.');
+  console.log('PASS: exact letter-prefixed patient lookup and pending-hospital doctor assignment work.');
 }
 
 async function main() {
