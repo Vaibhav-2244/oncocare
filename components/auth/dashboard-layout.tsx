@@ -168,7 +168,7 @@ export function DashboardLayout({
           currentHash={currentHash}
           user={user}
           initials={initials}
-          unreadNotificationCount={user?.primaryRole === 'pharmacy' || user?.primaryRole === 'doctor' ? unreadNotificationCount : 0}
+          unreadNotificationCount={user?.primaryRole === 'pharmacy' || user?.primaryRole === 'doctor' || user?.primaryRole === 'hospital' ? unreadNotificationCount : 0}
         />
       </aside>
 
@@ -186,7 +186,7 @@ export function DashboardLayout({
               currentHash={currentHash}
               user={user}
               initials={initials}
-              unreadNotificationCount={user?.primaryRole === 'pharmacy' || user?.primaryRole === 'doctor' ? unreadNotificationCount : 0}
+              unreadNotificationCount={user?.primaryRole === 'pharmacy' || user?.primaryRole === 'doctor' || user?.primaryRole === 'hospital' ? unreadNotificationCount : 0}
               onNavigate={() => setSidebarOpen(false)}
             />
           </aside>

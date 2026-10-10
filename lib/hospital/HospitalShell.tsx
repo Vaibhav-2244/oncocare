@@ -1,45 +1,15 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
-import { AlertTriangle, Building2, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { AlertTriangle, Building2, Loader2, RefreshCw } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useHospital } from '@/lib/hospital/HospitalProvider';
 import { HospitalSearch } from '@/components/hospital/HospitalSearch';
-import { SampleDataBanner } from '@/components/hospital/ui-kit';
-import { supabase } from '@/lib/supabase-client';
 
 export function HospitalShell({ children }: { children: ReactNode }) {
   const t = useTranslations('hospital');
-  const ops = useTranslations('hospitalOps');
   const { org, orgs, loading, error, technicalDetails, refresh, selectOrg } = useHospital();
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
-  const [sampleBusy, setSampleBusy] = useState(false);
-  const [live, setLive] = useState(false);
-  const [lastConnected, setLastConnected] = useState<Date | null>(null);
-  const hospitalId = org?.id;
-
-  useEffect(() => {
-    if (!hospitalId) return;
-    const channel = supabase.channel(`hospital-shell-${hospitalId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'hospital_orgs', filter: `id=eq.${hospitalId}` }, () => setLastConnected(new Date()))
-      .subscribe((status) => {
-        setLive(status === 'SUBSCRIBED');
-        if (status === 'SUBSCRIBED') setLastConnected(new Date());
-      });
-    return () => { void supabase.removeChannel(channel); };
-  }, [hospitalId]);
-
-  const runSampleAction = async (action: 'load_demo_data' | 'remove_demo_data') => {
-    if (!org) return;
-    setSampleBusy(true);
-    try {
-      const { error: rpcError } = await supabase.rpc(action, { p_hospital_id: org.id });
-      if (rpcError) throw rpcError;
-      await refresh();
-    } finally {
-      setSampleBusy(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -86,7 +56,7 @@ export function HospitalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+      <div className="flex flex-wrap items-center gap-3 border-b border-slate-200 pb-4">
         <div className="flex min-w-0 items-center gap-3">
           <Building2 className="h-5 w-5 shrink-0 text-teal-800" aria-hidden="true" />
           {orgs.length > 1 ? (
@@ -105,22 +75,9 @@ export function HospitalShell({ children }: { children: ReactNode }) {
             <h1 className="truncate text-sm font-semibold text-slate-900">{org.name}</h1>
           )}
         </div>
-        <div className="flex items-center gap-3 text-xs font-medium">
-          <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 ${org.verification_status === 'verified' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>
-            <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-            {t(org.verification_status === 'verified' ? 'verifiedStatus' : 'unverifiedWorkspace')}
-          </span>
-          <span className="inline-flex items-center gap-1.5 text-slate-600">
-            <span className={`h-2 w-2 rounded-full ${live ? 'bg-emerald-600' : 'bg-amber-500'}`} aria-hidden="true" />
-            {live && lastConnected
-              ? ops('liveUpdated', { time: new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: org.timezone }).format(lastConnected) })
-              : ops('reconnecting')}
-          </span>
-        </div>
       </div>
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
         <HospitalSearch />
-        {org.demo_data_loaded && <SampleDataBanner label={ops('sampleDataOn')} onReset={() => void runSampleAction('load_demo_data')} onRemove={() => void runSampleAction('remove_demo_data')} resetLabel={ops('resetSampleData')} removeLabel={ops('removeSampleData')} busy={sampleBusy} />}
       </div>
       {org.verification_status === 'suspended' && (
         <div className="border-l-4 border-rose-600 bg-rose-50 px-4 py-3 text-sm text-rose-900" role="status">

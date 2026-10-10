@@ -147,7 +147,7 @@ export const hospitalNavItems: NavItem[] = [
   { label: 'Admissions/Beds', href: '/dashboard/hospital/admissions', icon: Hospital },
   { label: 'Notifications', href: '/dashboard/notifications', icon: Bell },
   { label: 'Hospital Settings', href: '/dashboard/hospital/settings', icon: Settings },
-  { label: 'Profile', href: '/dashboard/profile', icon: User },
+  { label: 'Profile', href: '/dashboard/hospital/profile', icon: User },
 ];
 
 export const researchNavItems: NavItem[] = [

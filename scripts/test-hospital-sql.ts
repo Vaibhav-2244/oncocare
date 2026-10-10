@@ -294,12 +294,29 @@ async function runSmokeAssertions(db: PGlite) {
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userB}', false);`);
   const tenantRows = await db.query<{ count: number }>(`SELECT count(*)::integer AS count FROM public.hospital_patients WHERE hospital_id = $1`, [hospitalA]);
   if (tenantRows.rows[0]?.count !== 0) throw new Error('Tenant isolation failed: Hospital B can read Hospital A patients.');
-  const pendingCapabilities = await db.query<{ operational: boolean; staff: boolean }>(
-    `SELECT public.hospital_has_cap($1,'patients.register') AS operational, public.hospital_has_cap($1,'staff.manage') AS staff`,
+  const pendingCapabilities = await db.query<{ registration: boolean; reading: boolean; queue: boolean; staff: boolean }>(
+    `SELECT public.hospital_has_cap($1,'patients.register') AS registration,
+            public.hospital_has_cap($1,'patients.read') AS reading,
+            public.hospital_has_cap($1,'queue.manage') AS queue,
+            public.hospital_has_cap($1,'staff.manage') AS staff`,
     [hospitalB]
   );
-  if (pendingCapabilities.rows[0]?.operational || !pendingCapabilities.rows[0]?.staff) {
-    throw new Error('Pending hospitals must retain setup/staff management but cannot perform operational work.');
+  if (!pendingCapabilities.rows[0]?.registration
+    || !pendingCapabilities.rows[0]?.reading
+    || !pendingCapabilities.rows[0]?.queue
+    || !pendingCapabilities.rows[0]?.staff) {
+    throw new Error('Pending hospitals must retain their assigned operational and staff capabilities.');
+  }
+  await db.exec('RESET ROLE');
+  await db.query(`UPDATE public.hospital_orgs SET verification_status='suspended' WHERE id=$1`, [hospitalB]);
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userB}', false);`);
+  const suspendedCapabilities = await db.query<{ operational: boolean; staff: boolean }>(
+    `SELECT public.hospital_has_cap($1,'patients.register') AS operational,
+            public.hospital_has_cap($1,'staff.manage') AS staff`,
+    [hospitalB]
+  );
+  if (suspendedCapabilities.rows[0]?.operational || !suspendedCapabilities.rows[0]?.staff) {
+    throw new Error('Suspended hospitals must lose operational access while retaining staff management.');
   }
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${frontDesk}', false);`);
   const clinicalRows = await db.query<{ count: number }>(`SELECT count(*)::integer AS count FROM public.consultations WHERE hospital_id=$1`, [hospitalA]);
@@ -828,6 +845,132 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   console.log('PASS: assigned hospital appointments reach only the assigned doctor and linked patient dashboards; hospital prescriptions synchronize and update only that patient; notifications and unique patient IDs are generated.');
 }
 
+async function runHospitalAdmissionsAssertions(db: PGlite) {
+  const hospitalA = '10000000-0000-4000-8000-000000000001';
+  const hospitalB = '10000000-0000-4000-8000-000000000002';
+  const adminA = '20000000-0000-4000-8000-000000000001';
+
+  await db.exec('RESET ROLE');
+  await db.exec(`
+    INSERT INTO public.hospital_wards (id, hospital_id, name, is_active)
+    VALUES
+      ('30000000-0000-4000-8000-000000000001', '${hospitalA}', 'Harness Ward A', true),
+      ('30000000-0000-4000-8000-000000000002', '${hospitalB}', 'Harness Ward B', true);
+    INSERT INTO public.hospital_beds (id, hospital_id, ward_id, bed_label, status)
+    VALUES
+      ('40000000-0000-4000-8000-000000000001', '${hospitalA}', '30000000-0000-4000-8000-000000000001', 'A-1', 'available'),
+      ('40000000-0000-4000-8000-000000000002', '${hospitalA}', '30000000-0000-4000-8000-000000000001', 'A-2', 'available'),
+      ('40000000-0000-4000-8000-000000000003', '${hospitalB}', '30000000-0000-4000-8000-000000000002', 'B-1', 'available');
+    INSERT INTO public.hospital_patients (hospital_id, patient_identifier, name)
+    VALUES ('${hospitalB}', 'OTHER-HOSPITAL-PATIENT', 'Other Hospital Patient');
+  `);
+  const otherPatientId = (await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier='OTHER-HOSPITAL-PATIENT'`,
+    [hospitalB]
+  )).rows[0].id;
+  const localPatientId = (await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier='REAL-KEEP-1'`,
+    [hospitalA]
+  )).rows[0].id;
+
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${adminA}',false);`);
+  let crossHospitalAdmissionRejected = false;
+  try {
+    await db.query(
+      `SELECT public.admit_patient($1,$2,$3,$4,NULL,'cross-hospital test')`,
+      [hospitalA, otherPatientId, '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001']
+    );
+  } catch {
+    crossHospitalAdmissionRejected = true;
+  }
+  if (!crossHospitalAdmissionRejected) throw new Error('Hospital A admitted a patient belonging to Hospital B.');
+
+  const admission = await db.query<{ result: { id: string } }>(
+    `SELECT public.admit_patient($1,$2,$3,$4,NULL,'admissions test') AS result`,
+    [hospitalA, localPatientId, '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000001']
+  );
+  const admissionId = admission.rows[0].result.id;
+  const occupied = await db.query<{ status: string }>(
+    `SELECT status FROM public.hospital_beds WHERE id='40000000-0000-4000-8000-000000000001'`
+  );
+  if (occupied.rows[0].status !== 'occupied') throw new Error('Admitting a patient did not occupy its bed.');
+
+  let occupiedBedChangeRejected = false;
+  try {
+    await db.query(
+      `SELECT public.set_bed_status($1,'40000000-0000-4000-8000-000000000001','blocked')`,
+      [hospitalA]
+    );
+  } catch {
+    occupiedBedChangeRejected = true;
+  }
+  if (!occupiedBedChangeRejected) throw new Error('An occupied bed with an active admission was manually reclassified.');
+
+  await db.query(
+    `SELECT public.transfer_patient($1,$2,$3,$4)`,
+    [hospitalA, admissionId, '30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000002']
+  );
+  const transferBeds = await db.query<{ bed_label: string; status: string }>(
+    `SELECT bed_label,status FROM public.hospital_beds WHERE hospital_id=$1 ORDER BY bed_label`,
+    [hospitalA]
+  );
+  if (transferBeds.rows.find((bed) => bed.bed_label === 'A-1')?.status !== 'cleaning'
+    || transferBeds.rows.find((bed) => bed.bed_label === 'A-2')?.status !== 'occupied') {
+    throw new Error('Admission transfer did not release and occupy the correct beds.');
+  }
+  await db.query(`SELECT public.discharge_patient($1,$2)`, [hospitalA, admissionId]);
+  const dischargedBed = await db.query<{ status: string }>(
+    `SELECT status FROM public.hospital_beds WHERE id='40000000-0000-4000-8000-000000000002'`
+  );
+  if (dischargedBed.rows[0].status !== 'cleaning') throw new Error('Discharging did not move the occupied bed into cleaning.');
+  await db.exec('RESET ROLE');
+  console.log('PASS: admissions enforce hospital ownership, prevent occupied-bed changes, and maintain transfer/discharge bed states.');
+}
+
+async function runHospitalDashboardSeedAssertions(db: PGlite) {
+  const hospitalId = '10000000-0000-4000-8000-000000000003';
+  const adminId = '20000000-0000-4000-8000-000000000012';
+  await db.exec(`
+    INSERT INTO auth.users (id,email,email_confirmed_at)
+    VALUES ('${adminId}','8pyr3ip6x4@olipii.com',now());
+    INSERT INTO public.hospital_orgs (id,name,owner_user_id,timezone,verification_status)
+    VALUES ('${hospitalId}','Seed Test Hospital','${adminId}','Asia/Kolkata','pending');
+    INSERT INTO public.hospital_members (hospital_id,user_id,staff_role)
+    VALUES ('${hospitalId}','${adminId}','hospital_admin');
+  `);
+  const seed = await fs.readFile(path.join(process.cwd(), 'supabase', 'seed_testhospital_dashboard.sql'), 'utf8');
+  await db.exec(seed);
+  await db.exec(seed);
+
+  const counts = await db.query<{
+    patients: number;
+    doctors: number;
+    sessions: number;
+    queue_entries: number;
+    beds: number;
+    admissions: number;
+    investigations: number;
+    notifications: number;
+  }>(`
+    SELECT
+      (SELECT count(*)::integer FROM public.hospital_patients WHERE hospital_id=$1 AND is_demo) AS patients,
+      (SELECT count(*)::integer FROM public.hospital_doctors WHERE hospital_id=$1 AND is_demo) AS doctors,
+      (SELECT count(*)::integer FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo) AS sessions,
+      (SELECT count(*)::integer FROM public.queue_entries WHERE hospital_id=$1 AND is_demo) AS queue_entries,
+      (SELECT count(*)::integer FROM public.hospital_beds WHERE hospital_id=$1 AND is_demo) AS beds,
+      (SELECT count(*)::integer FROM public.hospital_admissions WHERE hospital_id=$1 AND is_demo) AS admissions,
+      (SELECT count(*)::integer FROM public.investigation_types WHERE hospital_id=$1 AND is_demo) AS investigations,
+      (SELECT count(*)::integer FROM public.notifications WHERE hospital_id=$1) AS notifications
+  `, [hospitalId]);
+  const result = counts.rows[0];
+  if (result.patients !== 4 || result.doctors !== 2 || result.sessions !== 1
+    || result.queue_entries !== 3 || result.beds !== 4 || result.admissions !== 1
+    || result.investigations !== 2 || result.notifications !== 3) {
+    throw new Error(`Hospital dashboard seed data is incomplete or escaped its target: ${JSON.stringify(result)}`);
+  }
+  console.log('PASS: test-hospital seed creates patient, OPD, queue, appointment, admission, investigation, and notification fixtures.');
+}
+
 async function main() {
   await buildHospitalBundle();
   const migrations = (await fs.readdir(migrationsDir))
@@ -873,6 +1016,8 @@ async function main() {
       await bundleDb.exec(bundleSql);
       console.log('PASS: applied supabase/APPLY_HOSPITAL_PENDING.sql');
       await runSmokeAssertions(bundleDb);
+      await runHospitalAdmissionsAssertions(bundleDb);
+      await runHospitalDashboardSeedAssertions(bundleDb);
       await runDoctorCareTeamIsolationAssertions(bundleDb);
     } catch (error) {
       console.error('FAIL: SQL smoke assertion:', error);
