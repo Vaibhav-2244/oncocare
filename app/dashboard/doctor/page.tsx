@@ -5,11 +5,20 @@ import Link from 'next/link';
 import { AlertTriangle, Building2, CalendarDays, ClipboardList, Loader2, RefreshCw, Users } from 'lucide-react';
 import { DashboardLayout, DOCTOR_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
-import { ensureDoctorWorkspace, loadDoctorHospitalProfile, loadDoctorSummary, type DoctorDashboardSummary, type DoctorHospitalProfile } from '@/lib/doctor/api';
+import {
+  ensureDoctorWorkspace,
+  loadDoctorHospitalDashboard,
+  loadDoctorHospitalProfile,
+  loadDoctorSummary,
+  type DoctorDashboardSummary,
+  type DoctorHospitalDashboard,
+  type DoctorHospitalProfile,
+} from '@/lib/doctor/api';
 import { supabase } from '@/lib/supabase-client';
 
 function DoctorDashboardContent() {
   const [summary, setSummary] = useState<DoctorDashboardSummary | null>(null);
+  const [hospitalCare, setHospitalCare] = useState<DoctorHospitalDashboard>({ patients: [], appointments: [] });
   const [hospitalProfiles, setHospitalProfiles] = useState<DoctorHospitalProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -19,9 +28,14 @@ function DoctorDashboardContent() {
     setError(null);
     try {
       await ensureDoctorWorkspace();
-      const [dashboardSummary, affiliations] = await Promise.all([loadDoctorSummary(), loadDoctorHospitalProfile()]);
+      const [dashboardSummary, affiliations, hospitalDashboard] = await Promise.all([
+        loadDoctorSummary(),
+        loadDoctorHospitalProfile(),
+        loadDoctorHospitalDashboard(),
+      ]);
       setSummary(dashboardSummary);
       setHospitalProfiles(affiliations);
+      setHospitalCare(hospitalDashboard);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load the doctor workspace.');
     } finally {
@@ -46,9 +60,31 @@ function DoctorDashboardContent() {
     return () => { channels.forEach((channel) => { void supabase.removeChannel(channel); }); };
   }, [hospitalProfiles]);
 
+  useEffect(() => {
+    let active = true;
+    const channels = hospitalProfiles.map((profile) => supabase
+      .channel(`doctor-hospital-appointments-${profile.hospital_id}-${profile.doctor_row_id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'hospital_appointments',
+        filter: `hospital_id=eq.${profile.hospital_id}`,
+      }, () => {
+        void loadDoctorHospitalDashboard()
+          .then((dashboard) => { if (active) setHospitalCare(dashboard); })
+          .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Unable to refresh hospital assignments.'); });
+      })
+      .subscribe());
+    return () => {
+      active = false;
+      channels.forEach((channel) => { void supabase.removeChannel(channel); });
+    };
+  }, [hospitalProfiles]);
+
   const kpis = summary?.kpis;
   const cards = [
     { label: 'Active patients', value: kpis?.active_patients, icon: Users, href: '/dashboard/doctor/patients', tone: 'teal' },
+    { label: 'Hospital patients', value: hospitalCare.patients.length, icon: Building2, href: '/dashboard/doctor/patients', tone: 'teal' },
     { label: 'Appointments today', value: kpis?.appointments_today, icon: CalendarDays, href: '/dashboard/doctor/appointments', tone: 'blue' },
     { label: 'Needs confirmation', value: kpis?.pending_confirmations, icon: ClipboardList, href: '/dashboard/doctor/appointments', tone: 'amber' },
     { label: 'High risk', value: kpis?.high_risk, icon: AlertTriangle, href: '/dashboard/doctor/patients?risk=high', tone: 'rose' },
@@ -109,7 +145,7 @@ function DoctorDashboardContent() {
         </section>
       ))}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map(({ label, value, icon: Icon, href, tone }) => {
           const toneClasses = {
             teal: 'bg-teal-50 text-teal-600',
@@ -128,6 +164,34 @@ function DoctorDashboardContent() {
           );
         })}
       </div>
+
+      <section className="overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/60 px-5 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-900">Hospital-assigned care</h2>
+            <p className="mt-1 text-sm text-slate-600">Patients and appointments assigned to you by your hospital.</p>
+          </div>
+          <Link href="/dashboard/doctor/appointments" className="text-sm font-semibold text-teal-800 underline underline-offset-4">View appointments</Link>
+        </div>
+        {hospitalCare.patients.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-500">No hospital assignments are linked to your account yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {hospitalCare.patients.slice(0, 5).map((patient) => {
+              const appointment = hospitalCare.appointments.find((item) => item.patient_id === patient.id);
+              return (
+                <div key={`${patient.hospital_id}-${patient.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                  <div>
+                    <p className="font-semibold text-slate-800">{patient.name} <span className="font-normal text-slate-500">({patient.identifier})</span></p>
+                    <p className="mt-1 text-xs text-slate-500">{patient.hospital_name}</p>
+                  </div>
+                  {appointment && <p className="text-sm text-slate-600">{new Date(appointment.scheduled_at).toLocaleString()} · {appointment.status.replaceAll('_', ' ')}</p>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-5">
         <section className="lg:col-span-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

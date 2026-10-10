@@ -63,6 +63,35 @@ export interface DoctorHospitalProfile {
   care_team: Array<{ assignment_id: string; user_id: string; name: string; email: string; role: string; department: string | null }>;
 }
 
+export interface DoctorHospitalPatient {
+  id: string;
+  hospital_id: string;
+  hospital_name: string;
+  identifier: string;
+  name: string;
+  age: number | null;
+  gender: string | null;
+  linked: boolean;
+}
+
+export interface DoctorHospitalAppointment {
+  id: string;
+  hospital_id: string;
+  hospital_name: string;
+  patient_id: string;
+  patient_identifier: string;
+  patient_name: string;
+  scheduled_at: string;
+  kind: string;
+  status: string;
+  reason: string | null;
+}
+
+export interface DoctorHospitalDashboard {
+  patients: DoctorHospitalPatient[];
+  appointments: DoctorHospitalAppointment[];
+}
+
 function rpcError(message: string): Error {
   return new Error(`Doctor workspace request failed: ${message}`);
 }
@@ -83,6 +112,12 @@ export async function loadDoctorHospitalProfile() {
   const { data, error } = await supabase.rpc('doctor_hospital_profile');
   if (error) throw rpcError(error.message);
   return (data ?? []) as DoctorHospitalProfile[];
+}
+
+export async function loadDoctorHospitalDashboard() {
+  const { data, error } = await supabase.rpc('doctor_hospital_dashboard');
+  if (error) throw rpcError(error.message);
+  return data as DoctorHospitalDashboard;
 }
 
 export async function listDoctorPatients(filters: Record<string, unknown> = {}) {

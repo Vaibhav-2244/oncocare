@@ -365,6 +365,11 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
     INSERT INTO public.prescriptions (hospital_id,patient_id,consultation_id,doctor_id)
       SELECT c.hospital_id,c.patient_id,c.id,c.doctor_id FROM public.consultations c
       WHERE c.hospital_id='${hospitalA}' AND c.complaint='Follow-up';
+    INSERT INTO public.prescription_items (hospital_id,prescription_id,medicine_name,dose,frequency)
+      SELECT p.hospital_id,p.id,CASE hp.patient_identifier WHEN 'ISO-PATIENT-A' THEN 'Medicine for Patient A' ELSE 'Medicine for Patient B' END,'1 tablet','daily'
+      FROM public.prescriptions p
+      JOIN public.hospital_patients hp ON hp.id=p.patient_id
+      WHERE p.hospital_id='${hospitalA}' AND hp.patient_identifier IN ('ISO-PATIENT-A','ISO-PATIENT-B');
   `);
   await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientA}',false);`);
   await db.exec(`
@@ -473,6 +478,55 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
     if (!profileText.includes(item.doctorId) || !profileText.includes(item.nurse) || profileText.includes(item.otherNurse)) {
       throw new Error(`${item.user} received incorrect hospital affiliation or care-team data: ${profileText}`);
     }
+    const dashboard = await db.query<{ data: unknown }>(`SELECT public.doctor_hospital_dashboard() AS data`);
+    const dashboardText = JSON.stringify(dashboard.rows[0].data);
+    if (!dashboardText.includes(item.patientIdentifier) || dashboardText.includes(item.otherPatient)) {
+      throw new Error(`${item.user} received another doctor's hospital patient or appointment dashboard data: ${dashboardText}`);
+    }
+  }
+
+  for (const item of [
+    { user: patientA, ownPatient: 'ISO-PATIENT-A', otherPatient: 'ISO-PATIENT-B' },
+    { user: patientB, ownPatient: 'ISO-PATIENT-B', otherPatient: 'ISO-PATIENT-A' },
+  ]) {
+    await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${item.user}',false);`);
+    const dashboard = await db.query<{ data: unknown }>(`SELECT public.patient_hospital_dashboard() AS data`);
+    const dashboardText = JSON.stringify(dashboard.rows[0].data);
+    if (!dashboardText.includes(item.ownPatient) || dashboardText.includes(item.otherPatient)) {
+      throw new Error(`${item.user} received another patient's hospital appointment data: ${dashboardText}`);
+    }
+    await db.exec('RESET ROLE');
+    const appointmentNotifications = await db.query<{ count: number }>(
+      `SELECT count(*)::integer AS count FROM public.notifications WHERE user_id=$1 AND type='appointment'`,
+      [item.user]
+    );
+    if (appointmentNotifications.rows[0].count < 1) {
+      throw new Error(`${item.user} was not notified when the hospital created the appointment.`);
+    }
+    const expectedMedicine = item.user === patientA ? 'Medicine for Patient A' : 'Medicine for Patient B';
+    const otherMedicine = item.user === patientA ? 'Medicine for Patient B' : 'Medicine for Patient A';
+    const medicationRows = await db.query<{ own_count: number; other_count: number }>(
+      `SELECT
+        count(*) FILTER (WHERE name=$2)::integer AS own_count,
+        count(*) FILTER (WHERE name=$3)::integer AS other_count
+       FROM public.medications WHERE user_id=$1`,
+      [item.user, expectedMedicine, otherMedicine]
+    );
+    if (medicationRows.rows[0].own_count !== 1 || medicationRows.rows[0].other_count !== 0) {
+      throw new Error(`${item.user} did not receive only their own hospital prescription items.`);
+    }
+  }
+  await db.query(
+    `UPDATE public.prescription_items SET dose='2 tablets' WHERE hospital_id=$1`,
+    [hospitalA]
+  );
+  const updatedMedicationRows = await db.query<{ count: number }>(
+    `SELECT count(*)::integer AS count
+     FROM public.medications
+     WHERE name LIKE 'Medicine for Patient %' AND dosage='2 tablets'`
+  );
+  if (updatedMedicationRows.rows[0].count !== 2) {
+    throw new Error('Updating hospital prescription items did not update the corresponding patient medications.');
   }
 
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
@@ -517,6 +571,20 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const refreshedB = await db.query<{ profile: unknown }>(`SELECT public.doctor_hospital_profile() AS profile`);
   const updatedProfileText = JSON.stringify(refreshedB.rows[0].profile);
   if (!updatedProfileText.includes('Nurse A') || !updatedProfileText.includes('Nurse B')) throw new Error('Updated nurse assignment did not appear on Doctor B dashboard.');
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${adminA}',false);`);
+  const generatedPatientIds = await Promise.all([
+    db.query<{ identifier: string }>(
+      `SELECT (public.register_hospital_patient($1,'','Generated Patient A',NULL,NULL,NULL,NULL)).patient_identifier AS identifier`,
+      [hospitalA]
+    ),
+    db.query<{ identifier: string }>(
+      `SELECT (public.register_hospital_patient($1,'','Generated Patient B',NULL,NULL,NULL,NULL)).patient_identifier AS identifier`,
+      [hospitalA]
+    ),
+  ]);
+  if (!generatedPatientIds[0].rows[0].identifier || generatedPatientIds[0].rows[0].identifier === generatedPatientIds[1].rows[0].identifier) {
+    throw new Error('Hospital patient registration did not generate distinct patient identifiers.');
+  }
   await db.exec('RESET ROLE');
 
   const legacyProvisioning = await db.query<{ create_allowed: boolean; toggle_allowed: boolean }>(`
@@ -525,6 +593,7 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   `);
   if (legacyProvisioning.rows[0].create_allowed || legacyProvisioning.rows[0].toggle_allowed) throw new Error('Legacy doctor provisioning RPCs remain executable.');
   console.log('PASS: Doctor A/B profile, patient, appointment, consultation, prescription, and care-team RLS isolation; admin assignment changes refresh per-doctor profiles.');
+  console.log('PASS: assigned hospital appointments reach only the assigned doctor and linked patient dashboards; hospital prescriptions synchronize and update only that patient; notifications and unique patient IDs are generated.');
 }
 
 async function main() {

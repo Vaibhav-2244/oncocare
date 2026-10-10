@@ -24,12 +24,14 @@ function PatientDashboardContent() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
+    setLoadError(null);
     try {
-      const [apptsRes, msgsRes, docsRes, wlRes, actRes, notifRes, upcomingRes] = await Promise.all([
+      const [apptsRes, msgsRes, docsRes, wlRes, actRes, notifRes, upcomingRes, hospitalCareRes] = await Promise.all([
         supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('messages').select('id', { count: 'exact', head: true }).eq('recipient_id', user.id).eq('is_read', false),
         supabase.from('documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -37,19 +39,43 @@ function PatientDashboardContent() {
         getRecentActivity(user.id, 5),
         getNotifications(user.id, 4),
         supabase.from('appointments').select('*').eq('user_id', user.id).gte('appointment_date', new Date().toISOString()).order('appointment_date', { ascending: true }).limit(3),
+        supabase.rpc('patient_hospital_dashboard'),
       ]);
+      if (hospitalCareRes.error) throw hospitalCareRes.error;
+      const hospitalCare = hospitalCareRes.data as {
+        appointment_count?: number;
+        appointments?: Array<{
+          id: string;
+          hospital_name: string;
+          doctor_name: string;
+          scheduled_at: string;
+          kind: string;
+          status: string;
+          reason: string | null;
+        }>;
+      } | null;
+      const allUpcomingAppointments = [
+        ...(upcomingRes.data || []),
+        ...(hospitalCare?.appointments ?? []).map((appointment) => ({
+          id: `hospital-${appointment.id}`,
+          appointment_date: appointment.scheduled_at,
+          reason: appointment.reason || `${appointment.doctor_name} · ${appointment.hospital_name}`,
+          type: 'hospital visit',
+          status: appointment.status,
+        })),
+      ].sort((left, right) => left.appointment_date.localeCompare(right.appointment_date));
 
       setStats({
-        appointments: apptsRes.count || 0,
+        appointments: (apptsRes.count || 0) + (hospitalCare?.appointment_count || 0),
         messages: msgsRes.count || 0,
         documents: docsRes.count || 0,
         watchlist: wlRes.count || 0,
       });
       setActivity(actRes);
       setNotifications(notifRes);
-      setUpcomingAppointments(upcomingRes.data || []);
-    } catch {
-      // silently fail
+      setUpcomingAppointments(allUpcomingAppointments.slice(0, 3));
+    } catch (cause) {
+      setLoadError(cause instanceof Error ? cause.message : 'Unable to load your care dashboard.');
     } finally {
       setLoading(false);
     }
@@ -58,6 +84,20 @@ function PatientDashboardContent() {
   useEffect(() => {
     if (!user) return;
     loadData();
+  }, [user, loadData]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`patient-dashboard-${user.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${user.id}`,
+      }, () => { void loadData(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
   }, [user, loadData]);
 
   const statCards = [
@@ -76,6 +116,7 @@ function PatientDashboardContent() {
         </h1>
         <p className="mt-1 text-sm text-slate-500">{t('hereAposSAnOverviewOfYourCareJourney')}</p>
       </div>
+      {loadError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{loadError}</p>}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

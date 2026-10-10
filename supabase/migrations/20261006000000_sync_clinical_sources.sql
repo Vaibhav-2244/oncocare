@@ -6,8 +6,7 @@ ALTER TABLE public.medications
     REFERENCES public.doctor_prescriptions(id) ON DELETE SET NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS medications_source_key_unique
-  ON public.medications (source_key)
-  WHERE source_key IS NOT NULL;
+  ON public.medications (source_key);
 
 ALTER TABLE public.treatments
   ADD COLUMN IF NOT EXISTS source_key text,
@@ -15,8 +14,7 @@ ALTER TABLE public.treatments
     REFERENCES public.doctor_treatment_plans(id) ON DELETE SET NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS treatments_source_key_unique
-  ON public.treatments (source_key)
-  WHERE source_key IS NOT NULL;
+  ON public.treatments (source_key);
 
 CREATE OR REPLACE FUNCTION public.sync_doctor_prescription_to_patient(
   p_prescription_id uuid

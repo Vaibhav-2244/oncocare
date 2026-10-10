@@ -12,7 +12,7 @@ import { DataTable, ErrorPanel, StatusChip } from '@/components/hospital/ui-kit'
 import { registerHospitalPatientSchema } from '@/lib/validation/hospital';
 
 type PatientRow = { id: string; patient_identifier: string; name: string; mobile: string | null; age: number | null; gender: string | null; patient_user_id: string | null; is_demo: boolean; created_at: string; today_status: string | null };
-type ImportRow = { identifier: string; name: string; mobile?: string; dob?: string; age?: string; gender?: string };
+type ImportRow = { identifier: string; name: string; email?: string; mobile?: string; dob?: string; age?: string; gender?: string };
 const PAGE_SIZE = 25;
 
 export function HospitalPatientsPage() {
@@ -27,8 +27,9 @@ export function HospitalPatientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [modal, setModal] = useState<'register' | 'import' | null>(null);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ identifier: '', name: '', mobile: '', dob: '', age: '', gender: '' });
+  const [form, setForm] = useState({ identifier: '', name: '', email: '', mobile: '', dob: '', age: '', gender: '' });
   const [nextIdentifier, setNextIdentifier] = useState('');
+  const [credentialNotice, setCredentialNotice] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<Array<{ identifier: string; name: string }>>([]);
   const [csvText, setCsvText] = useState('');
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
@@ -106,13 +107,35 @@ export function HospitalPatientsPage() {
       return;
     }
     setBusy(true);
+    setError(null);
+    setCredentialNotice(null);
     try {
       // The string "0" is truthy, so infants retain age 0 when submitted.
-      await callRpc('register_hospital_patient', { p_hospital_id: org.id, p_identifier: '', p_name: form.name, p_mobile: form.mobile || null, p_dob: form.dob || null, p_age: form.age ? Number(form.age) : null, p_gender: form.gender || null });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authentication required.');
+      const response = await fetch('/api/hospital/patients/accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          hospitalId: org.id,
+          fullName: form.name,
+          email: form.email,
+          mobile: form.mobile,
+          dateOfBirth: form.dob || null,
+          age: form.age ? Number(form.age) : null,
+          gender: form.gender || null,
+        }),
+      });
+      const result = await response.json() as { error?: string; patientIdentifier?: string };
+      if (!response.ok) throw new Error(result.error ?? t('registerFailed'));
       setModal(null);
-      setForm({ identifier: '', name: '', mobile: '', dob: '', age: '', gender: '' });
+      setForm({ identifier: '', name: '', email: '', mobile: '', dob: '', age: '', gender: '' });
       setNextIdentifier('');
       setDuplicates([]);
+      setCredentialNotice(`Patient ID ${result.patientIdentifier} was created. Login credentials were sent to ${form.email}.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t('registerFailed'));
@@ -128,7 +151,7 @@ export function HospitalPatientsPage() {
       const values = split(line);
       const row: Record<string, string> = {};
       headers.forEach((key, index) => { row[key] = (values[index] ?? '').trim(); });
-      return { identifier: row.identifier ?? row.patient_id ?? '', name: row.name ?? '', mobile: row.mobile ?? '', dob: row.dob ?? '', age: row.age ?? '', gender: row.gender ?? '' };
+      return { identifier: row.identifier ?? row.patient_id ?? '', name: row.name ?? '', email: row.email ?? '', mobile: row.mobile ?? '', dob: row.dob ?? '', age: row.age ?? '', gender: row.gender ?? '' };
     });
   };
 
@@ -137,17 +160,60 @@ export function HospitalPatientsPage() {
     const parsed = parseCsv(csvText);
     setImportRows(parsed);
     const result = await callRpc<{ rows: Array<{ row: ImportRow; status: string; message: string }> }>('import_hospital_patients', { p_hospital_id: org.id, p_rows: parsed, p_dry_run: true });
-    setImportPreview(result.rows ?? []);
+    setImportPreview((result.rows ?? []).map((item) => {
+      const email = item.row.email?.trim() ?? '';
+      return item.status === 'new' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+        ? { ...item, status: 'error', message: 'A valid email is required to create patient login credentials.' }
+        : item;
+    }));
   };
 
   const confirmImport = async () => {
     if (!org) return;
     setBusy(true);
+    setError(null);
     try {
-      await callRpc('import_hospital_patients', { p_hospital_id: org.id, p_rows: importRows, p_dry_run: false });
-      setModal(null);
-      setCsvText('');
-      setImportPreview([]);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Authentication required.');
+      const results = await Promise.all(importPreview.map(async (preview, index) => {
+        if (preview.status !== 'new') return preview;
+        const row = importRows[index];
+        try {
+          const response = await fetch('/api/hospital/patients/accounts', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              hospitalId: org.id,
+              patientIdentifier: row.identifier,
+              fullName: row.name,
+              email: row.email,
+              mobile: row.mobile,
+              dateOfBirth: row.dob || null,
+              age: row.age ? Number(row.age) : null,
+              gender: row.gender || null,
+            }),
+          });
+          const result = await response.json() as { error?: string; patientIdentifier?: string };
+          if (!response.ok) throw new Error(result.error ?? t('registerFailed'));
+          return { ...preview, status: 'imported', message: `Created ${result.patientIdentifier}; credentials emailed to ${row.email}.` };
+        } catch (cause) {
+          return { ...preview, status: 'error', message: cause instanceof Error ? cause.message : t('registerFailed') };
+        }
+      }));
+      setImportPreview(results);
+      const failures = results.filter((result) => result.status === 'error');
+      const importedCount = results.filter((result) => result.status === 'imported').length;
+      if (failures.length) {
+        setError(`${importedCount} patient account(s) created. ${failures.length} row(s) need attention; review the import preview before retrying.`);
+      } else {
+        setCredentialNotice(`${importedCount} patient account(s) created. Login credentials were emailed to the addresses in the CSV.`);
+        setModal(null);
+        setCsvText('');
+        setImportPreview([]);
+      }
       await load();
     } catch (caught) { setError(caught instanceof Error ? caught.message : t('importFailed')); }
     finally { setBusy(false); }
@@ -175,13 +241,14 @@ export function HospitalPatientsPage() {
     <header className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-2xl font-semibold text-slate-950">{t('patientDirectory')}</h1><p className="mt-1 text-sm text-slate-600">{total} {t('patients').toLowerCase()}</p></div><div className="flex flex-wrap gap-2">{canRegister && <button type="button" onClick={() => void openRegisterModal()} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900"><UserPlus className="h-4 w-4" />{t('registerPatient')}</button>}<button type="button" onClick={() => setModal('import')} disabled={!canRegister} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 disabled:opacity-50"><Upload className="h-4 w-4" />{t('importCsv')}</button><button type="button" onClick={() => void exportCsv()} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-800 disabled:opacity-50"><Download className="h-4 w-4" />{t('exportCsv')}</button></div></header>
     <label className="relative block max-w-lg"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" /><input value={query} onChange={(event) => { setPage(0); setQuery(event.target.value); }} placeholder={t('searchPatients')} className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-10 pr-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700" /></label>
     {error && <ErrorPanel message={error} technicalDetails={technical} onRetry={() => void load()} retryLabel={t('retry')} detailsLabel={t('showTechnicalDetails')} />}
+    {credentialNotice && <p role="status" className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{credentialNotice}</p>}
     {loading ? <div className="grid gap-2" role="status">{Array.from({ length: 5 }, (_, index) => <div key={index} className="h-14 animate-pulse rounded-lg bg-slate-100" />)}</div> : visibleRows.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">{t('noPatients')}</div> : <>
       <div className="hidden md:block"><DataTable><thead className="sticky top-0 bg-slate-50 text-xs uppercase text-slate-600"><tr>{[t('patientId'),t('name'),t('ageSex'),t('mobile'),t('linkStatus'),t('todayStatus')].map((label)=><th key={label} className="px-4 py-3">{label}</th>)}</tr></thead><tbody className="divide-y divide-slate-100">{visibleRows.map((patient)=><tr key={patient.id} className="hover:bg-slate-50"><td className="px-4 py-3"><Link href={`/dashboard/hospital/patients/${encodeURIComponent(patient.patient_identifier)}`} className="font-semibold text-teal-800 underline-offset-4 hover:underline">{patient.patient_identifier}</Link>{patient.is_demo && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-900">{t('demo')}</span>}</td><td className="px-4 py-3 font-medium text-slate-900">{patient.name}</td><td className="px-4 py-3 text-slate-700">{patient.age ?? '—'} / {patient.gender ?? '—'}</td><td className="px-4 py-3 text-slate-700">{maskMobile(patient.mobile)}</td><td className="px-4 py-3"><StatusChip code={patient.patient_user_id ? 'accepted' : 'pending'} /></td><td className="px-4 py-3"><StatusChip code={patient.today_status ?? 'pending'} /></td></tr>)}</tbody></DataTable></div>
       <div className="grid gap-3 md:hidden">{visibleRows.map((patient)=><article key={patient.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-2"><div><Link href={`/dashboard/hospital/patients/${encodeURIComponent(patient.patient_identifier)}`} className="font-semibold text-teal-800 underline-offset-4 hover:underline">{patient.patient_identifier}</Link><h2 className="mt-1 font-semibold text-slate-950">{patient.name}</h2></div>{patient.is_demo && <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">{t('demo')}</span>}</div><p className="mt-3 text-sm text-slate-600">{patient.age ?? '—'} / {patient.gender ?? '—'} · {maskMobile(patient.mobile)}</p><div className="mt-3 flex flex-wrap gap-2"><StatusChip code={patient.patient_user_id ? 'accepted' : 'pending'} /><StatusChip code={patient.today_status ?? 'pending'} /></div></article>)}</div>
       <div className="flex items-center justify-between"><span className="text-sm text-slate-600">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE,total)} / {total}</span><div className="flex gap-2"><button type="button" disabled={page===0} onClick={()=>setPage((value)=>value-1)} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm disabled:opacity-40">‹</button><button type="button" disabled={(page+1)*PAGE_SIZE>=total} onClick={()=>setPage((value)=>value+1)} className="min-h-10 rounded-md border border-slate-300 px-3 text-sm disabled:opacity-40">›</button></div></div>
     </>}
-    {modal==='register' && <Modal title={t('registerPatient')} onClose={()=>setModal(null)}><form onSubmit={registerPatient} className="space-y-3"><Field label={t('identifier')} value={nextIdentifier} onChange={()=>undefined} readOnly hint={t('identifierAutoGenerated')} /><Field label={t('fullName')} value={form.name} onChange={(name)=>setForm({...form,name})} required /><Field label={t('mobile')} value={form.mobile} onChange={(mobile)=>setForm({...form,mobile})} /><div className="grid grid-cols-2 gap-3"><Field label={t('dateOfBirth')} type="date" value={form.dob} max={todayValue} hint={form.dob > todayValue ? t('futureDob') : undefined} onChange={(dob)=>{const calculated = calculateAge(dob); setForm((current)=>({...current,dob,age:calculated !== null ? String(calculated) : current.age}));}} /><Field label={t('age')} type="number" value={form.age} readOnly={Boolean(form.dob)} hint={form.dob ? t('ageAutoCalculated') : undefined} onChange={(age)=>setForm({...form,age})} /></div><label className="block text-sm font-medium text-slate-700">{t('gender')}<select value={form.gender} onChange={(event)=>setForm({...form,gender:event.target.value})} className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"><option value="">—</option><option value="male">{t('male')}</option><option value="female">{t('female')}</option><option value="other">{t('other')}</option><option value="prefer_not_to_say">{t('preferNotToSay')}</option></select></label><button type="button" onClick={()=>void checkDuplicates()} className="min-h-10 text-sm font-medium text-teal-800 underline">{t('checkDuplicates')}</button>{duplicates.length>0 && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">{t('possibleDuplicates')}</p>{duplicates.map((item)=><p key={item.identifier}>{item.name} · {item.identifier}</p>)}</div>}<div className="flex justify-end gap-2"><button type="button" onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!canRegister} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('savePatient')}</button></div></form></Modal>}
-    {modal==='import' && <Modal title={t('importCsv')} onClose={()=>setModal(null)}><div className="space-y-3"><textarea rows={7} value={csvText} onChange={(event)=>setCsvText(event.target.value)} placeholder="identifier,name,mobile,dob,age,gender" className="w-full rounded-lg border border-slate-300 p-3 text-sm" /><button type="button" onClick={()=>void previewImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white"><FilePlus2 className="mr-2 inline h-4 w-4" />{t('previewImport')}</button>{importPreview.length>0 && <div className="max-h-52 overflow-auto rounded-lg border border-slate-200">{importPreview.map((item,index)=><div key={index} className="flex justify-between gap-3 border-b px-3 py-2 text-sm"><span>{item.row.identifier} · {item.row.name}</span><span className={item.status==='new'?'text-emerald-800':'text-amber-900'}>{item.status}: {item.message}</span></div>)}</div>}<div className="flex justify-end gap-2"><button onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!importPreview.some((item)=>item.status==='new')} onClick={()=>void confirmImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('confirmImport')}</button></div></div></Modal>}
+    {modal==='register' && <Modal title={t('registerPatient')} onClose={()=>setModal(null)}><form onSubmit={registerPatient} className="space-y-3"><Field label={t('identifier')} value={nextIdentifier} onChange={()=>undefined} readOnly hint={t('identifierAutoGenerated')} /><Field label={t('fullName')} value={form.name} onChange={(name)=>setForm({...form,name})} required /><Field label="Email for patient login" type="email" value={form.email} onChange={(email)=>setForm({...form,email})} required hint="The generated patient ID and temporary password will be sent to this address." /><Field label={t('mobile')} value={form.mobile} onChange={(mobile)=>setForm({...form,mobile})} /><div className="grid grid-cols-2 gap-3"><Field label={t('dateOfBirth')} type="date" value={form.dob} max={todayValue} hint={form.dob > todayValue ? t('futureDob') : undefined} onChange={(dob)=>{const calculated = calculateAge(dob); setForm((current)=>({...current,dob,age:calculated !== null ? String(calculated) : current.age}));}} /><Field label={t('age')} type="number" value={form.age} readOnly={Boolean(form.dob)} hint={form.dob ? t('ageAutoCalculated') : undefined} onChange={(age)=>setForm({...form,age})} /></div><label className="block text-sm font-medium text-slate-700">{t('gender')}<select value={form.gender} onChange={(event)=>setForm({...form,gender:event.target.value})} className="mt-1 h-10 w-full rounded-md border border-slate-300 bg-white px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700"><option value="">—</option><option value="male">{t('male')}</option><option value="female">{t('female')}</option><option value="other">{t('other')}</option><option value="prefer_not_to_say">{t('preferNotToSay')}</option></select></label><button type="button" onClick={()=>void checkDuplicates()} className="min-h-10 text-sm font-medium text-teal-800 underline">{t('checkDuplicates')}</button>{duplicates.length>0 && <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">{t('possibleDuplicates')}</p>{duplicates.map((item)=><p key={item.identifier}>{item.name} · {item.identifier}</p>)}</div>}<div className="flex justify-end gap-2"><button type="button" onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!canRegister} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('savePatient')}</button></div></form></Modal>}
+    {modal==='import' && <Modal title={t('importCsv')} onClose={()=>setModal(null)}><div className="space-y-3">{error && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}<p className="text-sm text-slate-600">Include an email column so each imported patient can receive their patient ID and temporary password.</p><textarea rows={7} value={csvText} onChange={(event)=>setCsvText(event.target.value)} placeholder="identifier,name,email,mobile,dob,age,gender" className="w-full rounded-lg border border-slate-300 p-3 text-sm" /><button type="button" onClick={()=>void previewImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white"><FilePlus2 className="mr-2 inline h-4 w-4" />{t('previewImport')}</button>{importPreview.length>0 && <div className="max-h-52 overflow-auto rounded-lg border border-slate-200">{importPreview.map((item,index)=><div key={index} className="flex justify-between gap-3 border-b px-3 py-2 text-sm"><span>{item.row.identifier} · {item.row.name}</span><span className={item.status==='new'||item.status==='imported'?'text-emerald-800':item.status==='error'?'text-rose-800':'text-amber-900'}>{item.status}: {item.message}</span></div>)}</div>}<div className="flex justify-end gap-2"><button onClick={()=>setModal(null)} className="min-h-10 rounded-md border px-3 text-sm">{t('cancel')}</button><button disabled={busy||!importPreview.some((item)=>item.status==='new')} onClick={()=>void confirmImport()} className="min-h-10 rounded-md bg-teal-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{t('confirmImport')}</button></div></div></Modal>}
   </div>;
 }
 
