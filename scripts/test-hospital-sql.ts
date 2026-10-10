@@ -976,6 +976,13 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
   if (patientRecord.rows[0]?.identifier !== 'DEMO-ONCO-001') {
     throw new Error('Letter-prefixed patient identifiers must resolve to their exact patient record.');
   }
+  const suffixSearch = await db.query<{ identifiers: string[] }>(
+    `SELECT ARRAY(SELECT item->>'identifier' FROM jsonb_array_elements(public.search_hospital_patients($1,'001',8)->'patients') item) AS identifiers`,
+    [hospitalId]
+  );
+  if (!suffixSearch.rows[0]?.identifiers.includes('DEMO-ONCO-001')) {
+    throw new Error('Searching by a patient identifier suffix must return matching patient records.');
+  }
   const assignedDoctor = await db.query<{ id: string }>(
     `SELECT id FROM public.hospital_doctors WHERE hospital_id=$1 AND is_demo ORDER BY doctor_name LIMIT 1`,
     [hospitalId]
@@ -995,9 +1002,20 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
   if (assignment.rows[0]?.assigned_doctor_id !== assignedDoctor.rows[0].id) {
     throw new Error('Active doctors must be assignable to patients in a pending hospital.');
   }
+  await db.query(
+    `SELECT public.hospital_staff_book_appointment($1,$2,$3,now()+interval '3 days','opd','Regression test booking')`,
+    [hospitalId, assignedPatient.rows[0].id, assignedDoctor.rows[0].id]
+  );
+  const bookedAppointment = await db.query<{ count: number }>(
+    `SELECT count(*)::integer AS count FROM public.hospital_appointments WHERE hospital_id=$1 AND patient_id=$2 AND reason='Regression test booking'`,
+    [hospitalId, assignedPatient.rows[0].id]
+  );
+  if (bookedAppointment.rows[0]?.count !== 1) {
+    throw new Error('Hospital staff must be able to book a patient appointment in a pending hospital.');
+  }
   await db.exec('RESET ROLE');
   console.log('PASS: test-hospital seed creates patient, OPD, queue, appointment, admission, investigation, and notification fixtures.');
-  console.log('PASS: exact letter-prefixed patient lookup and pending-hospital doctor assignment work.');
+  console.log('PASS: exact ID and suffix search, pending-hospital doctor assignment, and staff appointment booking work.');
 }
 
 async function main() {
