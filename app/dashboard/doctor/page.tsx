@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, Building2, CalendarDays, ClipboardList, Loader2, RefreshCw, Users } from 'lucide-react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { DashboardLayout, DOCTOR_ROLES } from '@/components/auth/dashboard-layout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import {
@@ -82,10 +83,13 @@ function DoctorDashboardContent() {
   }, [hospitalProfiles]);
 
   const kpis = summary?.kpis;
+  const hospitalAppointmentsToday = hospitalCare.appointments.filter(
+    (appointment) => new Date(appointment.scheduled_at).toDateString() === new Date().toDateString(),
+  ).length;
   const cards = [
     { label: 'Active patients', value: kpis?.active_patients, icon: Users, href: '/dashboard/doctor/patients', tone: 'teal' },
     { label: 'Hospital patients', value: hospitalCare.patients.length, icon: Building2, href: '/dashboard/doctor/patients', tone: 'teal' },
-    { label: 'Appointments today', value: kpis?.appointments_today, icon: CalendarDays, href: '/dashboard/doctor/appointments', tone: 'blue' },
+    { label: 'Appointments today', value: (kpis?.appointments_today ?? 0) + hospitalAppointmentsToday, icon: CalendarDays, href: '/dashboard/doctor/appointments', tone: 'blue' },
     { label: 'Needs confirmation', value: kpis?.pending_confirmations, icon: ClipboardList, href: '/dashboard/doctor/appointments', tone: 'amber' },
     { label: 'High risk', value: kpis?.high_risk, icon: AlertTriangle, href: '/dashboard/doctor/patients?risk=high', tone: 'rose' },
   ];
@@ -165,6 +169,47 @@ function DoctorDashboardContent() {
         })}
       </div>
 
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="font-semibold text-slate-900">Appointment activity</h2>
+          <p className="mt-1 text-sm text-slate-500">Your scheduled visits over the last 14 days.</p>
+        </div>
+        {summary?.trend_14d.length ? (
+          <div className="h-64 w-full" role="img" aria-label="Bar chart of scheduled appointments over the last 14 days">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={summary.trend_14d} margin={{ top: 8, right: 8, bottom: 4, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="date" tickFormatter={(value: string) => new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                <Tooltip labelFormatter={(value: string) => new Date(value).toLocaleDateString()} />
+                <Bar dataKey="appointments" name="Appointments" fill="#0f766e" radius={[5, 5, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <p className="rounded-xl bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Appointment activity will appear here when visits are recorded.</p>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-5 py-4">
+          <div><h2 className="font-semibold text-slate-900">Upcoming appointments</h2><p className="mt-1 text-sm text-slate-500">Visits in your personal doctor workspace.</p></div>
+          <Link href="/dashboard/doctor/appointments" className="text-sm font-semibold text-teal-700 hover:underline">Manage appointments</Link>
+        </div>
+        {summary?.next_appointments.length ? (
+          <div className="divide-y divide-slate-100">
+            {summary.next_appointments.map((appointment) => (
+              <article key={appointment.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div><p className="font-semibold text-slate-800">{appointment.patient_name} <span className="font-normal text-slate-500">({appointment.patient_code})</span></p><p className="mt-1 text-sm text-slate-500">{new Date(appointment.starts_at).toLocaleString()} · {appointment.visit_type.replaceAll('_', ' ')}</p></div>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold capitalize text-slate-700">{appointment.status}</span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="px-5 py-8 text-center text-sm text-slate-500">No upcoming personal appointments.</p>
+        )}
+      </section>
+
       <section className="overflow-hidden rounded-2xl border border-teal-100 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-teal-100 bg-teal-50/60 px-5 py-4">
           <div>
@@ -220,7 +265,7 @@ function DoctorDashboardContent() {
           <div className="mt-4 grid gap-2">
             <Link href="/dashboard/doctor/patients?new=1" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Add a patient</Link>
             <Link href="/dashboard/doctor/appointments" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Review appointments</Link>
-            <Link href="/dashboard/profile" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Complete professional profile</Link>
+            <Link href="/dashboard/doctor/profile" className="rounded-xl bg-white/10 px-4 py-3 text-sm font-medium transition hover:bg-white/20">Complete professional profile</Link>
           </div>
         </section>
       </div>

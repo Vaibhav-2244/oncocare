@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase-client';
 import { getCachedUnreadNotificationCount, loadUnreadNotificationCount } from '@/lib/notification-count-cache';
 import { Logo } from '@/components/shared/logo';
+import { DoctorWorkspaceChrome } from '@/components/doctor/DoctorWorkspaceChrome';
 import { useTranslations } from 'next-intl';
 import {
   ADMIN_ROLES,
@@ -157,6 +158,14 @@ export function DashboardLayout({
     router.push(href);
     setSearchQuery('');
   };
+
+  if (workspaceRole === 'doctor') {
+    return (
+      <DoctorWorkspaceChrome title={title} unreadNotificationCount={unreadNotificationCount}>
+        {children}
+      </DoctorWorkspaceChrome>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-background">

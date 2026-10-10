@@ -20,7 +20,13 @@ function PatientsContent() {
   const [query, setQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [sex, setSex] = useState('');
+  const [phone, setPhone] = useState('');
   const [cancerType, setCancerType] = useState('');
+  const [stage, setStage] = useState('');
+  const [currentTreatment, setCurrentTreatment] = useState('');
+  const [cycleLabel, setCycleLabel] = useState('');
   const [risk, setRisk] = useState<'low' | 'moderate' | 'high'>('low');
   const [error, setError] = useState<string | null>(null);
 
@@ -44,13 +50,34 @@ function PatientsContent() {
     return () => window.clearTimeout(timeout);
   }, [load]);
 
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('new') === '1') setShowCreate(true);
+  }, []);
+
   const submit = async (event: FormEvent) => {
     event.preventDefault();
+    setError(null);
     try {
-      const patient = await createDoctorPatient({ full_name: name, cancer_type: cancerType, risk_level: risk });
+      const patient = await createDoctorPatient({
+        full_name: name,
+        date_of_birth: dateOfBirth || null,
+        sex: sex || null,
+        phone: phone || null,
+        cancer_type: cancerType || null,
+        stage: stage || null,
+        current_treatment: currentTreatment || null,
+        cycle_label: cycleLabel || null,
+        risk_level: risk,
+      });
       setPatients((current) => [patient, ...current]);
       setName('');
+      setDateOfBirth('');
+      setSex('');
+      setPhone('');
       setCancerType('');
+      setStage('');
+      setCurrentTreatment('');
+      setCycleLabel('');
       setRisk('low');
       setShowCreate(false);
     } catch (cause) {
@@ -90,9 +117,15 @@ function PatientsContent() {
           </div>
         )}
       </section>
-      {showCreate && <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-teal-100 bg-teal-50/50 p-5 sm:grid-cols-4">
+      {showCreate && <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-teal-100 bg-teal-50/50 p-5 sm:grid-cols-2 lg:grid-cols-4">
         <label className="text-sm font-medium text-slate-700 sm:col-span-2">Full name<input required value={name} onChange={(event) => setName(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-teal-500" /></label>
+        <label className="text-sm font-medium text-slate-700">Date of birth<input type="date" value={dateOfBirth} onChange={(event) => setDateOfBirth(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-medium text-slate-700">Sex<input value={sex} onChange={(event) => setSex(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-medium text-slate-700">Phone<input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
         <label className="text-sm font-medium text-slate-700">Cancer type<input value={cancerType} onChange={(event) => setCancerType(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-teal-500" /></label>
+        <label className="text-sm font-medium text-slate-700">Stage<input value={stage} onChange={(event) => setStage(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-medium text-slate-700">Current treatment<input value={currentTreatment} onChange={(event) => setCurrentTreatment(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
+        <label className="text-sm font-medium text-slate-700">Cycle<input value={cycleLabel} onChange={(event) => setCycleLabel(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal" /></label>
         <label className="text-sm font-medium text-slate-700">Risk<select value={risk} onChange={(event) => setRisk(event.target.value as typeof risk)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 font-normal outline-none focus:border-teal-500"><option value="low">Low</option><option value="moderate">Moderate</option><option value="high">High</option></select></label>
         <div className="sm:col-span-4"><button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save patient</button></div>
       </form>}

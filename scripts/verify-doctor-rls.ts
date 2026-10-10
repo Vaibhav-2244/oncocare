@@ -11,6 +11,10 @@ const requiredChecks: [string, RegExp][] = [
   ['doctor role guard', /doctor_has_role/],
   ['admin verification guard', /admin_set_doctor_verification/],
   ['patient consent redemption', /redeem_doctor_link_code/],
+  ['live dashboard metrics', /CREATE OR REPLACE FUNCTION public\.doctor_dashboard_summary/],
+  ['audited patient updates', /CREATE OR REPLACE FUNCTION public\.doctor_update_patient/],
+  ['appointment state transitions', /CREATE OR REPLACE FUNCTION public\.doctor_update_appointment_status/],
+  ['prescription discontinuation', /CREATE OR REPLACE FUNCTION public\.doctor_cancel_prescription/],
 ];
 for (const [label, pattern] of requiredChecks) {
   if (!(pattern as RegExp).test(source)) throw new Error(`FAIL: missing ${label}`);
