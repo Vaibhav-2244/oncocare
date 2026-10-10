@@ -752,6 +752,8 @@
     "ageSex": "Age / sex",
     "mobile": "Mobile",
     "linkStatus": "Link status",
+    "patientAccountLinked": "This patient account is linked.",
+    "patientAccountNotLinked": "Pending: the patient has not linked an account yet.",
     "accountLink": "Account link",
     "generateLinkCode": "Generate link code",
     "linkCodeInstructions": "Share this single-use code only with the patient after verifying their identity. It expires in seven days.",
@@ -761,6 +763,17 @@
     "unassigned": "Unassigned",
     "assigned": "Assigned",
     "todayStatus": "Today's status",
+    "doctorAccountNotProvisioned": "No doctor login account is linked to this record. Contact a hospital administrator to provision one.",
+    "admittingDoctor": "Admitting doctor",
+    "blockedReason": "Reason this bed is blocked",
+    "blockedReasonPlaceholder": "Required: explain why the bed cannot be assigned",
+    "noBlockedReason": "No reason was recorded.",
+    "blockedAt": "Blocked at",
+    "admissionDetailsUnavailable": "No active admission details are available for this bed. Refresh and verify the bed assignment.",
+    "blockBed": "Block bed",
+    "updateBlockedReason": "Update reason",
+    "markCleaning": "Mark cleaning",
+    "markAvailable": "Mark available",
     "demo": "Demo",
     "searchPatients": "Search by patient ID, mobile, or name",
     "noPatients": "No patients match this view",
@@ -961,7 +974,7 @@
     "saveAppointment": "Save appointment",
     "noAppointments": "No appointments in this date range.",
     "status": {
-      "scheduled": "Scheduled", "confirmed": "Confirmed", "checked_in": "Checked in", "in_consultation": "In consultation", "completed": "Completed", "cancelled": "Cancelled", "no_show": "No show", "waiting": "Waiting", "called": "Called", "skipped": "Skipped", "referred": "Referred", "draft": "Draft", "final": "Final", "ordered": "Ordered", "waitlisted": "Waitlisted", "offered": "Slot offered", "accepted": "Accepted", "expired": "Expired", "report_ready": "Report ready", "doctor_reviewed": "Reviewed", "processing": "Processing", "performed": "Performed", "open": "Open", "paused": "Paused", "closed": "Closed", "available": "Available", "occupied": "Occupied", "cleaning": "Cleaning", "blocked": "Blocked", "emergency": "Emergency", "clinically_priority": "Clinical priority", "urgent": "Urgent", "routine": "Routine", "pending": "Pending"
+      "scheduled": "Scheduled", "confirmed": "Confirmed", "checked_in": "Checked in", "in_consultation": "In consultation", "completed": "Completed", "cancelled": "Cancelled", "no_show": "No show", "waiting": "Waiting", "called": "Called", "skipped": "Skipped", "referred": "Referred", "draft": "Draft", "final": "Final", "ordered": "Ordered", "waitlisted": "Waitlisted", "offered": "Slot offered", "accepted": "Accepted", "expired": "Expired", "report_ready": "Report ready", "doctor_reviewed": "Reviewed", "processing": "Processing", "performed": "Performed", "open": "Open", "paused": "Paused", "closed": "Closed", "available": "Available", "occupied": "Occupied", "cleaning": "Cleaning", "blocked": "Blocked", "emergency": "Emergency", "clinically_priority": "Clinical priority", "urgent": "Urgent", "routine": "Routine", "pending": "Pending", "no_visit": "No visit today"
     }
   },
   "insurance": {

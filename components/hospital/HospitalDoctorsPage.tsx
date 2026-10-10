@@ -10,6 +10,7 @@ import { callRpc } from '@/lib/hospital/api';
 type Department = { id: string; name: string; department_type: 'clinical' | 'diagnostic'; is_active: boolean };
 type Doctor = {
   id: string;
+  user_id: string | null;
   doctor_name: string;
   specialty: string | null;
   department_id: string | null;
@@ -78,7 +79,7 @@ export function HospitalDoctorsPage() {
     if (!org) return;
     const [departmentResult, doctorResult, sessionResult, staffResult, assignmentResult] = await Promise.all([
       supabase.from('hospital_departments').select('id,name,department_type,is_active').eq('hospital_id', org.id).order('name'),
-      supabase.from('hospital_doctors').select('id,doctor_name,specialty,department_id,is_active,employment_status,designation,qualifications,years_experience,employment_type,opd_room,doctor_identifier,employee_id,email,verification_status').eq('hospital_id', org.id).order('doctor_name'),
+      supabase.from('hospital_doctors').select('id,user_id,doctor_name,specialty,department_id,is_active,employment_status,designation,qualifications,years_experience,employment_type,opd_room,doctor_identifier,employee_id,email,verification_status').eq('hospital_id', org.id).order('doctor_name'),
       callRpc<Session[]>('get_today_sessions', { p_hospital_id: org.id }),
       can('staff.manage') ? callRpc<StaffMember[]>('list_hospital_staff', { p_hospital_id: org.id }) : Promise.resolve([]),
       can('staff.manage')
@@ -315,10 +316,11 @@ export function HospitalDoctorsPage() {
                       <p className="text-xs text-slate-500">Medical verification: {doctor.verification_status ?? 'profile pending'} · Employment: {doctor.employment_status.replaceAll('_', ' ')}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button disabled={!can('config.manage') || busy || !doctor.is_active} onClick={() => resetDoctor(doctor)} className="min-h-10 rounded-md border px-3 text-sm">Reset password</button>
+                      <button disabled={!can('config.manage') || busy || !doctor.is_active || !doctor.user_id || !doctor.email || !doctor.doctor_identifier} onClick={() => resetDoctor(doctor)} title={!doctor.user_id || !doctor.email || !doctor.doctor_identifier ? t('doctorAccountNotProvisioned') : undefined} className="min-h-10 rounded-md border px-3 text-sm disabled:cursor-not-allowed disabled:opacity-50">Reset password</button>
                       <button disabled={!can('config.manage') || busy} onClick={() => toggleDoctor(doctor)} className="min-h-10 rounded-md border px-3 text-sm">{doctor.is_active ? t('deactivate') : t('activate')}</button>
                     </div>
                   </div>
+                  {(!doctor.user_id || !doctor.email || !doctor.doctor_identifier) && <p role="status" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">{t('doctorAccountNotProvisioned')}</p>}
                   <div className="border-t pt-3">
                     <p className="text-sm font-semibold text-slate-800">Assigned care team</p>
                     {!team.length && <p className="mt-1 text-sm text-slate-500">No staff assigned.</p>}

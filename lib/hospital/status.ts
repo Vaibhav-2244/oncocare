@@ -45,6 +45,7 @@ const map: Record<string, StatusPresentation> = {
   urgent: { label: 'Urgent', tone: tones.amber, icon: AlertTriangle },
   routine: { label: 'Routine', tone: tones.slate, icon: CircleHelp },
   pending: { label: 'Pending', tone: tones.amber, icon: Clock3 },
+  no_visit: { label: 'No visit today', tone: tones.slate, icon: CircleHelp },
 };
 
 export function getStatusPresentation(code: string): StatusPresentation {

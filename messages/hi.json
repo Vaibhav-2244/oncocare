@@ -752,6 +752,8 @@
     "ageSex": "उम्र / लिंग",
     "mobile": "मोबाइल",
     "linkStatus": "लिंक स्थिति",
+    "patientAccountLinked": "यह मरीज़ खाता लिंक है।",
+    "patientAccountNotLinked": "लंबित: मरीज़ ने अभी तक खाता लिंक नहीं किया है।",
     "accountLink": "खाता लिंक",
     "generateLinkCode": "लिंक कोड बनाएं",
     "linkCodeInstructions": "पहचान सत्यापित करने के बाद यह एक-बार इस्तेमाल होने वाला कोड केवल मरीज़ के साथ साझा करें। यह सात दिनों में समाप्त हो जाएगा।",
@@ -761,6 +763,17 @@
     "unassigned": "असाइन नहीं किया गया",
     "assigned": "असाइन किया गया",
     "todayStatus": "आज की स्थिति",
+    "doctorAccountNotProvisioned": "इस रिकॉर्ड से डॉक्टर का लॉगिन खाता जुड़ा नहीं है। खाता बनाने के लिए अस्पताल प्रशासक से संपर्क करें।",
+    "admittingDoctor": "भर्ती करने वाले डॉक्टर",
+    "blockedReason": "बेड अवरुद्ध करने का कारण",
+    "blockedReasonPlaceholder": "ज़रूरी: बताएं कि बेड क्यों आवंटित नहीं किया जा सकता",
+    "noBlockedReason": "कोई कारण दर्ज नहीं किया गया।",
+    "blockedAt": "अवरुद्ध किया गया",
+    "admissionDetailsUnavailable": "इस बेड के लिए सक्रिय भर्ती विवरण उपलब्ध नहीं हैं। रीफ़्रेश करें और बेड आवंटन की पुष्टि करें।",
+    "blockBed": "बेड अवरुद्ध करें",
+    "updateBlockedReason": "कारण अपडेट करें",
+    "markCleaning": "सफाई के लिए चिह्नित करें",
+    "markAvailable": "उपलब्ध चिह्नित करें",
     "demo": "डेमो",
     "searchPatients": "मरीज़ आईडी, मोबाइल या नाम से खोजें",
     "noPatients": "इस दृश्य से मेल खाते मरीज़ नहीं हैं",
@@ -961,7 +974,7 @@
     "saveAppointment": "अपॉइंटमेंट सहेजें",
     "noAppointments": "इस तारीख सीमा में कोई अपॉइंटमेंट नहीं।",
     "status": {
-      "scheduled": "शेड्यूल किया गया", "confirmed": "पुष्टि हुई", "checked_in": "चेक-इन किया", "in_consultation": "परामर्श में", "completed": "पूर्ण", "cancelled": "रद्द", "no_show": "अनुपस्थित", "waiting": "प्रतीक्षा में", "called": "बुलाया गया", "skipped": "छोड़ा गया", "referred": "रेफर किया", "draft": "ड्राफ्ट", "final": "अंतिम", "ordered": "आदेश दिया", "waitlisted": "प्रतीक्षा सूची", "offered": "समय उपलब्ध", "accepted": "स्वीकार किया", "expired": "समाप्त", "report_ready": "रिपोर्ट तैयार", "doctor_reviewed": "समीक्षित", "processing": "प्रक्रिया में", "performed": "किया गया", "open": "खुला", "paused": "रुका हुआ", "closed": "बंद", "available": "उपलब्ध", "occupied": "भरा हुआ", "cleaning": "सफाई", "blocked": "अवरुद्ध", "emergency": "आपातकाल", "clinically_priority": "चिकित्सकीय प्राथमिकता", "urgent": "तत्काल", "routine": "सामान्य", "pending": "लंबित"
+      "scheduled": "शेड्यूल किया गया", "confirmed": "पुष्टि हुई", "checked_in": "चेक-इन किया", "in_consultation": "परामर्श में", "completed": "पूर्ण", "cancelled": "रद्द", "no_show": "अनुपस्थित", "waiting": "प्रतीक्षा में", "called": "बुलाया गया", "skipped": "छोड़ा गया", "referred": "रेफर किया", "draft": "ड्राफ्ट", "final": "अंतिम", "ordered": "आदेश दिया", "waitlisted": "प्रतीक्षा सूची", "offered": "समय उपलब्ध", "accepted": "स्वीकार किया", "expired": "समाप्त", "report_ready": "रिपोर्ट तैयार", "doctor_reviewed": "समीक्षित", "processing": "प्रक्रिया में", "performed": "किया गया", "open": "खुला", "paused": "रुका हुआ", "closed": "बंद", "available": "उपलब्ध", "occupied": "भरा हुआ", "cleaning": "सफाई", "blocked": "अवरुद्ध", "emergency": "आपातकाल", "clinically_priority": "चिकित्सकीय प्राथमिकता", "urgent": "तत्काल", "routine": "सामान्य", "pending": "लंबित", "no_visit": "आज कोई मुलाक़ात नहीं"
     }
   },
   "insurance": {

@@ -227,7 +227,7 @@ async function runSmokeAssertions(db: PGlite) {
       SELECT '${hospitalA}', 'HARNESS-' || n, 'Harness Patient ' || n, true
       FROM generate_series(1, 80) n;
     INSERT INTO public.opd_sessions (hospital_id, doctor_id, session_date, start_time, end_time, status, last_token, is_demo)
-      SELECT '${hospitalA}', id, current_date, time '09:00', time '13:00', 'open', 122, true
+      SELECT '${hospitalA}', id, public.hospital_today('${hospitalA}'), time '09:00', time '13:00', 'open', 122, true
       FROM public.hospital_doctors WHERE hospital_id='${hospitalA}' AND doctor_name='Harness Doctor';
     INSERT INTO public.queue_entries (hospital_id, session_id, patient_id, token_number, priority_rank, status, started_at, is_demo)
       SELECT '${hospitalA}', s.id, p.id, 102, 3, 'in_consultation', now(), true
@@ -262,6 +262,24 @@ async function runSmokeAssertions(db: PGlite) {
   const queueCounts = await db.query<{ current_token: number | null; waiting: number }> (`SELECT max(token_number) FILTER (WHERE status='in_consultation') AS current_token, count(*) FILTER (WHERE status='waiting')::integer AS waiting FROM public.queue_entries WHERE hospital_id = $1 AND session_id = (SELECT id FROM public.opd_sessions WHERE hospital_id = $1 AND is_demo ORDER BY start_time LIMIT 1)`, [hospitalA]);
   if (queueCounts.rows[0]?.current_token !== 102 || queueCounts.rows[0]?.waiting !== 21) {
     throw new Error(`Expected demo queue serving token 102 with 21 waiting; received ${JSON.stringify(queueCounts.rows[0])}`);
+  }
+  const statusRows = await db.query<{ patient_identifier: string; status: string }>(`
+    SELECT p.patient_identifier, daily.status
+    FROM public.get_hospital_patient_daily_status(
+      $1,
+      ARRAY(
+        SELECT id FROM public.hospital_patients
+        WHERE hospital_id=$1 AND patient_identifier IN ('HARNESS-1','HARNESS-2','REAL-KEEP-1')
+      )
+    ) daily
+    JOIN public.hospital_patients p ON p.id=daily.patient_id
+    ORDER BY p.patient_identifier
+  `, [hospitalA]);
+  const statusByIdentifier = new Map(statusRows.rows.map((row) => [row.patient_identifier, row.status]));
+  if (statusByIdentifier.get('HARNESS-1') !== 'in_consultation'
+    || statusByIdentifier.get('HARNESS-2') !== 'waiting'
+    || statusByIdentifier.get('REAL-KEEP-1') !== 'no_visit') {
+    throw new Error(`Daily patient status resolution is incorrect: ${JSON.stringify(statusRows.rows)}`);
   }
   const mainSession = await db.query<{ id: string }>(`SELECT id FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo ORDER BY start_time LIMIT 1`, [hospitalA]);
   const emergencyCall = await db.query<{ entry: { token_number: number; priority_rank: number } }>(`SELECT public.call_next($1) AS entry`, [mainSession.rows[0].id]);
@@ -405,14 +423,14 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
         ON d.hospital_id=p.hospital_id AND d.doctor_name=CASE p.patient_identifier WHEN 'ISO-PATIENT-A' THEN 'Doctor A' ELSE 'Doctor B' END
       WHERE p.patient_identifier IN ('ISO-PATIENT-A','ISO-PATIENT-B');
     INSERT INTO public.opd_sessions (hospital_id,doctor_id,session_date,start_time,end_time,status)
-      SELECT '${hospitalA}',id,current_date,time '09:00',time '12:00','open'
+      SELECT '${hospitalA}',id,public.hospital_today('${hospitalA}'),time '09:00',time '12:00','open'
       FROM public.hospital_doctors WHERE user_id IN ('${doctorA}','${doctorB}');
     INSERT INTO public.queue_entries (hospital_id,session_id,patient_id,token_number,priority_rank,status)
       SELECT '${hospitalA}',s.id,p.id,1,3,'waiting'
       FROM public.opd_sessions s
       JOIN public.hospital_doctors d ON d.id=s.doctor_id
       JOIN public.hospital_patients p ON p.patient_identifier=CASE d.user_id WHEN '${doctorA}'::uuid THEN 'ISO-PATIENT-A' ELSE 'ISO-PATIENT-B' END
-      WHERE s.hospital_id='${hospitalA}' AND s.session_date=current_date AND d.user_id IN ('${doctorA}','${doctorB}');
+      WHERE s.hospital_id='${hospitalA}' AND s.session_date=public.hospital_today('${hospitalA}') AND d.user_id IN ('${doctorA}','${doctorB}');
     INSERT INTO public.consultations (hospital_id,patient_id,doctor_id,complaint,assessment,plan)
       SELECT '${hospitalA}',p.id,d.id,'Follow-up','Stable','Continue care'
       FROM public.hospital_patients p JOIN public.hospital_doctors d
@@ -457,8 +475,8 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const doctorBRow = ids.rows[0].doctor_b_row;
   const sessionIds = await db.query<{ doctor_a_session: string; doctor_b_session: string }>(`
     SELECT
-      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorA}' AND s.session_date=current_date) AS doctor_a_session,
-      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorB}' AND s.session_date=current_date) AS doctor_b_session
+      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorA}' AND s.session_date=public.hospital_today('${hospitalA}')) AS doctor_a_session,
+      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorB}' AND s.session_date=public.hospital_today('${hospitalA}')) AS doctor_b_session
   `);
   if (!sessionIds.rows[0]?.doctor_a_session || !sessionIds.rows[0]?.doctor_b_session) {
     throw new Error('Doctor isolation fixtures are missing OPD sessions.');
@@ -533,6 +551,27 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier=$2`,
       [hospitalA, item.patientIdentifier]
     )).rows[0].id;
+    const dailyStatus = await db.query<{ status: string }>(
+      `SELECT status FROM public.get_hospital_patient_daily_status($1, ARRAY[$2::uuid])`,
+      [hospitalA, patientId]
+    );
+    if (dailyStatus.rows.length !== 1 || dailyStatus.rows[0].status !== 'waiting') {
+      throw new Error(`${item.user} could not read the daily status of their assigned patient.`);
+    }
+    await db.exec('RESET ROLE');
+    const otherPatientId = (await db.query<{ id: string }>(
+      `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier=$2`,
+      [hospitalA, item.otherPatient]
+    )).rows[0].id;
+    await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${item.user}',false);`);
+    let crossDoctorStatusRejected = false;
+    try {
+      await db.query(
+        `SELECT * FROM public.get_hospital_patient_daily_status($1, ARRAY[$2::uuid])`,
+        [hospitalA, otherPatientId]
+      );
+    } catch { crossDoctorStatusRejected = true; }
+    if (!crossDoctorStatusRejected) throw new Error(`${item.user} read an unassigned patient's daily status.`);
     const context = await db.query<{ context: unknown }>(
       `SELECT public.get_consultation_context($1,$2) AS context`,
       [hospitalA, patientId]
@@ -923,6 +962,34 @@ async function runHospitalAdmissionsAssertions(db: PGlite) {
     `SELECT status FROM public.hospital_beds WHERE id='40000000-0000-4000-8000-000000000002'`
   );
   if (dischargedBed.rows[0].status !== 'cleaning') throw new Error('Discharging did not move the occupied bed into cleaning.');
+  let missingBlockReasonRejected = false;
+  try {
+    await db.query(
+      `SELECT public.set_bed_status($1,'40000000-0000-4000-8000-000000000002','blocked',NULL)`,
+      [hospitalA]
+    );
+  } catch {
+    missingBlockReasonRejected = true;
+  }
+  if (!missingBlockReasonRejected) throw new Error('A bed was blocked without a reason.');
+  await db.query(
+    `SELECT public.set_bed_status($1,'40000000-0000-4000-8000-000000000002','blocked','Equipment maintenance')`,
+    [hospitalA]
+  );
+  const blockedReason = await db.query<{ status: string; blocked_reason: string | null }>(
+    `SELECT status,blocked_reason FROM public.hospital_beds WHERE id='40000000-0000-4000-8000-000000000002'`
+  );
+  if (blockedReason.rows[0].status !== 'blocked' || blockedReason.rows[0].blocked_reason !== 'Equipment maintenance') {
+    throw new Error('Bed blocking did not persist its required reason.');
+  }
+  await db.query(
+    `SELECT public.set_bed_status($1,'40000000-0000-4000-8000-000000000002','available',NULL)`,
+    [hospitalA]
+  );
+  const unblocked = await db.query<{ blocked_reason: string | null }>(
+    `SELECT blocked_reason FROM public.hospital_beds WHERE id='40000000-0000-4000-8000-000000000002'`
+  );
+  if (unblocked.rows[0].blocked_reason !== null) throw new Error('Unblocking a bed did not clear its old block reason.');
   await db.exec('RESET ROLE');
   console.log('PASS: admissions enforce hospital ownership, prevent occupied-bed changes, and maintain transfer/discharge bed states.');
 }
