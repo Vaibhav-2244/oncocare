@@ -221,13 +221,17 @@ async function runSmokeAssertions(db: PGlite) {
       VALUES ('${hospitalA}', 'REAL-KEEP-1', 'Real Patient', false);
   `);
   await db.exec(`
-    INSERT INTO public.hospital_doctors (hospital_id, doctor_name, specialty, is_demo)
-      VALUES ('${hospitalA}', 'Harness Doctor', 'Oncology', true);
+    INSERT INTO public.hospital_departments (hospital_id, name, department_type)
+      VALUES ('${hospitalA}', 'Harness Oncology', 'clinical');
+    INSERT INTO public.hospital_doctors (hospital_id, department_id, doctor_name, specialty, is_demo)
+      SELECT '${hospitalA}', id, 'Harness Doctor', 'Oncology', true
+      FROM public.hospital_departments
+      WHERE hospital_id='${hospitalA}' AND name='Harness Oncology';
     INSERT INTO public.hospital_patients (hospital_id, patient_identifier, name, is_demo)
       SELECT '${hospitalA}', 'HARNESS-' || n, 'Harness Patient ' || n, true
       FROM generate_series(1, 80) n;
     INSERT INTO public.opd_sessions (hospital_id, doctor_id, session_date, start_time, end_time, status, last_token, is_demo)
-      SELECT '${hospitalA}', id, public.hospital_today('${hospitalA}'), time '09:00', time '13:00', 'open', 122, true
+      SELECT '${hospitalA}', id, current_date, time '09:00', time '13:00', 'open', 122, true
       FROM public.hospital_doctors WHERE hospital_id='${hospitalA}' AND doctor_name='Harness Doctor';
     INSERT INTO public.queue_entries (hospital_id, session_id, patient_id, token_number, priority_rank, status, started_at, is_demo)
       SELECT '${hospitalA}', s.id, p.id, 102, 3, 'in_consultation', now(), true
@@ -281,6 +285,23 @@ async function runSmokeAssertions(db: PGlite) {
     || statusByIdentifier.get('REAL-KEEP-1') !== 'no_visit') {
     throw new Error(`Daily patient status resolution is incorrect: ${JSON.stringify(statusRows.rows)}`);
   }
+  const generationResult = await db.query<{ result: { created: number; existing: number; eligible_doctors: number } }>(
+    `SELECT public.generate_default_sessions($1,current_date) AS result`,
+    [hospitalA]
+  );
+  if (generationResult.rows[0].result.created !== 0
+    || generationResult.rows[0].result.existing !== 1
+    || generationResult.rows[0].result.eligible_doctors !== 1) {
+    throw new Error(`OPD session generation did not report existing sessions: ${JSON.stringify(generationResult.rows[0].result)}`);
+  }
+  let pastGenerationRejected = false;
+  try {
+    await db.query(
+      `SELECT public.generate_default_sessions($1,current_date-1)`,
+      [hospitalA]
+    );
+  } catch { pastGenerationRejected = true; }
+  if (!pastGenerationRejected) throw new Error('OPD session generation accepted a past date.');
   const mainSession = await db.query<{ id: string }>(`SELECT id FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo ORDER BY start_time LIMIT 1`, [hospitalA]);
   const emergencyCall = await db.query<{ entry: { token_number: number; priority_rank: number } }>(`SELECT public.call_next($1) AS entry`, [mainSession.rows[0].id]);
   if (emergencyCall.rows[0]?.entry?.priority_rank !== 0) throw new Error('Queue did not call the emergency priority first.');
@@ -423,14 +444,14 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
         ON d.hospital_id=p.hospital_id AND d.doctor_name=CASE p.patient_identifier WHEN 'ISO-PATIENT-A' THEN 'Doctor A' ELSE 'Doctor B' END
       WHERE p.patient_identifier IN ('ISO-PATIENT-A','ISO-PATIENT-B');
     INSERT INTO public.opd_sessions (hospital_id,doctor_id,session_date,start_time,end_time,status)
-      SELECT '${hospitalA}',id,public.hospital_today('${hospitalA}'),time '09:00',time '12:00','open'
+      SELECT '${hospitalA}',id,current_date,time '09:00',time '12:00','open'
       FROM public.hospital_doctors WHERE user_id IN ('${doctorA}','${doctorB}');
     INSERT INTO public.queue_entries (hospital_id,session_id,patient_id,token_number,priority_rank,status)
       SELECT '${hospitalA}',s.id,p.id,1,3,'waiting'
       FROM public.opd_sessions s
       JOIN public.hospital_doctors d ON d.id=s.doctor_id
       JOIN public.hospital_patients p ON p.patient_identifier=CASE d.user_id WHEN '${doctorA}'::uuid THEN 'ISO-PATIENT-A' ELSE 'ISO-PATIENT-B' END
-      WHERE s.hospital_id='${hospitalA}' AND s.session_date=public.hospital_today('${hospitalA}') AND d.user_id IN ('${doctorA}','${doctorB}');
+      WHERE s.hospital_id='${hospitalA}' AND s.session_date=current_date AND d.user_id IN ('${doctorA}','${doctorB}');
     INSERT INTO public.consultations (hospital_id,patient_id,doctor_id,complaint,assessment,plan)
       SELECT '${hospitalA}',p.id,d.id,'Follow-up','Stable','Continue care'
       FROM public.hospital_patients p JOIN public.hospital_doctors d
@@ -475,8 +496,8 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const doctorBRow = ids.rows[0].doctor_b_row;
   const sessionIds = await db.query<{ doctor_a_session: string; doctor_b_session: string }>(`
     SELECT
-      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorA}' AND s.session_date=public.hospital_today('${hospitalA}')) AS doctor_a_session,
-      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorB}' AND s.session_date=public.hospital_today('${hospitalA}')) AS doctor_b_session
+      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorA}' AND s.session_date=current_date) AS doctor_a_session,
+      (SELECT s.id FROM public.opd_sessions s JOIN public.hospital_doctors d ON d.id=s.doctor_id WHERE d.user_id='${doctorB}' AND s.session_date=current_date) AS doctor_b_session
   `);
   if (!sessionIds.rows[0]?.doctor_a_session || !sessionIds.rows[0]?.doctor_b_session) {
     throw new Error('Doctor isolation fixtures are missing OPD sessions.');
@@ -1014,6 +1035,8 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
     doctors: number;
     sessions: number;
     queue_entries: number;
+    waiting_queue_entries: number;
+    open_sessions: number;
     beds: number;
     admissions: number;
     investigations: number;
@@ -1024,6 +1047,8 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
       (SELECT count(*)::integer FROM public.hospital_doctors WHERE hospital_id=$1 AND is_demo) AS doctors,
       (SELECT count(*)::integer FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo) AS sessions,
       (SELECT count(*)::integer FROM public.queue_entries WHERE hospital_id=$1 AND is_demo) AS queue_entries,
+      (SELECT count(*)::integer FROM public.queue_entries WHERE hospital_id=$1 AND is_demo AND status='waiting') AS waiting_queue_entries,
+      (SELECT count(*)::integer FROM public.opd_sessions WHERE hospital_id=$1 AND is_demo AND status='open' AND session_date=current_date) AS open_sessions,
       (SELECT count(*)::integer FROM public.hospital_beds WHERE hospital_id=$1 AND is_demo) AS beds,
       (SELECT count(*)::integer FROM public.hospital_admissions WHERE hospital_id=$1 AND is_demo) AS admissions,
       (SELECT count(*)::integer FROM public.investigation_types WHERE hospital_id=$1 AND is_demo) AS investigations,
@@ -1031,7 +1056,8 @@ async function runHospitalDashboardSeedAssertions(db: PGlite) {
   `, [hospitalId]);
   const result = counts.rows[0];
   if (result.patients !== 4 || result.doctors !== 2 || result.sessions !== 1
-    || result.queue_entries !== 3 || result.beds !== 4 || result.admissions !== 1
+    || result.queue_entries !== 3 || result.waiting_queue_entries !== 2 || result.open_sessions !== 1
+    || result.beds !== 4 || result.admissions !== 1
     || result.investigations !== 2 || result.notifications !== 3) {
     throw new Error(`Hospital dashboard seed data is incomplete or escaped its target: ${JSON.stringify(result)}`);
   }

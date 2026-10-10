@@ -111,6 +111,9 @@ BEGIN
   )
   ON CONFLICT (hospital_id, doctor_id, session_date, start_time) DO UPDATE
     SET room = EXCLUDED.room,
+        status = 'open',
+        closed_at = NULL,
+        last_token = 3,
         is_demo = true;
 
   SELECT id INTO v_session_id
@@ -119,6 +122,11 @@ BEGIN
     AND doctor_id = v_doctor_rao_id
     AND session_date = public.hospital_today(v_hospital_id)
     AND start_time = time '09:00';
+
+  DELETE FROM public.queue_entries
+  WHERE hospital_id = v_hospital_id
+    AND session_id = v_session_id
+    AND is_demo;
 
   INSERT INTO public.hospital_visits (hospital_id, patient_id, visit_date, is_demo)
   SELECT v_hospital_id, demo.patient_id, public.hospital_today(v_hospital_id), true
@@ -135,6 +143,10 @@ BEGIN
     (v_hospital_id, v_session_id, v_patient_003_id, 3, 2, 'waiting', true, true)
   ON CONFLICT (session_id, token_number) DO UPDATE
     SET status = EXCLUDED.status,
+        patient_id = EXCLUDED.patient_id,
+        priority_rank = EXCLUDED.priority_rank,
+        is_walk_in = EXCLUDED.is_walk_in,
+        updated_at = now(),
         is_demo = true;
 
   INSERT INTO public.hospital_appointments (
