@@ -23,6 +23,13 @@ function PatientDashboardContent() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [upcomingAppointments, setUpcomingAppointments] = useState<any[]>([]);
+  const [assignedDoctors, setAssignedDoctors] = useState<Array<{
+    hospital_id: string;
+    hospital_name: string;
+    doctor_name: string;
+    specialty: string | null;
+    department: string | null;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -53,6 +60,13 @@ function PatientDashboardContent() {
           status: string;
           reason: string | null;
         }>;
+        assigned_doctors?: Array<{
+          hospital_id: string;
+          hospital_name: string;
+          doctor_name: string;
+          specialty: string | null;
+          department: string | null;
+        }>;
       } | null;
       const allUpcomingAppointments = [
         ...(upcomingRes.data || []),
@@ -74,6 +88,7 @@ function PatientDashboardContent() {
       setActivity(actRes);
       setNotifications(notifRes);
       setUpcomingAppointments(allUpcomingAppointments.slice(0, 3));
+      setAssignedDoctors(hospitalCare?.assigned_doctors ?? []);
     } catch (cause) {
       setLoadError(cause instanceof Error ? cause.message : 'Unable to load your care dashboard.');
     } finally {
@@ -117,6 +132,21 @@ function PatientDashboardContent() {
         <p className="mt-1 text-sm text-slate-500">{t('hereAposSAnOverviewOfYourCareJourney')}</p>
       </div>
       {loadError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{loadError}</p>}
+
+      {assignedDoctors.length > 0 && (
+        <section className="rounded-2xl border border-teal-100 bg-white p-5 shadow-sm">
+          <h2 className="text-base font-bold text-slate-900">Your hospital care team</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {assignedDoctors.map((doctor) => (
+              <article key={`${doctor.hospital_id}-${doctor.doctor_name}`} className="rounded-xl border border-slate-100 p-4">
+                <p className="font-semibold text-slate-900">{doctor.doctor_name}</p>
+                <p className="mt-1 text-sm text-slate-600">{[doctor.specialty, doctor.department].filter(Boolean).join(' · ') || 'Treating doctor'}</p>
+                <p className="mt-1 text-xs text-slate-500">{doctor.hospital_name}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

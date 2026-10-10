@@ -210,8 +210,9 @@ async function runSmokeAssertions(db: PGlite) {
     INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
       ('${userA}', 'a@example.test', now()), ('${userB}', 'b@example.test', now()),
       ('${frontDesk}', 'desk@example.test', now()), ('${patientUser}', 'patient@example.test', now());
-    INSERT INTO public.hospital_orgs (id, name, owner_user_id, patient_id_prefix) VALUES
-      ('${hospitalA}', 'Hospital A', '${userA}', 'NCI-'), ('${hospitalB}', 'Hospital B', '${userB}', 'NCI-');
+    INSERT INTO public.hospital_orgs (id, name, owner_user_id, patient_id_prefix, verification_status) VALUES
+      ('${hospitalA}', 'Hospital A', '${userA}', 'NCI-', 'verified'),
+      ('${hospitalB}', 'Hospital B', '${userB}', 'NCI-', 'pending');
     INSERT INTO public.hospital_members (hospital_id, user_id, staff_role) VALUES
       ('${hospitalA}', '${userA}', 'hospital_admin'), ('${hospitalB}', '${userB}', 'hospital_admin');
     INSERT INTO public.hospital_members (hospital_id, user_id, staff_role) VALUES
@@ -241,6 +242,20 @@ async function runSmokeAssertions(db: PGlite) {
   `);
   const demoExecute = await db.query<{ allowed: boolean }>(`SELECT has_function_privilege('authenticated', 'public.load_demo_data(uuid)', 'EXECUTE') AS allowed`);
   if (demoExecute.rows[0]?.allowed) throw new Error('Authenticated role can execute production demo seeding.');
+  const appointmentPrivileges = await db.query<{ anonymous: boolean; authenticated: boolean }>(`
+    SELECT
+      has_function_privilege('anon','public.create_hospital_appointment(uuid,uuid,uuid,timestamptz,text,text)','EXECUTE')
+        OR has_function_privilege('anon','public.doctor_create_hospital_appointment(uuid,uuid,timestamptz,text,text)','EXECUTE')
+        OR has_function_privilege('anon','public.assign_hospital_patient_doctor(uuid,uuid,uuid)','EXECUTE')
+        OR has_function_privilege('anon','public.doctor_hospital_can_read_patient(uuid,uuid)','EXECUTE')
+        OR has_function_privilege('anon','public.claim_hospital_patient_link(text)','EXECUTE') AS anonymous,
+      has_function_privilege('authenticated','public.create_hospital_appointment(uuid,uuid,uuid,timestamptz,text,text)','EXECUTE')
+        AND has_function_privilege('authenticated','public.doctor_create_hospital_appointment(uuid,uuid,timestamptz,text,text)','EXECUTE')
+        AND has_function_privilege('authenticated','public.assign_hospital_patient_doctor(uuid,uuid,uuid)','EXECUTE') AS authenticated
+  `);
+  if (appointmentPrivileges.rows[0]?.anonymous || !appointmentPrivileges.rows[0]?.authenticated) {
+    throw new Error('Hospital assignment/appointment RPC permissions are not restricted to authenticated users.');
+  }
   await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userA}', false);`);
   const demoCounts = await db.query<{ patients: number }> (`SELECT count(*)::integer AS patients FROM public.hospital_patients WHERE hospital_id = $1 AND is_demo`, [hospitalA]);
   if (demoCounts.rows[0]?.patients !== 80) throw new Error(`Expected 80 demo patients; got ${demoCounts.rows[0]?.patients ?? 0}`);
@@ -279,6 +294,13 @@ async function runSmokeAssertions(db: PGlite) {
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${userB}', false);`);
   const tenantRows = await db.query<{ count: number }>(`SELECT count(*)::integer AS count FROM public.hospital_patients WHERE hospital_id = $1`, [hospitalA]);
   if (tenantRows.rows[0]?.count !== 0) throw new Error('Tenant isolation failed: Hospital B can read Hospital A patients.');
+  const pendingCapabilities = await db.query<{ operational: boolean; staff: boolean }>(
+    `SELECT public.hospital_has_cap($1,'patients.register') AS operational, public.hospital_has_cap($1,'staff.manage') AS staff`,
+    [hospitalB]
+  );
+  if (pendingCapabilities.rows[0]?.operational || !pendingCapabilities.rows[0]?.staff) {
+    throw new Error('Pending hospitals must retain setup/staff management but cannot perform operational work.');
+  }
   await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub', '${frontDesk}', false);`);
   const clinicalRows = await db.query<{ count: number }>(`SELECT count(*)::integer AS count FROM public.consultations WHERE hospital_id=$1`, [hospitalA]);
   if (clinicalRows.rows[0]?.count !== 0) throw new Error('Front desk can read consultation data.');
@@ -306,6 +328,7 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const nurseB = '20000000-0000-4000-8000-000000000008';
   const patientA = '20000000-0000-4000-8000-000000000009';
   const patientB = '20000000-0000-4000-8000-000000000010';
+  const patientC = '20000000-0000-4000-8000-000000000011';
   const bplBucket = await db.query<{ id: string; public: boolean }>(
     `SELECT id, public FROM storage.buckets WHERE id='bpl-patients'`
   );
@@ -318,8 +341,11 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       ('${nurseA}', 'nurse-a@example.test', now()),
       ('${nurseB}', 'nurse-b@example.test', now()),
       ('${patientA}', 'patient-a@example.test', now()),
-      ('${patientB}', 'patient-b@example.test', now());
+      ('${patientB}', 'patient-b@example.test', now()),
+      ('${patientC}', 'patient-c@example.test', now());
     INSERT INTO public.roles (name,display_name,description) VALUES ('doctor','Doctor','Medical doctor')
+      ON CONFLICT (name) DO NOTHING;
+    INSERT INTO public.roles (name,display_name,description) VALUES ('patient','Patient','Patient account')
       ON CONFLICT (name) DO NOTHING;
     INSERT INTO public.profiles (id,email,full_name,phone) VALUES
       ('${doctorA}','doctor-a@example.test','Doctor A','111'),
@@ -329,20 +355,33 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
     INSERT INTO public.user_roles (user_id,role_id)
       SELECT user_id, id FROM public.roles CROSS JOIN (VALUES ('${doctorA}'::uuid),('${doctorB}'::uuid)) u(user_id)
       WHERE name='doctor';
+    INSERT INTO public.user_roles (user_id,role_id)
+      SELECT user_id, id FROM public.roles CROSS JOIN
+        (VALUES ('${patientA}'::uuid),('${patientB}'::uuid),('${patientC}'::uuid)) u(user_id)
+      WHERE name='patient'
+      ON CONFLICT DO NOTHING;
     INSERT INTO public.doctor_profiles (user_id,full_name,registration_no,registration_council,verification_status) VALUES
-      ('${doctorA}','Doctor A','REG-A','Council A','submitted'),
-      ('${doctorB}','Doctor B','REG-B','Council B','submitted');
+      ('${doctorA}','Doctor A','REG-A','Council A','verified'),
+      ('${doctorB}','Doctor B','REG-B','Council B','verified');
     INSERT INTO public.hospital_members (hospital_id,user_id,staff_role) VALUES
       ('${hospitalA}','${doctorA}','doctor'),
       ('${hospitalA}','${doctorB}','doctor'),
       ('${hospitalA}','${nurseA}','nurse'),
       ('${hospitalA}','${nurseB}','nurse');
-    INSERT INTO public.hospital_doctors (hospital_id,user_id,doctor_name,specialty,doctor_identifier,email,verification_status)
-      VALUES ('${hospitalA}','${doctorA}','Doctor A','Medical Oncology','DOC-ISO-A','doctor-a@example.test','submitted'),
-             ('${hospitalA}','${doctorB}','Doctor B','Surgical Oncology','DOC-ISO-B','doctor-b@example.test','submitted');
+    INSERT INTO public.hospital_departments (hospital_id,name,department_type)
+      VALUES ('${hospitalA}','Test Oncology','clinical');
+    INSERT INTO public.hospital_doctors (hospital_id,user_id,department_id,doctor_name,specialty,doctor_identifier,email,verification_status)
+      VALUES ('${hospitalA}','${doctorA}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Doctor A','Medical Oncology','DOC-ISO-A','doctor-a@example.test','verified'),
+             ('${hospitalA}','${doctorB}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Doctor B','Surgical Oncology','DOC-ISO-B','doctor-b@example.test','verified');
+    UPDATE public.hospital_doctors
+      SET shift_schedule = (
+        SELECT jsonb_agg(jsonb_build_object('day', day, 'start', '00:00', 'end', '23:59'))
+        FROM generate_series(0, 6) AS day
+      );
     INSERT INTO public.hospital_patients (hospital_id,patient_identifier,name,patient_user_id)
       VALUES ('${hospitalA}','ISO-PATIENT-A','Patient A','${patientA}'),
-             ('${hospitalA}','ISO-PATIENT-B','Patient B','${patientB}');
+             ('${hospitalA}','ISO-PATIENT-B','Patient B','${patientB}'),
+             ('${hospitalA}','ISO-PATIENT-CLAIM','Claim Patient',NULL);
     INSERT INTO public.hospital_appointments (hospital_id,patient_id,doctor_id,scheduled_at,kind)
       SELECT '${hospitalA}',p.id,d.id,now(),'opd'
       FROM public.hospital_patients p JOIN public.hospital_doctors d
@@ -410,6 +449,27 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${adminA}',false);`);
   await db.query(`SELECT public.set_hospital_doctor_care_team_assignment($1,$2,$3,'nurse',NULL)`, [hospitalA, doctorARow, nurseA]);
   await db.query(`SELECT public.set_hospital_doctor_care_team_assignment($1,$2,$3,'nurse',NULL)`, [hospitalA, doctorBRow, nurseB]);
+  await db.query(`SELECT public.assign_hospital_patient_doctor($1,$2,$3)`, [
+    hospitalA,
+    (await db.query<{ id: string }>(`SELECT id FROM public.hospital_patients WHERE patient_identifier='ISO-PATIENT-A'`)).rows[0].id,
+    doctorARow,
+  ]);
+  await db.query(`SELECT public.assign_hospital_patient_doctor($1,$2,$3)`, [
+    hospitalA,
+    (await db.query<{ id: string }>(`SELECT id FROM public.hospital_patients WHERE patient_identifier='ISO-PATIENT-B'`)).rows[0].id,
+    doctorBRow,
+  ]);
+  const claimPatientId = (await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier='ISO-PATIENT-CLAIM'`,
+    [hospitalA]
+  )).rows[0].id;
+  const issuedLinkCode = (await db.query<{ code: string }>(
+    `SELECT public.generate_patient_link_code($1,$2) AS code`,
+    [hospitalA, claimPatientId]
+  )).rows[0].code;
+  if (!/^[A-F0-9]{32}$/.test(issuedLinkCode)) {
+    throw new Error('Patient link codes must use 128 bits of cryptographically secure randomness.');
+  }
 
   for (const item of [
     { user: doctorA, doctorId: doctorARow, sessionId: sessionIds.rows[0].doctor_a_session, otherSessionId: sessionIds.rows[0].doctor_b_session, patientIdentifier: 'ISO-PATIENT-A', otherPatient: 'ISO-PATIENT-B', nurse: 'Nurse A', otherNurse: 'Nurse B' },
@@ -484,6 +544,178 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       throw new Error(`${item.user} received another doctor's hospital patient or appointment dashboard data: ${dashboardText}`);
     }
   }
+
+  await db.exec('RESET ROLE');
+  const assignedPatientA = (await db.query<{ id: string }>(
+    `SELECT id FROM public.hospital_patients WHERE hospital_id=$1 AND patient_identifier='ISO-PATIENT-A'`,
+    [hospitalA]
+  )).rows[0].id;
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  const hospitalStart = await db.query<{ at: string }>(
+    `SELECT (date_trunc('day', now() + interval '1 day') + interval '12 hours')::timestamptz AS at`
+  );
+  let hospitalAdminBookingRejected = false;
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${adminA}',false);`);
+  try {
+    await db.query(`SELECT public.create_hospital_appointment($1,$2,$3,$4,'opd',NULL)`, [
+      hospitalA, assignedPatientA, doctorARow, hospitalStart.rows[0].at,
+    ]);
+  } catch { hospitalAdminBookingRejected = true; }
+  if (!hospitalAdminBookingRejected) throw new Error('Hospital admin booked a hospital appointment instead of the assigned doctor.');
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  const bookedAppointment = await db.query<{ appointment: { id: string } }>(
+    `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd','Test booking') AS appointment`,
+    [hospitalA, assignedPatientA, hospitalStart.rows[0].at]
+  );
+  await db.exec(`
+    RESET ROLE;
+    UPDATE public.hospital_doctors
+    SET shift_schedule = (
+      SELECT jsonb_agg(jsonb_build_object('day', day, 'start', '09:00', 'end', '23:00'))
+      FROM generate_series(0, 6) AS day
+    )
+    WHERE id='${doctorARow}';
+  `);
+  const outsideShift = await db.query<{ at: string }>(`
+    SELECT (
+      date_trunc('day', (now() + interval '1 day') AT TIME ZONE h.timezone)
+      + interval '7 hours'
+    ) AT TIME ZONE h.timezone AS at
+    FROM public.hospital_orgs h WHERE h.id=$1
+  `, [hospitalA]);
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  let outsideShiftRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd',NULL)`,
+      [hospitalA, assignedPatientA, outsideShift.rows[0].at]
+    );
+  } catch { outsideShiftRejected = true; }
+  if (!outsideShiftRejected) throw new Error('Hospital appointment was accepted outside the doctor shift.');
+  const holidayStart = await db.query<{ at: string; holiday_date: string }>(`
+    SELECT
+      (
+        date_trunc('day', (now() + interval '2 days') AT TIME ZONE h.timezone)
+        + interval '18 hours'
+      ) AT TIME ZONE h.timezone AS at,
+      (
+        date_trunc('day', (now() + interval '2 days') AT TIME ZONE h.timezone)
+        + interval '18 hours'
+      )::date AS holiday_date
+    FROM public.hospital_orgs h WHERE h.id=$1
+  `, [hospitalA]);
+  await db.exec('RESET ROLE');
+  await db.query(
+    `INSERT INTO public.hospital_holidays (hospital_id,holiday_date,name) VALUES ($1,$2::date,'Harness holiday')`,
+    [hospitalA, holidayStart.rows[0].holiday_date]
+  );
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  let holidayBookingRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd',NULL)`,
+      [hospitalA, assignedPatientA, holidayStart.rows[0].at]
+    );
+  } catch { holidayBookingRejected = true; }
+  if (!holidayBookingRejected) throw new Error('Hospital appointment was accepted on a hospital holiday.');
+  await db.exec('RESET ROLE');
+  await db.query(
+    `UPDATE public.hospital_departments SET is_active=false WHERE hospital_id=$1 AND name='Test Oncology'`,
+    [hospitalA]
+  );
+  const inactiveDepartmentStart = await db.query<{ at: string }>(`
+    SELECT (
+      date_trunc('day', (now() + interval '3 days') AT TIME ZONE h.timezone)
+      + interval '18 hours'
+    ) AT TIME ZONE h.timezone AS at
+    FROM public.hospital_orgs h WHERE h.id=$1
+  `, [hospitalA]);
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  let inactiveDepartmentRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd',NULL)`,
+      [hospitalA, assignedPatientA, inactiveDepartmentStart.rows[0].at]
+    );
+  } catch { inactiveDepartmentRejected = true; }
+  if (!inactiveDepartmentRejected) throw new Error('Hospital appointment was accepted for an inactive doctor department.');
+  await db.exec('RESET ROLE');
+  await db.query(
+    `INSERT INTO public.doctor_leaves (doctor_id,starts_at,ends_at,reason) VALUES ($1,$2::timestamptz + interval '30 minutes',$2::timestamptz + interval '90 minutes','Harness leave')`,
+    [doctorA, hospitalStart.rows[0].at]
+  );
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  let leaveBookingRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd',NULL)`,
+      [hospitalA, assignedPatientA, new Date(new Date(hospitalStart.rows[0].at).getTime() + 60 * 60 * 1000).toISOString()]
+    );
+  } catch { leaveBookingRejected = true; }
+  if (!leaveBookingRejected) throw new Error('Hospital appointment was accepted during a doctor leave.');
+  let overlappingBookingRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'follow_up',NULL)`,
+      [hospitalA, assignedPatientA, hospitalStart.rows[0].at]
+    );
+  } catch { overlappingBookingRejected = true; }
+  if (!overlappingBookingRejected) throw new Error('Overlapping hospital appointments were accepted.');
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorB}',false);`);
+  let unassignedBookingRejected = false;
+  try {
+    await db.query(
+      `SELECT public.doctor_create_hospital_appointment($1,$2,$3,'opd',NULL)`,
+      [hospitalA, assignedPatientA, hospitalStart.rows[0].at]
+    );
+  } catch { unassignedBookingRejected = true; }
+  if (!unassignedBookingRejected) throw new Error('A doctor booked a patient assigned to another doctor.');
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientC}',false);`);
+  const claimResult = await db.query<{ result: { hospital_id: string; patient_id: string; linked: boolean } }>(
+    `SELECT public.claim_hospital_patient_link($1) AS result`,
+    [issuedLinkCode]
+  );
+  if (!claimResult.rows[0].result.linked || claimResult.rows[0].result.patient_id !== claimPatientId) {
+    throw new Error('A patient account could not claim its hospital-issued link code.');
+  }
+  await db.exec('RESET ROLE');
+  const claimedRecord = await db.query<{ patient_user_id: string }>(
+    `SELECT patient_user_id FROM public.hospital_patients WHERE id=$1`,
+    [claimPatientId]
+  );
+  if (claimedRecord.rows[0].patient_user_id !== patientC) {
+    throw new Error('Claiming a hospital link code did not associate only the authenticated patient account.');
+  }
+  const workflowAudit = await db.query<{ assigned: number; code_issued: number; account_linked: number }>(`
+    SELECT
+      count(*) FILTER (WHERE action='patient.doctor_assigned')::integer AS assigned,
+      count(*) FILTER (WHERE action='patient.link_code_issued')::integer AS code_issued,
+      count(*) FILTER (WHERE action='patient.account_linked')::integer AS account_linked
+    FROM public.hospital_access_audit
+    WHERE hospital_id=$1
+  `, [hospitalA]);
+  if (workflowAudit.rows[0].assigned !== 2
+      || workflowAudit.rows[0].code_issued !== 1
+      || workflowAudit.rows[0].account_linked !== 1) {
+    throw new Error('Patient assignment and account-link actions were not recorded in the hospital audit trail.');
+  }
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientB}',false);`);
+  let reusedLinkCodeRejected = false;
+  try {
+    await db.query(`SELECT public.claim_hospital_patient_link($1)`, [issuedLinkCode]);
+  } catch { reusedLinkCodeRejected = true; }
+  if (!reusedLinkCodeRejected) throw new Error('A consumed hospital patient link code was accepted more than once.');
+  console.log('PASS: 128-bit one-time patient linking is role-restricted, audited, and protected against code reuse.');
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientA}',false);`);
+  const bookedPatientDashboard = await db.query<{ data: { appointments: unknown[]; assigned_doctors: unknown[] } }>(
+    `SELECT public.patient_hospital_dashboard() AS data`
+  );
+  if (!bookedPatientDashboard.rows[0].data.appointments.some((appointment) => JSON.stringify(appointment).includes(bookedAppointment.rows[0].appointment.id))
+      || bookedPatientDashboard.rows[0].data.assigned_doctors.length !== 1
+      || !JSON.stringify(bookedPatientDashboard.rows[0].data.appointments).includes(bookedAppointment.rows[0].appointment.id)) {
+    throw new Error('The booked hospital appointment and assigned doctor did not appear on the linked patient dashboard.');
+  }
+  console.log('PASS: hospital assignment, verified-doctor appointment booking, overlap/ownership enforcement, and patient-dashboard visibility.');
 
   for (const item of [
     { user: patientA, ownPatient: 'ISO-PATIENT-A', otherPatient: 'ISO-PATIENT-B' },
@@ -643,7 +875,7 @@ async function main() {
       await runSmokeAssertions(bundleDb);
       await runDoctorCareTeamIsolationAssertions(bundleDb);
     } catch (error) {
-      console.error(`FAIL: SQL smoke assertion: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('FAIL: SQL smoke assertion:', error);
       process.exitCode = 1;
     } finally {
       if (bundleDb) await bundleDb.close();

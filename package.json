@@ -18,6 +18,7 @@
     "build:doctor-sql": "tsx scripts/build-doctor-sql.ts",
     "test:sql": "npm run build:hospital-sql && tsx scripts/test-hospital-sql.ts",
     "test:doctor-sql": "npm run build:doctor-sql && tsx scripts/test-doctor-sql.ts",
+    "test:navigation": "tsx scripts/test-dashboard-navigation.ts",
     "verify:doctor-rls": "tsx scripts/verify-doctor-rls.ts",
     "simulate:doctor": "tsx scripts/simulate-doctor.ts",
     "lint": "next lint",

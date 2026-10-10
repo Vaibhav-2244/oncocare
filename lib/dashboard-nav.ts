@@ -98,6 +98,7 @@ export const commonNavItems: NavItem[] = [
 
 export const patientNavItems: NavItem[] = [
   ...commonNavItems,
+  { label: 'My Hospital', href: '/dashboard/patient/hospital', icon: Hospital },
   { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
   { label: 'Ayurveda Support', href: '/dashboard/ayurveda-support', icon: Activity },
   { label: 'Nearby Hospitals', href: '/dashboard/nearby-hospitals', icon: Hospital },
@@ -203,6 +204,39 @@ export function getNavItemsForRole(role: RoleName | null): NavItem[] {
     default:
       return patientNavItems;
   }
+}
+
+export function getDashboardWorkspaceRole(
+  pathname: string,
+  assignedRoles: readonly RoleName[],
+): RoleName | null {
+  const hasRole = (role: RoleName) => assignedRoles.includes(role);
+  const matchesRoute = (route: string) => pathname === route || pathname.startsWith(`${route}/`);
+
+  if (matchesRoute('/dashboard/hospital')) {
+    if (hasRole('hospital')) return 'hospital';
+    if (
+      (pathname === '/dashboard/hospital/opd' || pathname.startsWith('/dashboard/hospital/opd/')) &&
+      hasRole('doctor')
+    ) {
+      return 'doctor';
+    }
+    return null;
+  }
+
+  const workspaces: Array<{ route: string; roles: RoleName[]; role: RoleName }> = [
+    { route: '/dashboard/doctor', roles: ['doctor'], role: 'doctor' },
+    { route: '/dashboard/patient', roles: ['patient', 'medical_advisor'], role: 'patient' },
+    { route: '/dashboard/caregiver', roles: ['family_caregiver'], role: 'family_caregiver' },
+    { route: '/dashboard/pharmacy', roles: ['pharmacy'], role: 'pharmacy' },
+    { route: '/dashboard/research', roles: ['research_partner'], role: 'research_partner' },
+    { route: '/dashboard/admin', roles: ['super_admin', 'admin'], role: hasRole('super_admin') ? 'super_admin' : 'admin' },
+  ];
+
+  const workspace = workspaces.find(({ route, roles }) =>
+    matchesRoute(route) && roles.some(hasRole),
+  );
+  return workspace?.role ?? null;
 }
 
 export function getDashboardTitleForRole(role: RoleName | null): string {

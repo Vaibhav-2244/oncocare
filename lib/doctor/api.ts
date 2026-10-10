@@ -72,6 +72,7 @@ export interface DoctorHospitalPatient {
   age: number | null;
   gender: string | null;
   linked: boolean;
+  doctor_id: string;
 }
 
 export interface DoctorHospitalAppointment {

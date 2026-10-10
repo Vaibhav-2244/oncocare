@@ -15,6 +15,9 @@ export function ProtectedRoute({
 }) {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const hasAllowedRole = !allowedRoles || Boolean(
+    user?.roles.some((role) => allowedRoles.includes(role.name)),
+  );
 
   useEffect(() => {
     if (loading) return;
@@ -22,10 +25,10 @@ export function ProtectedRoute({
       router.push('/auth/sign-in');
       return;
     }
-    if (allowedRoles && (!user.primaryRole || !allowedRoles.includes(user.primaryRole))) {
+    if (!hasAllowedRole) {
       router.push('/dashboard');
     }
-  }, [user, loading, router, allowedRoles]);
+  }, [user, loading, router, hasAllowedRole]);
 
   if (loading) {
     return (
@@ -43,7 +46,7 @@ export function ProtectedRoute({
     );
   }
 
-  if (allowedRoles && (!user.primaryRole || !allowedRoles.includes(user.primaryRole))) {
+  if (!hasAllowedRole) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-teal-500" />

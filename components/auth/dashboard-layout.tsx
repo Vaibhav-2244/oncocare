@@ -25,6 +25,7 @@ import {
   STAFF_AND_PARTNER_ROLES,
   caregiverNavItems,
   commonNavItems,
+  getDashboardWorkspaceRole,
   getDashboardTitleForRole,
   getNavItemsForRole,
   patientNavItems,
@@ -52,7 +53,6 @@ export type { NavItem } from '@/lib/dashboard-nav';
 export function DashboardLayout({
   children,
   dashboardTitle,
-  navItems,
 }: {
   children: ReactNode;
   navItems?: NavItem[];
@@ -89,12 +89,14 @@ export function DashboardLayout({
     ? user.profile.full_name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.phone?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U';
 
-  const isHospitalUser = user?.primaryRole === 'hospital';
-  const dashboardNavItems = isHospitalUser
-    ? getNavItemsForRole('hospital')
-    : navItems ?? getNavItemsForRole(user?.primaryRole ?? null);
-  const resolvedTitle = getDashboardTitleForRole(user?.primaryRole ?? null);
-  const title = isHospitalUser ? resolvedTitle : dashboardTitle || resolvedTitle;
+  const workspaceRole = getDashboardWorkspaceRole(
+    pathname,
+    user?.roles.map((role) => role.name) ?? [],
+  );
+  const resolvedRole = workspaceRole ?? user?.primaryRole ?? null;
+  const dashboardNavItems = getNavItemsForRole(resolvedRole);
+  const resolvedTitle = getDashboardTitleForRole(resolvedRole);
+  const title = workspaceRole ? resolvedTitle : dashboardTitle || resolvedTitle;
 
   const filteredNavItems = searchQuery.trim()
     ? dashboardNavItems.filter((item) => item.label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
@@ -102,6 +104,9 @@ export function DashboardLayout({
 
   useEffect(() => {
     setCurrentHash(window.location.hash || '');
+    setSidebarOpen(false);
+    setUserMenuOpen(false);
+    setSearchQuery('');
   }, [pathname]);
 
   useEffect(() => {
@@ -116,6 +121,7 @@ export function DashboardLayout({
       return;
     }
 
+    setUnreadNotificationCount(getCachedUnreadNotificationCount(user.id) || 0);
     let active = true;
     const fetchUnreadNotificationCount = async (forceRefresh = false) => {
       const count = await loadUnreadNotificationCount(user.id, forceRefresh);
