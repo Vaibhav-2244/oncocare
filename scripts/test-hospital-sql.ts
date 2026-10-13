@@ -380,6 +380,8 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
   const adminB = '20000000-0000-4000-8000-000000000002';
   const doctorA = '20000000-0000-4000-8000-000000000005';
   const doctorB = '20000000-0000-4000-8000-000000000006';
+  const unassignedDoctor = '20000000-0000-4000-8000-000000000013';
+  const pendingDoctor = '20000000-0000-4000-8000-000000000014';
   const nurseA = '20000000-0000-4000-8000-000000000007';
   const nurseB = '20000000-0000-4000-8000-000000000008';
   const patientA = '20000000-0000-4000-8000-000000000009';
@@ -394,6 +396,8 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
     INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
       ('${doctorA}', 'doctor-a@example.test', now()),
       ('${doctorB}', 'doctor-b@example.test', now()),
+      ('${unassignedDoctor}', 'doctor-unassigned@example.test', now()),
+      ('${pendingDoctor}', 'doctor-pending@example.test', now()),
       ('${nurseA}', 'nurse-a@example.test', now()),
       ('${nurseB}', 'nurse-b@example.test', now()),
       ('${patientA}', 'patient-a@example.test', now()),
@@ -409,7 +413,8 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       ('${nurseA}','nurse-a@example.test','Nurse A','333'),
       ('${nurseB}','nurse-b@example.test','Nurse B','444');
     INSERT INTO public.user_roles (user_id,role_id)
-      SELECT user_id, id FROM public.roles CROSS JOIN (VALUES ('${doctorA}'::uuid),('${doctorB}'::uuid)) u(user_id)
+      SELECT user_id, id FROM public.roles CROSS JOIN
+        (VALUES ('${doctorA}'::uuid),('${doctorB}'::uuid),('${unassignedDoctor}'::uuid),('${pendingDoctor}'::uuid)) u(user_id)
       WHERE name='doctor';
     INSERT INTO public.user_roles (user_id,role_id)
       SELECT user_id, id FROM public.roles CROSS JOIN
@@ -418,17 +423,21 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       ON CONFLICT DO NOTHING;
     INSERT INTO public.doctor_profiles (user_id,full_name,registration_no,registration_council,verification_status) VALUES
       ('${doctorA}','Doctor A','REG-A','Council A','verified'),
-      ('${doctorB}','Doctor B','REG-B','Council B','verified');
+      ('${doctorB}','Doctor B','REG-B','Council B','verified'),
+      ('${unassignedDoctor}','Unassigned Doctor','REG-C','Council C','verified'),
+      ('${pendingDoctor}','Pending Doctor','REG-D','Council D','pending');
     INSERT INTO public.hospital_members (hospital_id,user_id,staff_role) VALUES
       ('${hospitalA}','${doctorA}','doctor'),
       ('${hospitalA}','${doctorB}','doctor'),
+      ('${hospitalA}','${pendingDoctor}','doctor'),
       ('${hospitalA}','${nurseA}','nurse'),
       ('${hospitalA}','${nurseB}','nurse');
     INSERT INTO public.hospital_departments (hospital_id,name,department_type)
       VALUES ('${hospitalA}','Test Oncology','clinical');
     INSERT INTO public.hospital_doctors (hospital_id,user_id,department_id,doctor_name,specialty,doctor_identifier,email,verification_status)
       VALUES ('${hospitalA}','${doctorA}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Doctor A','Medical Oncology','DOC-ISO-A','doctor-a@example.test','verified'),
-             ('${hospitalA}','${doctorB}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Doctor B','Surgical Oncology','DOC-ISO-B','doctor-b@example.test','verified');
+             ('${hospitalA}','${doctorB}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Doctor B','Surgical Oncology','DOC-ISO-B','doctor-b@example.test','verified'),
+             ('${hospitalA}','${pendingDoctor}',(SELECT id FROM public.hospital_departments WHERE hospital_id='${hospitalA}' AND name='Test Oncology'),'Pending Doctor','Medical Oncology','DOC-ISO-PENDING','doctor-pending@example.test','pending');
     UPDATE public.hospital_doctors
       SET shift_schedule = (
         SELECT jsonb_agg(jsonb_build_object('day', day, 'start', '00:00', 'end', '23:59'))
@@ -466,6 +475,54 @@ async function runDoctorCareTeamIsolationAssertions(db: PGlite) {
       JOIN public.hospital_patients hp ON hp.id=p.patient_id
       WHERE p.hospital_id='${hospitalA}' AND hp.patient_identifier IN ('ISO-PATIENT-A','ISO-PATIENT-B');
   `);
+  await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${doctorA}',false);`);
+  const assignedWorkspace = await db.query<{ hospital_id: string }>(
+    `SELECT (public.ensure_doctor_hospital_workspace()).id AS hospital_id`
+  );
+  if (assignedWorkspace.rows[0]?.hospital_id !== hospitalA) {
+    throw new Error('An assigned doctor did not resolve the affiliated hospital workspace.');
+  }
+  const ownSessions = await db.query<{ sessions: { session_id: string }[] }>(
+    `SELECT public.get_today_sessions($1) AS sessions`,
+    [hospitalA]
+  );
+  if (ownSessions.rows[0]?.sessions.length !== 1) {
+    throw new Error('A verified doctor did not receive only their own hospital OPD session.');
+  }
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${unassignedDoctor}',false);`);
+  let unassignedDoctorRejected = false;
+  try {
+    await db.query(`SELECT public.ensure_doctor_hospital_workspace()`);
+  } catch (error) {
+    unassignedDoctorRejected = error instanceof Error &&
+      error.message.includes('not assigned to an active hospital workspace');
+  }
+  if (!unassignedDoctorRejected) {
+    throw new Error('An unassigned doctor did not receive the explicit hospital-affiliation error.');
+  }
+  await db.exec(`RESET ROLE; SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${pendingDoctor}',false);`);
+  let pendingDoctorRejected = false;
+  try {
+    await db.query(`SELECT public.ensure_doctor_hospital_workspace()`);
+  } catch (error) {
+    pendingDoctorRejected = error instanceof Error &&
+      error.message.includes('Doctor verification is required for hospital affiliation');
+  }
+  if (!pendingDoctorRejected) {
+    throw new Error('A pending doctor was allowed to initialize a hospital workspace.');
+  }
+  let pendingDoctorQueueRejected = false;
+  try {
+    await db.query(`SELECT public.get_today_sessions($1)`, [hospitalA]);
+  } catch (error) {
+    pendingDoctorQueueRejected = error instanceof Error &&
+      error.message.includes('patients.read capability required');
+  }
+  if (!pendingDoctorQueueRejected) {
+    throw new Error('A pending doctor was allowed to read hospital OPD queue data.');
+  }
+  await db.exec('RESET ROLE');
+  console.log('PASS: assigned doctors resolve their workspace and read only their OPD queue; unassigned and unverified doctors are denied.');
   await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${patientA}',false);`);
   await db.exec(`
     INSERT INTO public.symptoms (user_id,name,severity) VALUES ('${patientA}','Fatigue',5);

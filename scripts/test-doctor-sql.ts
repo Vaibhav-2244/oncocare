@@ -30,7 +30,7 @@ await db.exec(`
 
 const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
 const files = (await fs.readdir(migrationsDir))
-  .filter((file) => /^20261003.*_doctor_.*\.sql$/.test(file))
+  .filter((file) => /^(?:20261003.*_doctor_|20261013.*_doctor_|20261013000000_fix_doctor_).*\.sql$/.test(file))
   .sort();
 for (const file of files) {
   try {

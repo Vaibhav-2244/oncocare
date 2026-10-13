@@ -24,6 +24,8 @@ are:
 7. `20261003060000_doctor_prescription_versions_audit.sql`
 8. `20261003100000_doctor_dashboard_metrics.sql`
 9. `20261003110000_doctor_workflow_actions.sql`
+10. `20261013000000_fix_doctor_hospital_workspace_resolution.sql`
+11. `20261013010000_doctor_opd_queue_read_access.sql`
 
 `supabase/APPLY_DOCTOR_PENDING.sql` is the generated combined file. It is
 regenerated with `npm run build:doctor-sql`; it is not applied by the app.
@@ -35,8 +37,9 @@ deploying only the doctor workspace; do not apply both bundles in full.
 ## Verification and production checklist
 
 - Assign the `doctor` role through the existing RBAC flow.
-- Verify registration details through the admin workflow before enabling patient
-  links. Link-code creation is restricted to verified doctors.
+- Verify registration details through the admin workflow before enabling
+  hospital OPD or patient links. Link-code creation is restricted to verified
+  doctors. A pending or rejected doctor must not gain clinical access.
 - Keep Supabase email confirmation enabled and configure the production Site URL
   and redirect URLs.
 - Enable Realtime only for tables that need live updates and review all RLS

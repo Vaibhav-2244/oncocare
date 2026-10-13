@@ -2,7 +2,7 @@
 
 ## Client requirements source
 
-The prompt identifies `hospital-dashboard-requirements.md` as the client requirements source and says its sections 1-25 override conflicting instructions. That file is not present in this workspace, so no client-section conflicts could be compared. The supplied build specification is being used until the source document is added.
+The client requirements are retained at [requirements.md](./requirements.md). Its sections 1-25 are the source requirements for this dashboard; a duplicate copy previously stored at the repository root has been removed.
 
 ## Product clarification
 

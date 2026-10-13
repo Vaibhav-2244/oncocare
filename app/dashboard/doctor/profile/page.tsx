@@ -8,11 +8,65 @@ import { supabase } from '@/lib/supabase-client';
 
 function ProfileContent() {
   const [fields, setFields] = useState({ full_name: '', specialization: '', registration_no: '', registration_council: '' });
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => { void ensureDoctorWorkspace().then((result) => setFields((current) => ({ ...current, ...(result.profile as typeof current) }))).catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load profile.')); }, []);
-  const submit = async (event: FormEvent) => { event.preventDefault(); setError(null); setMessage(null); const { error: rpcError } = await supabase.rpc('doctor_update_profile', { p_fields: fields }); if (rpcError) setError(rpcError.message); else setMessage('Profile saved.'); };
-  return <div className="max-w-3xl space-y-6"><div><p className="text-sm font-medium text-teal-700">Professional identity</p><h1 className="mt-1 text-3xl font-bold text-slate-900">Doctor profile</h1><p className="mt-1 text-sm text-slate-500">Keep your registration details current for patients and prescriptions.</p></div>{error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}{message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{message}</div>}<form onSubmit={submit} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2">{[['full_name','Full name'],['specialization','Specialization'],['registration_no','Registration number'],['registration_council','Registration council']].map(([key, label]) => <label key={key} className="text-sm font-medium text-slate-700">{label}<input value={fields[key as keyof typeof fields] || ''} onChange={(event) => setFields((current) => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal outline-none focus:border-teal-500" /></label>)}<div className="sm:col-span-2"><button type="submit" className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white">Save profile</button></div></form></div>;
+  useEffect(() => {
+    void ensureDoctorWorkspace()
+      .then((result) => {
+        const profile = result.profile as typeof fields & { verification_status?: string };
+        setFields((current) => ({ ...current, ...profile }));
+        setVerificationStatus(profile.verification_status ?? 'pending');
+      })
+      .catch((cause) => setError(cause instanceof Error ? cause.message : 'Unable to load profile.'));
+  }, []);
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    const { data, error: rpcError } = await supabase.rpc('doctor_update_profile', { p_fields: fields });
+    if (rpcError) setError(rpcError.message);
+    else {
+      setVerificationStatus((data as { verification_status?: string }).verification_status ?? verificationStatus);
+      setMessage('Profile saved. Contact your platform administrator to review your professional registration before using hospital OPD.');
+    }
+  };
+  const verificationTone = verificationStatus === 'verified'
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+    : verificationStatus === 'rejected'
+      ? 'border-rose-200 bg-rose-50 text-rose-800'
+      : 'border-amber-200 bg-amber-50 text-amber-900';
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <p className="text-sm font-medium text-teal-700">Professional identity</p>
+        <h1 className="mt-1 text-3xl font-bold text-slate-900">Doctor profile</h1>
+        <p className="mt-1 text-sm text-slate-500">Keep your registration details current for patients and prescriptions.</p>
+      </div>
+      <div className={`rounded-xl border p-4 text-sm ${verificationTone}`} role="status">
+        Professional verification: <span className="font-semibold capitalize">{verificationStatus}</span>.
+        {verificationStatus !== 'verified' && ' Hospital OPD access requires administrator verification of your registration.'}
+      </div>
+      {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
+      {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{message}</div>}
+      <form onSubmit={submit} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:grid-cols-2">
+        {[['full_name', 'Full name'], ['specialization', 'Specialization'], ['registration_no', 'Registration number'], ['registration_council', 'Registration council']].map(([key, label]) => (
+          <label key={key} className="text-sm font-medium text-slate-700">
+            {label}
+            <input
+              value={fields[key as keyof typeof fields] || ''}
+              onChange={(event) => setFields((current) => ({ ...current, [key]: event.target.value }))}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal outline-none focus:border-teal-500"
+            />
+          </label>
+        ))}
+        <div className="sm:col-span-2">
+          <button type="submit" className="rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white">Save profile</button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default function DoctorProfilePage() { return <ProtectedRoute allowedRoles={DOCTOR_ROLES}><DashboardLayout dashboardTitle="Doctor profile"><ProfileContent /></DashboardLayout></ProtectedRoute>; }

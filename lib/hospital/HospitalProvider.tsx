@@ -28,6 +28,10 @@ interface WorkspaceSnapshot {
 
 const HospitalContext = createContext<HospitalContextValue | null>(null);
 const EMPTY_ROLES: string[] = [];
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DOCTOR_WORKSPACE_UNAVAILABLE =
+  'Your doctor account is not linked to an active hospital workspace. Ask your hospital administrator to assign or provision your doctor account.';
+const DOCTOR_VERIFICATION_REQUIRED = 'Doctor verification is required for hospital affiliation';
 
 export function HospitalProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -71,7 +75,9 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
             user.primaryRole === 'doctor' ? 'ensure_doctor_hospital_workspace' : 'ensure_hospital_workspace',
           );
           if (ensureError) throw ensureError;
-          if (!ensuredOrg) throw new Error('Workspace setup returned no hospital record.');
+          if (typeof ensuredOrg?.id !== 'string' || !UUID_PATTERN.test(ensuredOrg.id)) {
+            throw new Error(DOCTOR_WORKSPACE_UNAVAILABLE);
+          }
 
           const { data: memberships, error: memberError } = await supabase
             .from('hospital_members')
@@ -114,8 +120,16 @@ export function HospitalProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (process.env.NODE_ENV === 'development') console.error('Hospital workspace load failed:', err);
       if (mountedRef.current && requestRef.current?.userId === user.id) {
-        setError('We could not load your hospital workspace. Try again, or show the technical details below.');
-        setTechnicalDetails(getErrorMessage(err));
+        const message = getErrorMessage(err);
+        if (message.includes(DOCTOR_VERIFICATION_REQUIRED)) {
+          setError('Your doctor registration has not been verified yet. Hospital OPD access is available after an administrator verifies your professional registration. Update your registration details in Doctor profile, then contact your platform administrator.');
+        } else if (message === DOCTOR_WORKSPACE_UNAVAILABLE ||
+          message.includes('not assigned to an active hospital workspace')) {
+          setError(DOCTOR_WORKSPACE_UNAVAILABLE);
+        } else {
+          setError('We could not load your hospital workspace. Try again, or show the technical details below.');
+        }
+        setTechnicalDetails(message);
       }
     } finally {
       if (requestRef.current?.userId === user.id) {

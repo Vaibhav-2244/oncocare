@@ -4,7 +4,7 @@ import path from 'node:path';
 const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations');
 const targetFile = path.join(process.cwd(), 'supabase', 'APPLY_DOCTOR_PENDING.sql');
 const files = fs.readdirSync(migrationsDir)
-  .filter((file) => /^20261003.*_doctor_.*\.sql$/.test(file))
+  .filter((file) => /^(?:20261003.*_doctor_|20261013.*_doctor_|20261013000000_fix_doctor_).*\.sql$/.test(file))
   .sort();
 
 if (files.length === 0) throw new Error('No doctor migrations found in supabase/migrations.');
