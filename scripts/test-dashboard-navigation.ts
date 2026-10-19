@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { getDashboardWorkspaceRole, getNavItemsForRole } from '../lib/dashboard-nav';
+import { adminNavItems, getDashboardWorkspaceRole, getNavItemsForRole } from '../lib/dashboard-nav';
 
 const cases: Array<{
   pathname: string;
@@ -38,5 +38,12 @@ assert(
     .every((item) => item.href.startsWith('/dashboard/hospital') || item.href === '/dashboard/notifications' || item.href === '/dashboard/profile'),
   'Hospital workspace navigation should remain within hospital routes and shared account pages.',
 );
+
+for (const adminRoute of ['/dashboard/admin#users', '/dashboard/admin#verifications', '/dashboard/admin#audit']) {
+  assert(
+    adminNavItems.some((item) => item.href === adminRoute),
+    `Admin navigation should include ${adminRoute}.`,
+  );
+}
 
 console.log(`Dashboard navigation checks passed (${cases.length} workspace cases).`);

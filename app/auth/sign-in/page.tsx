@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { AuthLayout } from '@/components/auth/auth-layout';
 import { OAuthButtons } from '@/components/auth/oauth-buttons';
@@ -16,6 +16,7 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signIn, user, loading: authLoading } = useAuth();
+  const adminSignInMode = searchParams.get('workspace') === 'admin';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -31,13 +32,24 @@ export default function SignInPage() {
 
   useEffect(() => {
     if (!authLoading && user) {
+      if (adminSignInMode) {
+        const hasAdminRole = user.roles.some(
+          ({ name }) => name === 'admin' || name === 'super_admin',
+        );
+        if (!hasAdminRole) {
+          setError(t('adminAccessRequired'));
+          return;
+        }
+        router.push('/dashboard/admin');
+        return;
+      }
       if (!user.primaryRole) {
         setError('Your account has no assigned role. Please contact support.');
         return;
       }
       router.push(roleConfig[user.primaryRole].dashboardPath);
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, adminSignInMode, t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,16 +65,24 @@ export default function SignInPage() {
   };
 
   return (
-    <AuthLayout title={t('welcomeBack')} subtitle="Sign in to your OncoCare+ account">
+    <AuthLayout
+      title={adminSignInMode ? t('adminSignIn') : t('welcomeBack')}
+      subtitle={adminSignInMode ? t('adminSignInDescription') : 'Sign in to your OncoCare+ account'}
+    >
       <div className="mb-4 flex justify-end"><LanguageSwitcher /></div>
       {/* OAuth */}
-      <OAuthButtons />
+      {adminSignInMode ? (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-900">
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+          <span>{t('adminSignInDescription')}</span>
+        </div>
+      ) : <OAuthButtons />}
 
-      <div className="my-5 flex items-center gap-3">
+      {!adminSignInMode && <div className="my-5 flex items-center gap-3">
         <div className="h-px flex-1 bg-slate-200" />
         <span className="text-xs font-medium text-slate-400">{t('orSignInWithEmail')}</span>
         <div className="h-px flex-1 bg-slate-200" />
-      </div>
+      </div>}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -142,11 +162,27 @@ export default function SignInPage() {
         </button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
-        {t('donAposTHaveAnAccount')}{' '}
-        <Link href="/auth/sign-up" className="font-semibold text-teal-600 hover:underline">
-          {t('signUp')}{' '}</Link>
-      </p>
+      {adminSignInMode ? (
+        <p className="mt-6 text-center text-sm text-slate-500">
+          <Link href="/auth/sign-in" className="font-semibold text-teal-600 hover:underline">
+            {t('regularSignIn')}
+          </Link>
+        </p>
+      ) : (
+        <>
+          <p className="mt-6 text-center text-sm text-slate-500">
+            {t('donAposTHaveAnAccount')}{' '}
+            <Link href="/auth/sign-up" className="font-semibold text-teal-600 hover:underline">
+              {t('signUp')}{' '}</Link>
+          </p>
+          <p className="mt-3 text-center text-sm text-slate-500">
+            {t('administrator')}{' '}
+            <Link href="/auth/sign-in?workspace=admin" className="font-semibold text-teal-700 hover:underline">
+              {t('adminSignIn')}
+            </Link>
+          </p>
+        </>
+      )}
     </AuthLayout>
   );
 }

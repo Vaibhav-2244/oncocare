@@ -174,8 +174,9 @@ export const pharmacyNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/admin', icon: LayoutDashboard },
-  { label: 'Doctor verifications', href: '/dashboard/admin/doctor-verifications', icon: Stethoscope },
+  { label: 'Verification requests', href: '/dashboard/admin#verifications', icon: Stethoscope },
   { label: 'User Management', href: '/dashboard/admin#users', icon: Users },
+  { label: 'Audit log', href: '/dashboard/admin#audit', icon: ClipboardList },
   { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
   { label: 'Pharmacy Admin', href: '/admin', icon: ShieldCheck },
   { label: 'Partner Portal', href: '/partner-portal', icon: Hospital },
