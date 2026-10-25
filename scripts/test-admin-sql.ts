@@ -11,6 +11,12 @@ const migrationPath = path.join(
   'migrations',
   '20261019000000_admin_workspace_functions.sql',
 );
+const roleDirectoryMigrationPath = path.join(
+  process.cwd(),
+  'supabase',
+  'migrations',
+  '20261025000000_admin_role_directory.sql',
+);
 
 await db.exec(`
   CREATE ROLE anon;
@@ -96,6 +102,7 @@ await db.exec(`
 `);
 
 await db.exec(await fs.readFile(migrationPath, 'utf8'));
+await db.exec(await fs.readFile(roleDirectoryMigrationPath, 'utf8'));
 
 const adminId = '10000000-0000-4000-8000-000000000001';
 const superAdminId = '10000000-0000-4000-8000-000000000002';
@@ -115,12 +122,14 @@ await db.exec(`
     ('${superAdminId}', 'superadmin@example.test', 'Test Super Admin'),
     ('${userId}', 'patient@example.test', 'Test Patient'),
     ('${doctorId}', 'doctor@example.test', 'Test Doctor');
-  INSERT INTO public.roles (name) VALUES ('admin'), ('super_admin'), ('patient'), ('doctor'), ('hospital'), ('pharmacy');
+  INSERT INTO public.roles (name) VALUES
+    ('admin'), ('super_admin'), ('patient'), ('doctor'), ('hospital'), ('pharmacy'), ('research_partner');
   INSERT INTO public.user_roles (user_id, role_id) VALUES
     ('${adminId}', (SELECT id FROM public.roles WHERE name = 'admin')),
     ('${superAdminId}', (SELECT id FROM public.roles WHERE name = 'super_admin')),
     ('${userId}', (SELECT id FROM public.roles WHERE name = 'patient')),
-    ('${doctorId}', (SELECT id FROM public.roles WHERE name = 'doctor'));
+    ('${doctorId}', (SELECT id FROM public.roles WHERE name = 'doctor')),
+    ('${doctorId}', (SELECT id FROM public.roles WHERE name = 'research_partner'));
   INSERT INTO public.doctor_profiles (user_id, full_name, verification_status)
     VALUES ('${doctorId}', 'Test Doctor', 'submitted');
   INSERT INTO public.hospital_orgs (id, name, verification_status)
@@ -146,6 +155,11 @@ await assert.rejects(
   db.query('SELECT public.admin_set_verification_request($1, $2, $3)', ['doctor', doctorId, 'verified']),
   /system admin role required/i,
   'authenticated non-admin callers must not change verification states',
+);
+await assert.rejects(
+  db.query('SELECT * FROM public.admin_search_users_by_role($1, NULL, 10, 0)', ['doctor']),
+  /system admin role required/i,
+  'authenticated non-admin callers must not read role-filtered admin accounts',
 );
 
 await db.exec(`SELECT set_config('request.jwt.claim.sub', '${adminId}', false);`);
@@ -173,6 +187,14 @@ const search = await db.query<{ user_id: string; roles: string[] }>(
 assert.equal(search.rows.length, 1);
 assert.equal(search.rows[0]?.user_id, userId);
 assert.deepEqual(search.rows[0]?.roles, ['patient']);
+
+const doctorDirectory = await db.query<{ user_id: string; roles: string[] }>(
+  'SELECT user_id, roles FROM public.admin_search_users_by_role($1, $2, 10, 0)',
+  ['doctor', 'Test'],
+);
+assert.equal(doctorDirectory.rows.length, 1);
+assert.equal(doctorDirectory.rows[0]?.user_id, doctorId);
+assert.deepEqual(doctorDirectory.rows[0]?.roles, ['doctor', 'research_partner']);
 
 const verificationQueue = await db.query<{ kind: string; entity_id: string }>(
   'SELECT kind, entity_id FROM public.admin_list_verification_requests(10, 0)',
