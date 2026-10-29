@@ -1,7 +1,7 @@
 'use client';
 
-import { PharmacySectionPage } from '@/components/pharmacy/PharmacySectionPage';
+import { PharmacyPaymentSettings } from '@/components/pharmacy/PharmacyPaymentSettings';
 
 export default function PharmacySettingsPage() {
-  return <PharmacySectionPage section="settings" />;
+  return <PharmacyPaymentSettings />;
 }

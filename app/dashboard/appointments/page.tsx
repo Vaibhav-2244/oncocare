@@ -13,7 +13,6 @@ import { DashboardLayout, PATIENT_ROLES, caregiverNavItems, patientNavItems } fr
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { cn } from '@/lib/utils';
-import { VideoConsultation } from '@/components/tele-oncology/video-consultation';
 import { useTranslations } from 'next-intl';
 
 type AppointmentType = 'in_person' | 'teleconsultation';
@@ -27,6 +26,7 @@ interface Appointment {
   appointment_date: string;
   status: AppointmentStatus;
   type: AppointmentType;
+  payment_order_id?: string | null;
   reason: string;
   notes: string | null;
   created_at: string;
@@ -95,7 +95,7 @@ function AppointmentsContent() {
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('upcoming');
   const [actionId, setActionId] = useState<string | null>(null);
-  const [activeAppointment, setActiveAppointment] = useState<Appointment | null>(null);
+  const [joinNotice, setJoinNotice] = useState('');
 
   // form state
   const [type, setType] = useState<AppointmentType>('in_person');
@@ -138,6 +138,10 @@ function AppointmentsContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (type === 'teleconsultation') {
+      setError('Tele-oncology appointments must be booked through the paid consultation flow.');
+      return;
+    }
     if (!appointmentDate || !reason.trim()) return;
     setSubmitting(true);
     setError(null);
@@ -164,6 +168,54 @@ function AppointmentsContent() {
       setError(err instanceof Error ? err.message : 'Failed to book appointment');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const authorizeTeleOncologyJoin = async (appointment: Appointment) => {
+    if (!appointment.payment_order_id) {
+      setJoinNotice('This appointment has no verified payment order. Book tele-oncology through the paid consultation flow.');
+      return;
+    }
+    setActionId(appointment.id);
+    setJoinNotice('');
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Sign in again before checking consultation access.');
+      const response = await fetch('/api/payments/tele-oncology/authorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ appointmentId: appointment.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Consultation access could not be verified.');
+      setJoinNotice('Payment and consultation entitlement verified. The video provider is not configured, so no call was started and no consultation quota was consumed.');
+    } catch (joinError) {
+      setJoinNotice(joinError instanceof Error ? joinError.message : 'Consultation access could not be verified.');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const requestTeleOncologyCancellation = async (appointment: Appointment) => {
+    setActionId(appointment.id);
+    setError('');
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Sign in again before requesting cancellation.');
+      const response = await fetch('/api/payments/tele-oncology/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ appointmentId: appointment.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to request appointment cancellation.');
+      setJoinNotice(payload.message || 'Cancellation and refund review requested.');
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : 'Unable to request appointment cancellation.');
+    } finally {
+      setActionId(null);
     }
   };
 
@@ -254,6 +306,7 @@ function AppointmentsContent() {
           {error}
         </div>
       )}
+      {joinNotice && <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{joinNotice}</div>}
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -304,8 +357,10 @@ function AppointmentsContent() {
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-teal-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-200/30"
                   >
                     <option value="in_person">{t('inPersonVisit')}</option>
-                    <option value="teleconsultation">{t('teleconsultationVideo')}</option>
                   </select>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Tele-oncology requires payment and a consultation entitlement. <a className="font-semibold text-teal-700 underline" href="/dashboard/tele-oncology">Book a paid tele-oncology visit</a>.
+                  </p>
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-600">
@@ -492,15 +547,25 @@ function AppointmentsContent() {
 
                       {/* Action buttons */}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {isTele && isActive && !isPast && (
+                        {isTele && isActive && appt.payment_order_id && new Date(appt.appointment_date) <= now && (
                           <button
-                            onClick={() => setActiveAppointment(appt)}
+                            onClick={() => void authorizeTeleOncologyJoin(appt)}
+                            disabled={actionId === appt.id}
                             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:shadow-md"
                           >
                             <Video className="h-3.5 w-3.5" />
-                            {t('joinVideoCall')}{' '}</button>
+                            {actionId === appt.id ? 'Checking access…' : t('joinVideoCall')}{' '}</button>
                         )}
-                        {isActive && (
+                        {isTele && isActive && appt.payment_order_id && (
+                          <button
+                            onClick={() => void requestTeleOncologyCancellation(appt)}
+                            disabled={actionId === appt.id}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-60"
+                          >
+                            {t('cancel')} and request refund
+                          </button>
+                        )}
+                        {isActive && !appt.payment_order_id && (
                           <button
                             onClick={() => handleStatusChange(appt.id, 'completed')}
                             disabled={actionId === appt.id}
@@ -509,16 +574,17 @@ function AppointmentsContent() {
                             <CheckCircle2 className="h-3.5 w-3.5" />
                             {t('markCompleted')}{' '}</button>
                         )}
-                        {isActive && (
+                        {isActive && !appt.payment_order_id && (
                           <button
                             onClick={() => handleStatusChange(appt.id, 'cancelled')}
                             disabled={actionId === appt.id}
                             className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:opacity-60"
                           >
                             <XCircle className="h-3.5 w-3.5" />
-                            {t('cancel')}{' '}</button>
+                            {t('cancel')}{' '}
+                          </button>
                         )}
-                        <button
+                        {!appt.payment_order_id && <button
                           onClick={() => handleDelete(appt.id)}
                           disabled={actionId === appt.id}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-60"
@@ -528,7 +594,7 @@ function AppointmentsContent() {
                           ) : (
                             <Trash2 className="h-3.5 w-3.5" />
                           )}
-                          {t('delete')}{' '}</button>
+                          {t('delete')}{' '}</button>}
                       </div>
                     </div>
                   </div>
@@ -539,12 +605,6 @@ function AppointmentsContent() {
         )}
       </div>
 
-      {activeAppointment && (
-        <VideoConsultation
-          appointment={activeAppointment}
-          onClose={() => setActiveAppointment(null)}
-        />
-      )}
     </div>
   );
 }

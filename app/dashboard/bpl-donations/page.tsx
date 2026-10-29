@@ -21,7 +21,6 @@ import {
   fetchDonations,
   fetchBplStatistics,
   searchBplPatients,
-  createDonation,
   createBplPatient,
   BPL_PATIENT_PLACEHOLDER,
   type BplPatient,
@@ -119,10 +118,10 @@ export default function BplDonationsPage() {
   };
 
   const handleDonate = (patient: BplPatient, amount: number) => {
-    setError(null);
+    setError('Donation checkout and donation recording are disabled until approvals and payment configuration are in place.');
     setSelectedPatient(patient);
     setSelectedAmount(amount);
-    setShowCheckout(true);
+    setShowCheckout(false);
   };
 
   const handleCheckoutComplete = async (data: {
@@ -130,41 +129,9 @@ export default function BplDonationsPage() {
     donorEmail: string;
     paymentMethod: string;
   }): Promise<void> => {
-    if (!selectedPatient || !selectedAmount || selectedPatient.id === undefined) return;
-    setError(null);
-
-    try {
-      const donationData = {
-        patient_id: selectedPatient.id as number,
-        donor_id: user?.id || null,
-        donor_name: data.donorName,
-        donor_email: data.donorEmail,
-        amount: selectedAmount,
-        payment_method: data.paymentMethod as 'upi' | 'card' | 'netbanking',
-        status: 'successful' as const,
-      };
-
-      const newDonation = await createDonation(donationData);
-      
-      setCurrentDonation({
-        ...newDonation,
-        patientName: selectedPatient.name,
-      });
-
-      setShowCheckout(false);
-      setShowSuccess(true);
-
-      // Refresh data
-      const [updatedDonations, updatedStats] = await Promise.all([
-        fetchDonations(user?.id),
-        fetchBplStatistics(user?.id),
-      ]);
-      setDonations(updatedDonations);
-      setStats(updatedStats);
-    } catch (error) {
-      console.error('Donation failed:', error);
-      setError(error instanceof Error ? error.message : 'Donation could not be completed. Please try again.');
-    }
+    void data;
+    setError('Donation checkout and donation recording are disabled until approvals and payment configuration are in place.');
+    setShowCheckout(false);
   };
 
   const handleRegisterPatient = async (formData: Record<string, string>, imageFile: File | null): Promise<void> => {
@@ -320,6 +287,9 @@ export default function BplDonationsPage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="BPL Donations">
+        <div className="mx-6 mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
+          Donation checkout and new donation records are disabled pending required approvals and payment configuration. Existing records are read-only and their payment status has not been independently verified.
+        </div>
         {notice && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
             <span>{notice}</span>
@@ -441,11 +411,11 @@ function DashboardView({
               <Wallet className="text-teal-600" size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">{t('totalDonations')}</p>
+              <p className="text-sm font-medium text-slate-600">Historical amount recorded (unverified)</p>
               <p className="text-2xl font-bold text-slate-900">
                 ₹{stats.totalRaised.toLocaleString('en-IN')}
               </p>
-              <small className="text-xs text-slate-500">{t('raisedForBplPatients')}</small>
+              <small className="text-xs text-slate-500">Legacy records; payment status is unverified</small>
             </div>
           </div>
         </div>
@@ -456,7 +426,7 @@ function DashboardView({
               <Heart className="text-teal-600" size={24} />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">{t('patientsSupported')}</p>
+              <p className="text-sm font-medium text-slate-600">Historical donor records</p>
               <p className="text-2xl font-bold text-slate-900">{stats.uniqueDonors}</p>
               <small className="text-xs text-slate-500">{t('patientsReceivedAssistance')}</small>
             </div>
@@ -625,7 +595,8 @@ function DonationsView({
                   </td>
                   <td className="px-6 py-4">
                     <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                      {t('successful')}{' '}</span>
+                      Legacy record · payment unverified
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <button

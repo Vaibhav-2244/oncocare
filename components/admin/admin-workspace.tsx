@@ -641,6 +641,9 @@ export function AdminWorkspace() {
             <Link className="help-card" href="/dashboard/admin/doctor-verifications">
               <div className="help-icon"><CircleHelp size={18} /></div><div><strong>Need a hand?</strong><span>Open verification workspace</span></div><ChevronRight size={16} />
             </Link>
+            <Link className="help-card" href="/dashboard/admin/payment-configuration">
+              <div className="help-icon"><Settings2 size={18} /></div><div><strong>Payment operations</strong><span>Configure approved offers</span></div><ChevronRight size={16} />
+            </Link>
             <div className="sidebar-user">
               <div className="avatar">{(user?.profile?.full_name || user?.email || 'A').slice(0, 2).toUpperCase()}</div>
               <div className="user-copy"><strong>{user?.profile?.full_name || 'Admin workspace'}</strong><span>{user?.email || 'Signed-in administrator'}</span></div>

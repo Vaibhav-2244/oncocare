@@ -151,14 +151,8 @@ export async function fetchPatientDonations(patientId: number) {
 }
 
 export async function createDonation(donationData: Omit<BplDonation, 'id' | 'created_at' | 'updated_at'>) {
-  const { data, error } = await supabase
-    .from('bpl_donations')
-    .insert([donationData])
-    .select();
-
-  if (error) throw error;
-
-  return data[0];
+  void donationData;
+  throw new Error('Donation recording is disabled pending required approvals and payment configuration.');
 }
 
 // ========================================================================

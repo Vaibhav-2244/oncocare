@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
+import { PaymentCheckoutButton } from "@/components/payments/checkout-button";
 import { useTranslations } from 'next-intl';
 
 type InsuranceProvider = {
@@ -23,6 +24,8 @@ type InsurancePlan = {
   hospital_network_size: number;
   benefits: string[] | null;
 };
+type InsuranceOffer = { offer_type: 'one-time'; amount_in_paise: number; duration_days: number | null };
+type InsuranceApplication = { id: string; order_id: string; plan_id: string; issuance_status: string; created_at: string };
 
 export default function InsurancePlanDetailsPage() {
   const t = useTranslations('insurance.id');
@@ -32,9 +35,38 @@ export default function InsurancePlanDetailsPage() {
   const [plan, setPlan] = useState<InsurancePlan | null>(null);
   const [provider, setProvider] =
     useState<InsuranceProvider | null>(null);
+  const [paymentOffers, setPaymentOffers] = useState<InsuranceOffer[]>([]);
+  const [paymentOfferError, setPaymentOfferError] = useState('');
+  const [applications, setApplications] = useState<InsuranceApplication[]>([]);
+  const [applicationError, setApplicationError] = useState('');
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const loadApplications = useCallback(async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      setApplications([]);
+      return;
+    }
+    setApplicationsLoading(true);
+    setApplicationError('');
+    try {
+      const response = await fetch('/api/payments/insurance-applications', {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store',
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to load insurance application status.');
+      setApplications((payload.applications ?? []).filter((application: InsuranceApplication) => application.plan_id === planId));
+    } catch (applicationLoadError) {
+      setApplicationError(applicationLoadError instanceof Error ? applicationLoadError.message : 'Unable to load insurance application status.');
+    } finally {
+      setApplicationsLoading(false);
+    }
+  }, [planId]);
 
   // ============================================================
   // LOAD PLAN DETAILS
@@ -50,6 +82,8 @@ export default function InsurancePlanDetailsPage() {
 
       setLoading(true);
       setError("");
+      setPaymentOfferError("");
+      setPaymentOffers([]);
 
       // --------------------------------------------------------
       // LOAD INSURANCE PLAN
@@ -78,6 +112,15 @@ export default function InsurancePlanDetailsPage() {
         setError("Insurance plan was not found.");
         setLoading(false);
         return;
+      }
+
+      const offersResponse = await fetch(`/api/payments/offers?kind=insurance&entityId=${encodeURIComponent(planData.id)}`, { cache: 'no-store' });
+      if (offersResponse.ok) {
+        const offersPayload = await offersResponse.json();
+        setPaymentOffers((offersPayload.offers ?? []).filter((offer: InsuranceOffer) => offer.offer_type === 'one-time'));
+      } else {
+        setPaymentOffers([]);
+        setPaymentOfferError('Current payment options are unavailable.');
       }
 
       // --------------------------------------------------------
@@ -118,6 +161,10 @@ export default function InsurancePlanDetailsPage() {
 
     loadPlan();
   }, [planId]);
+
+  useEffect(() => {
+    void loadApplications();
+  }, [loadApplications]);
 
   // ============================================================
   // LOADING STATE
@@ -286,6 +333,42 @@ export default function InsurancePlanDetailsPage() {
                 {t('hospitalsInTheAvailableNetwork')}{' '}</p>
             </div>
 
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold">Configured payment options</h2>
+          <p className="mt-1 text-sm text-[#64748B]">Payment confirms only your application. Insurance coverage begins only after the insurer&apos;s separate policy issuance and confirmation. Recurring billing is not configured; displayed payment options are one-time charges only.</p>
+          {paymentOfferError && <p role="alert" className="mt-4 text-sm text-rose-700">{paymentOfferError}</p>}
+          {paymentOffers.length === 0 && !paymentOfferError && <p className="mt-4 text-sm text-[#64748B]">No approved payment offer is configured for this plan.</p>}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {paymentOffers.map((offer) => (
+              <div key={offer.offer_type} className="rounded-xl border border-slate-200 p-4">
+                <p className="font-semibold capitalize text-slate-800">{offer.offer_type.replace('-', ' ')}</p>
+                <p className="my-2 text-xl font-bold text-teal-700">₹{(Number(offer.amount_in_paise) / 100).toLocaleString('en-IN')}</p>
+                {offer.duration_days && <p className="mb-3 text-xs text-slate-500">{offer.duration_days} day plan term</p>}
+                <PaymentCheckoutButton
+                  payload={{ kind: 'insurance', insurancePlanId: plan.id, offerType: offer.offer_type }}
+                  description={`${provider?.name ?? 'Insurance'} - ${plan.name}`}
+                  onPaymentComplete={() => { void loadApplications(); }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-bold">Your application status</h2>
+          {applicationError && <p role="alert" className="mt-3 text-sm text-rose-700">{applicationError}</p>}
+          {applicationsLoading && <p className="mt-3 text-sm text-slate-500">Loading application status…</p>}
+          {!applicationsLoading && applications.length === 0 && <p className="mt-3 text-sm text-[#64748B]">No payment-backed application is recorded for this plan.</p>}
+          <div className="mt-3 space-y-2">
+            {applications.map((application) => (
+              <article key={application.id} className="rounded-lg border border-slate-200 p-3 text-sm">
+                <p className="font-semibold capitalize text-slate-800">{application.issuance_status.replaceAll('_', ' ')}</p>
+                <p className="mt-1 text-xs text-slate-500">Application {application.id} · submitted {new Date(application.created_at).toLocaleString()}</p>
+                {application.issuance_status !== 'issued' && <p className="mt-1 text-xs text-slate-600">This status does not indicate policy issuance or active coverage.</p>}
+              </article>
+            ))}
           </div>
         </section>
 

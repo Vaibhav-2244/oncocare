@@ -1,7 +1,7 @@
 'use client';
 
-import { PharmacySectionPage } from '@/components/pharmacy/PharmacySectionPage';
+import { PharmacyOnlineOrders } from '@/components/pharmacy/PharmacyOnlineOrders';
 
 export default function PharmacyOrdersPage() {
-  return <PharmacySectionPage section="orders" />;
+  return <PharmacyOnlineOrders />;
 }
