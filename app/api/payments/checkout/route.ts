@@ -3,7 +3,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { authenticatePaymentRequest } from '@/lib/payments/auth';
 import { checkoutSchema } from '@/lib/payments/checkout-schema';
 import { rupeesToPaise } from '@/lib/payments/security';
-import { createRazorpayOrder, findRazorpayOrderByReceipt, getPaymentFeatureFlags, type PaymentKind } from '@/lib/razorpay';
+import {
+  createRazorpayOrder,
+  fetchRazorpayOrderPayments,
+  fetchRazorpayOrderStatus,
+  findRazorpayOrderByReceipt,
+  getPaymentFeatureFlags,
+  type PaymentKind,
+} from '@/lib/razorpay';
 
 function jsonError(message: string, status: number, extra: Record<string, unknown> = {}) {
   return NextResponse.json({ error: message, ...extra }, { status });
@@ -93,7 +100,7 @@ export async function POST(request: Request) {
   let teleAppointmentDate: string | null = null;
 
   if (input.kind === 'tele-oncology') {
-    if (process.env.TELE_ONCOLOGY_CALL_PROVIDER_ENABLED !== 'true') {
+    if (!flags.teleOncologyCallProviderEnabled) {
       return jsonError('Tele-oncology checkout is unavailable until a real consultation provider is configured.', 503);
     }
     if (!input.plan || !input.appointmentDate || !input.appointmentTime || !input.doctorName) {
@@ -284,12 +291,101 @@ export async function POST(request: Request) {
     amountInPaise = total;
     item = { entityId: helper.id, description: `${helper.service} service - ${input.offerType}`, quantity: 1, unitAmountInPaise: total, terms: { offerId: offer.id, durationDays } };
     orderNotes = { helperId: helper.id, helperName: helper.name, service: helper.service, location: input.location, patientName: input.patientName, startDate: input.startDate, durationDays, offerType: input.offerType, offerId: offer.id };
+  } else if (input.kind === 'caregiver') {
+    if (!input.caregiverId || !input.serviceId || !input.bookingDate || !input.startTime || !input.endTime || !input.location) {
+      return jsonError('Choose a caregiver, service, date, time, and location.', 400);
+    }
+    if (input.bookingDate < new Date().toISOString().slice(0, 10)) {
+      return jsonError('Choose a current or future booking date.', 400);
+    }
+    const timeToMinutes = (value: string) => {
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours <= 23 && minutes <= 59 ? hours * 60 + minutes : null;
+    };
+    const startMinutes = timeToMinutes(input.startTime);
+    const endMinutes = timeToMinutes(input.endTime);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+      return jsonError('Choose a valid booking time range.', 400);
+    }
+    const { data: caregiver, error: caregiverError } = await admin.from('caregiver_profiles')
+      .select('id, professional_title, is_active, is_available, verification_status')
+      .eq('id', input.caregiverId)
+      .eq('is_active', true)
+      .eq('verification_status', 'verified')
+      .maybeSingle();
+    if (caregiverError) return jsonError('Unable to validate the selected caregiver.', 500);
+    if (!caregiver || !caregiver.is_available) {
+      return jsonError('The selected caregiver is not currently verified and available for booking.', 409);
+    }
+    const { data: service, error: serviceError } = await admin.from('caregiver_services')
+      .select('id, caregiver_id, service_name, description, price, pricing_unit, is_active')
+      .eq('id', input.serviceId)
+      .eq('caregiver_id', caregiver.id)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (serviceError) return jsonError('Unable to validate the selected caregiver service.', 500);
+    if (!service) return jsonError('The selected service is no longer available.', 409);
+
+    const weekday = new Date(`${input.bookingDate}T00:00:00.000Z`).getUTCDay();
+    const { data: slots, error: availabilityError } = await admin.from('caregiver_availability')
+      .select('start_time, end_time')
+      .eq('caregiver_id', caregiver.id)
+      .eq('day_of_week', weekday)
+      .eq('is_available', true);
+    if (availabilityError) return jsonError('Unable to validate caregiver availability.', 500);
+    const fitsAvailableSlot = (slots ?? []).some((slot) => (
+      String(slot.start_time).slice(0, 5) <= input.startTime!
+      && String(slot.end_time).slice(0, 5) >= input.endTime!
+    ));
+    if (!fitsAvailableSlot) {
+      return jsonError('The selected time is outside this caregiver’s available hours.', 409);
+    }
+
+    const unitPriceInPaise = rupeesToPaise(service.price);
+    if (unitPriceInPaise === null) {
+      return jsonError('This service does not have a valid approved price.', 409);
+    }
+    const pricingUnit = String(service.pricing_unit).trim().toLowerCase();
+    let quantity = 1;
+    if (['hour', 'hourly', 'per hour', 'per_hour'].includes(pricingUnit)) {
+      const durationMinutes = endMinutes - startMinutes;
+      if (durationMinutes % 60 !== 0 || durationMinutes > 12 * 60) {
+        return jsonError('Hourly caregiver bookings must use whole hours and cannot exceed 12 hours.', 400);
+      }
+      quantity = durationMinutes / 60;
+    } else if (!['day', 'daily', 'per day', 'per_day', 'visit', 'per visit', 'session', 'per session'].includes(pricingUnit)) {
+      return jsonError('This caregiver service has an unsupported pricing unit and cannot be charged safely.', 409);
+    }
+    amountInPaise = unitPriceInPaise * quantity;
+    if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+      return jsonError('The caregiver service total is invalid.', 409);
+    }
+    item = {
+      entityId: service.id,
+      description: service.service_name,
+      quantity,
+      unitAmountInPaise: unitPriceInPaise,
+      terms: { caregiverId: caregiver.id, pricingUnit: service.pricing_unit },
+    };
+    orderNotes = {
+      caregiverId: caregiver.id,
+      caregiverTitle: caregiver.professional_title,
+      serviceId: service.id,
+      serviceName: service.service_name,
+      bookingDate: input.bookingDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      location: input.location,
+      requirements: input.reason ?? '',
+      pricingUnit: service.pricing_unit,
+      billedQuantity: quantity,
+    };
   }
 
   if (!amountInPaise || !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) return jsonError('No valid server-approved amount is available.', 409);
 
   const existingResult = await admin.from('payment_orders')
-    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, checkout_state, updated_at')
+    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, checkout_state, expires_at, updated_at')
     .eq('user_id', user.id)
     .eq('idempotency_key', input.idempotencyKey)
     .maybeSingle();
@@ -305,6 +401,37 @@ export async function POST(request: Request) {
       return jsonError('This checkout is no longer payable. Start a new checkout.', 409, { restartCheckout: true });
     }
     if (old.provider_order_id) {
+      if (old.expires_at && new Date(old.expires_at).getTime() <= Date.now()) {
+        try {
+          const [provider, payments] = await Promise.all([
+            fetchRazorpayOrderStatus(old.provider_order_id),
+            fetchRazorpayOrderPayments(old.provider_order_id),
+          ]);
+          if (
+            provider.id !== old.provider_order_id
+            || provider.amount !== Number(old.amount_in_paise)
+            || provider.currency !== old.currency
+          ) return jsonError('Provider order does not match the stored checkout. Contact support before retrying.', 409);
+
+          const hasUnresolvedPayment = (payments.items ?? []).some((payment) => (
+            payment.status !== 'failed'
+            || !payment.id
+            || payment.order_id !== old.provider_order_id
+          ));
+          if ((provider.status === 'created' || provider.status === 'attempted') && !hasUnresolvedPayment) {
+            const { data: expired, error: expiryError } = await admin.rpc('expire_stale_provider_payment_order', {
+              p_order_id: old.id,
+              p_provider_status: provider.status,
+              p_has_unresolved_payment: false,
+            });
+            if (expiryError) return jsonError('Unable to safely release the expired checkout.', 503);
+            if (expired) return jsonError('The previous checkout expired without a confirmed payment. Start a new checkout.', 409, { restartCheckout: true });
+          }
+          return jsonError('The previous checkout needs payment reconciliation. Do not retry until its status is confirmed.', 409, { retrySameCheckout: true });
+        } catch {
+          return jsonError('Unable to reconcile the previous checkout right now. Retry the same checkout reference later.', 502, { retrySameCheckout: true });
+        }
+      }
       return NextResponse.json({ internalOrderId: old.id, orderId: old.provider_order_id, amount: Number(old.amount_in_paise), currency: old.currency, key: flags.keyId });
     }
     if (old.checkout_state === 'initializing') {
@@ -419,6 +546,32 @@ export async function POST(request: Request) {
         status: 'failed', checkout_state: 'failed', failure_reason: 'Insurance application creation failed', updated_at: new Date().toISOString(),
       }).eq('id', order.id);
       return jsonError(failError ? 'Insurance application setup failed and requires support review.' : 'Unable to create the pending insurance application.', failError ? 503 : 500, { restartCheckout: !failError });
+    }
+  }
+
+  if (input.kind === 'caregiver') {
+    const { error: caregiverBookingError } = await admin.from('caregiver_payment_bookings').insert({
+      payment_order_id: order.id,
+      patient_id: user.id,
+      caregiver_id: String(orderNotes.caregiverId),
+      service_id: String(orderNotes.serviceId),
+      requested_date: String(orderNotes.bookingDate),
+      requested_start_time: String(orderNotes.startTime),
+      requested_end_time: String(orderNotes.endTime),
+      location: String(orderNotes.location),
+      requirements: String(orderNotes.requirements),
+      amount_in_paise: amountInPaise,
+      status: 'payment_pending',
+    });
+    if (caregiverBookingError) {
+      const { error: failError } = await admin.from('payment_orders').update({
+        status: 'failed', checkout_state: 'failed', failure_reason: 'Caregiver booking reservation failed', updated_at: new Date().toISOString(),
+      }).eq('id', order.id);
+      return jsonError(
+        failError ? 'Caregiver booking setup failed and requires support review.' : 'The caregiver booking could not be reserved. Review availability and try again.',
+        failError ? 503 : 409,
+        { restartCheckout: !failError },
+      );
     }
   }
 

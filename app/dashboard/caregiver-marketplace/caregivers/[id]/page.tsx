@@ -3,12 +3,12 @@ import { notFound } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { getMarketplaceCaregiverById } from '@/lib/caregiver-marketplace';
-import { useTranslations } from 'next-intl';
+import { getTranslations } from 'next-intl/server';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CaregiverProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const t = useTranslations('caregiverMarketplace.caregivers.id');
+  const t = await getTranslations('caregiverMarketplace.caregivers.id');
   const { id } = await params;
   const result = await getMarketplaceCaregiverById(id);
 

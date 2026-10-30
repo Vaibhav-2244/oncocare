@@ -7,22 +7,36 @@ export const TELE_ONCOLOGY_PRICING = {
   monthly: { amountInPaise: 1_500_000, label: '₹15,000 monthly plan', includedCalls: 35 },
 } as const;
 
-export type PaymentKind = 'tele-oncology' | 'medicine' | 'insurance' | 'booking' | 'donation';
+export type PaymentKind = 'tele-oncology' | 'medicine' | 'insurance' | 'booking' | 'caregiver' | 'donation';
 export type TeleOncologyPlan = 'one-time' | 'monthly';
 
 export function getPaymentFeatureFlags() {
   const enabledFlag = (value: string | undefined) => ['true', '1', 'yes'].includes((value ?? '').trim().toLowerCase());
   const keyId = process.env.RAZORPAY_KEY_ID?.trim() || null;
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || null;
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || null;
+  const marketplaceTransfersRequested = enabledFlag(process.env.MARKETPLACE_TRANSFERS_ENABLED);
+  const teleOncologyCallProviderEnabled = enabledFlag(process.env.TELE_ONCOLOGY_CALL_PROVIDER_ENABLED);
+  const donationsEnabledByFlag = enabledFlag(process.env.PATIENT_DONATIONS_ENABLED);
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || null;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || null;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
 
   return {
     paymentsEnabled: enabledFlag(process.env.PAYMENTS_ENABLED),
-    marketplaceTransfersEnabled: enabledFlag(process.env.MARKETPLACE_TRANSFERS_ENABLED),
-    patientDonationsEnabled: enabledFlag(process.env.PATIENT_DONATIONS_ENABLED),
+    marketplaceTransfersEnabled: false,
+    marketplaceTransfersRequested,
+    patientDonationsEnabled: donationsEnabledByFlag,
+    donationsEnabledByFlag,
+    teleOncologyCallProviderEnabled,
     keyId,
     keySecret,
-    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || null,
-    enabled: enabledFlag(process.env.PAYMENTS_ENABLED) && Boolean(keyId && keySecret),
+    webhookSecret,
+    supabaseUrlConfigured: Boolean(supabaseUrl),
+    supabaseAnonKeyConfigured: Boolean(supabaseAnonKey),
+    supabaseServiceRoleConfigured: Boolean(supabaseServiceRoleKey),
+    enabled: enabledFlag(process.env.PAYMENTS_ENABLED)
+      && Boolean(keyId && keySecret && supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey),
   };
 }
 
@@ -157,12 +171,36 @@ export async function createRazorpayRefund({
 
 export function serializePublicPaymentConfig() {
   const config = getPaymentFeatureFlags();
+  const missingConfiguration = [
+    !config.paymentsEnabled && 'PAYMENTS_ENABLED',
+    !config.keyId && 'RAZORPAY_KEY_ID',
+    !config.keySecret && 'RAZORPAY_KEY_SECRET',
+    !config.webhookSecret && 'RAZORPAY_WEBHOOK_SECRET',
+    !config.supabaseUrlConfigured && 'NEXT_PUBLIC_SUPABASE_URL',
+    !config.supabaseAnonKeyConfigured && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    !config.supabaseServiceRoleConfigured && 'SUPABASE_SERVICE_ROLE_KEY',
+  ].filter((variable): variable is string => Boolean(variable));
   return {
     enabled: config.enabled,
     paymentsEnabled: config.paymentsEnabled,
     marketplaceTransfersEnabled: config.marketplaceTransfersEnabled,
+    marketplaceTransfersRequested: config.marketplaceTransfersRequested,
     patientDonationsEnabled: false,
-    keyId: config.keyId,
+    donationsEnabledByFlag: config.donationsEnabledByFlag,
+    teleOncologyCallProviderEnabled: config.teleOncologyCallProviderEnabled,
+    configuration: {
+      razorpayKeyIdConfigured: Boolean(config.keyId),
+      razorpayKeySecretConfigured: Boolean(config.keySecret),
+      razorpayWebhookSecretConfigured: Boolean(config.webhookSecret),
+      supabaseUrlConfigured: config.supabaseUrlConfigured,
+      supabaseAnonKeyConfigured: config.supabaseAnonKeyConfigured,
+      supabaseServiceRoleConfigured: config.supabaseServiceRoleConfigured,
+      missingVariables: missingConfiguration,
+    },
+    configurationError: config.enabled
+      ? null
+      : 'Online payments are unavailable. Configure the required Razorpay variables and enable PAYMENTS_ENABLED.',
+    keyId: config.enabled ? config.keyId : null,
     currency: 'INR',
     teleOncology: {
       oneTimeAmountInPaise: TELE_ONCOLOGY_PRICING.oneTime.amountInPaise,

@@ -6,6 +6,7 @@ import type { Doctor } from "@/lib/data/tele-oncology";
 import { doctorAvailability } from "@/lib/data/tele-oncology";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase-client";
+import { loadRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 
@@ -31,12 +32,13 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
   const [patientName, setPatientName] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<'one-time' | 'monthly'>('one-time');
-  const [checkoutConfig, setCheckoutConfig] = useState<{ enabled: boolean; keyId?: string; configurationError?: string | null; teleOncology?: { available: boolean; oneTimeAmountInPaise: number | null; monthlyAmountInPaise: number | null; monthlyIncludedCalls: number | null } } | null>(null);
+  const [checkoutConfig, setCheckoutConfig] = useState<{ enabled: boolean; keyId?: string | null; configurationError?: string | null; teleOncology?: { available: boolean; unavailableReason?: string | null; oneTimeAmountInPaise?: number | null; monthlyAmountInPaise?: number | null; monthlyIncludedCalls?: number | null } } | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [booked, setBooked] = useState(false);
   const requestInFlight = useRef(false);
+  const paymentFailed = useRef(false);
   const idempotencyKey = useRef<string | null>(null);
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
     setPhone("");
     setError("");
     setBooked(false);
+    paymentFailed.current = false;
     idempotencyKey.current = null;
   }, [doctor]);
 
@@ -100,8 +103,8 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
       return;
     }
 
-    if (!checkoutConfig?.enabled || !checkoutConfig.keyId) {
-      setError(checkoutConfig?.configurationError || 'Razorpay Test Mode is disabled or tele-oncology pricing is not configured.');
+    if (!checkoutConfig?.enabled || !checkoutConfig.keyId || !checkoutConfig.teleOncology?.available) {
+      setError(checkoutConfig?.teleOncology?.unavailableReason || checkoutConfig?.configurationError || 'Razorpay Test Mode or tele-oncology is not configured.');
       return;
     }
 
@@ -155,15 +158,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
         throw new Error(serverOrderData.error || 'Failed to create a Razorpay order.');
       }
 
-      const razorpayScript = document.createElement('script');
-      razorpayScript.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      razorpayScript.async = true;
-      document.body.appendChild(razorpayScript);
-
-      await new Promise<void>((resolve, reject) => {
-        razorpayScript.onload = () => resolve();
-        razorpayScript.onerror = () => reject(new Error('The Razorpay checkout script could not be loaded.'));
-      });
+      await loadRazorpayCheckout();
 
       if (!window.Razorpay) {
         throw new Error('Razorpay is not available in this browser session.');
@@ -209,13 +204,16 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
         },
         theme: { color: '#14b8a6' },
         modal: { ondismiss: () => {
-          setError('Payment was cancelled or is still pending. Check payment status before retrying.');
+          if (!paymentFailed.current) {
+            setError('Payment was cancelled or is still pending. Check payment status before retrying.');
+          }
           requestInFlight.current = false;
           setSubmitting(false);
         } },
       });
 
       paymentHandler.on('payment.failed', (response: Record<string, string>) => {
+        paymentFailed.current = true;
         setError(response.error_description || 'Payment failed. Please try again.');
         requestInFlight.current = false;
         setSubmitting(false);
@@ -317,7 +315,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
 
         {!checkoutConfig?.teleOncology?.available && (
           <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800" role="status">
-            {checkoutConfig?.configurationError || 'Tele-oncology booking is unavailable until a real consultation provider is configured.'}
+            {checkoutConfig?.teleOncology?.unavailableReason || checkoutConfig?.configurationError || 'Tele-oncology booking is unavailable until a real consultation provider is configured.'}
           </div>
         )}
 

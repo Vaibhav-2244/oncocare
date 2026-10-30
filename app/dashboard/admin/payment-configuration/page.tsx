@@ -49,6 +49,25 @@ type InsuranceApplication = {
   issuance_status: string;
   review_notes: string | null;
 };
+type RuntimePaymentConfig = {
+  enabled: boolean;
+  configurationError?: string | null;
+  paymentsEnabled: boolean;
+  marketplaceTransfersEnabled: boolean;
+  marketplaceTransfersRequested: boolean;
+  patientDonationsEnabled: boolean;
+  donationsEnabledByFlag: boolean;
+  teleOncologyCallProviderEnabled: boolean;
+  configuration?: {
+    razorpayKeyIdConfigured: boolean;
+    razorpayKeySecretConfigured: boolean;
+    razorpayWebhookSecretConfigured: boolean;
+    supabaseUrlConfigured: boolean;
+    supabaseAnonKeyConfigured: boolean;
+    supabaseServiceRoleConfigured: boolean;
+    missingVariables: string[];
+  };
+};
 
 function PaymentConfigurationContent() {
   const { user } = useAuth();
@@ -60,6 +79,7 @@ function PaymentConfigurationContent() {
   const [settlements, setSettlements] = useState<Array<{ commission_ledger_id: string; status: string; provider_reference: string | null }>>([]);
   const [donations, setDonations] = useState<Array<{ id: string; order_id: string; purpose: string; payment: { amount_in_paise: number; status: string } | null }>>([]);
   const [insuranceApplications, setInsuranceApplications] = useState<InsuranceApplication[]>([]);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimePaymentConfig | null>(null);
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -96,6 +116,9 @@ function PaymentConfigurationContent() {
       cache: 'no-store',
     });
     const insurancePayload = await insuranceResponse.json();
+    const configResponse = await fetch('/api/payments/config', { cache: 'no-store' });
+    const configPayload = await configResponse.json().catch(() => null);
+    if (configPayload) setRuntimeConfig(configPayload);
     if (!offerResponse.ok || !commissionResponse.ok || !reconciliationResponse.ok || !refundResponse.ok) {
       setError(offerPayload.error || commissionPayload.error || reconciliationPayload.error || refundPayload.error || 'Unable to load payment configuration.');
       return;
@@ -293,6 +316,29 @@ function PaymentConfigurationContent() {
         <h1 className="mt-1 text-3xl font-bold text-slate-900">Payment configuration</h1>
         <p className="mt-2 text-sm text-slate-600">Prices and seller commission rules take effect only for new checkouts. Donation collection and external seller transfers remain disabled.</p>
       </header>
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="Payment runtime configuration">
+        <h2 className="font-semibold text-slate-900">Payment runtime status</h2>
+        {!runtimeConfig ? <p className="mt-2 text-sm text-slate-500">Loading configuration diagnostics…</p> : (
+          <>
+            <p className={`mt-2 text-sm font-medium ${runtimeConfig.enabled ? 'text-emerald-700' : 'text-rose-700'}`}>
+              Checkout {runtimeConfig.enabled ? 'enabled' : 'unavailable'}
+            </p>
+            <p className="mt-2 text-sm text-slate-600">
+              Payment flag: {runtimeConfig.paymentsEnabled ? 'enabled' : 'disabled'} · Razorpay key ID: {runtimeConfig.configuration?.razorpayKeyIdConfigured ? 'configured' : 'missing'} · API secret: {runtimeConfig.configuration?.razorpayKeySecretConfigured ? 'configured' : 'missing'} · webhook secret: {runtimeConfig.configuration?.razorpayWebhookSecretConfigured ? 'configured' : 'missing'}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Supabase URL: {runtimeConfig.configuration?.supabaseUrlConfigured ? 'configured' : 'missing'} · anon key: {runtimeConfig.configuration?.supabaseAnonKeyConfigured ? 'configured' : 'missing'} · server service role: {runtimeConfig.configuration?.supabaseServiceRoleConfigured ? 'configured' : 'missing'}
+            </p>
+            {runtimeConfig.configurationError && <p className="mt-2 text-sm text-amber-800">{runtimeConfig.configurationError}</p>}
+            <p className="mt-1 text-sm text-slate-600">
+              Marketplace transfers: disabled{runtimeConfig.marketplaceTransfersRequested ? ' (flag is on, but transfers remain unavailable until the transfer workflow and approvals exist)' : ''} · donations: disabled{runtimeConfig.donationsEnabledByFlag ? ' (flag is on, but approvals are still required)' : ''} · tele-oncology provider: {runtimeConfig.teleOncologyCallProviderEnabled ? 'configured by operator' : 'not configured'}
+            </p>
+            {!!runtimeConfig.configuration?.missingVariables.length && (
+              <p className="mt-2 text-sm text-amber-800">Missing or disabled settings: {runtimeConfig.configuration.missingVariables.join(', ')}</p>
+            )}
+          </>
+        )}
+      </section>
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
 

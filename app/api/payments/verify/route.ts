@@ -7,7 +7,7 @@ const verifySchema = z.object({
   orderId: z.string().min(1).max(100),
   paymentId: z.string().min(1).max(100),
   signature: z.string().regex(/^[a-f\d]{64}$/i),
-  kind: z.enum(['tele-oncology', 'medicine', 'insurance', 'booking']),
+  kind: z.enum(['tele-oncology', 'medicine', 'insurance', 'booking', 'caregiver']),
 }).strict();
 
 export async function POST(request: Request) {

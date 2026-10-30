@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase-client';
+import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export type MarketplaceService = {
   id: string;
@@ -73,6 +73,7 @@ export async function getMarketplaceCaregivers(): Promise<{
   error?: string;
 }> {
   try {
+    const supabase = await createSupabaseServerClient();
     const { data: profiles, error: profilesError } = await supabase
       .from('caregiver_profiles')
       .select(`
@@ -121,6 +122,14 @@ export async function getMarketplaceCaregivers(): Promise<{
         .in('caregiver_id', caregiverIds)
         .eq('is_available', true),
     ]);
+
+    const relatedError = servicesResult.error
+      || specializationsResult.error
+      || languagesResult.error
+      || availabilityResult.error;
+    if (relatedError) {
+      return { success: false, caregivers: [], error: relatedError.message };
+    }
 
     const services = (servicesResult.data ?? []) as ServiceRow[];
     const specializations = (specializationsResult.data ?? []) as SpecializationRow[];
@@ -181,6 +190,7 @@ export async function getMarketplaceCaregiverById(caregiverId: string): Promise<
   error?: string;
 }> {
   try {
+    const supabase = await createSupabaseServerClient();
     const { data: profile, error: profileError } = await supabase
       .from('caregiver_profiles')
       .select(`
@@ -230,6 +240,14 @@ export async function getMarketplaceCaregiverById(caregiverId: string): Promise<
         .eq('caregiver_id', caregiverId)
         .eq('is_available', true),
     ]);
+
+    const relatedError = servicesResult.error
+      || specializationsResult.error
+      || languagesResult.error
+      || availabilityResult.error;
+    if (relatedError) {
+      return { success: false, caregiver: null, error: relatedError.message };
+    }
 
     const services = (servicesResult.data ?? []) as ServiceRow[];
     const specializations = (specializationsResult.data ?? []) as SpecializationRow[];

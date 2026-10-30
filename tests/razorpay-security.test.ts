@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { checkoutSchema } from '../lib/payments/checkout-schema';
+import { paymentWebhookSchema } from '../lib/payments/webhook-schema';
 import {
   isCapturedPaymentForOrder,
   rupeesToPaise,
@@ -57,6 +58,40 @@ test('insurance checkout schema does not accept a recurring charge that is not c
     offerType: 'subscription',
   });
   assert.equal(parsed.success, false);
+});
+
+test('caregiver checkout accepts service details but never a browser-supplied amount', () => {
+  const caregiverRequest = {
+    kind: 'caregiver',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    caregiverId: '4ba90ded-9954-48b4-9531-370a1327c819',
+    serviceId: '8174f754-9f45-43b7-bc58-8f0d7b4a1ef4',
+    bookingDate: '2026-10-31',
+    startTime: '10:00',
+    endTime: '11:00',
+    location: 'Bengaluru',
+  };
+  assert.equal(checkoutSchema.safeParse(caregiverRequest).success, true);
+  assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, amountInPaise: 1 }).success, false);
+  assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, endTime: '09:00' }).success, false);
+});
+
+test('webhook schema accepts every configured Razorpay event and rejects mismatched payload shapes', () => {
+  const payment = { id: 'pay_1', order_id: 'order_1', status: 'captured' };
+  const refund = { id: 'rfnd_1', payment_id: 'pay_1', amount: 100, status: 'processed' };
+  const events = [
+    { event: 'payment.captured', payload: { payment: { entity: payment } } },
+    { event: 'payment.failed', payload: { payment: { entity: payment } } },
+    { event: 'order.paid', payload: { order: { entity: { id: 'order_1', status: 'paid' } } } },
+    { event: 'refund.created', payload: { refund: { entity: refund } } },
+    { event: 'refund.processed', payload: { refund: { entity: refund } } },
+    { event: 'refund.failed', payload: { refund: { entity: refund } } },
+  ];
+  events.forEach((event) => assert.equal(paymentWebhookSchema.safeParse(event).success, true, event.event));
+  assert.equal(paymentWebhookSchema.safeParse({
+    event: 'refund.processed',
+    payload: { payment: { entity: payment } },
+  }).success, false);
 });
 
 test('Razorpay payment signature accepts exact order/payment pair and rejects tampering', () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
 
@@ -49,6 +49,24 @@ export function MedicineCatalogCheckout() {
   const [orderNotice, setOrderNotice] = useState('');
   const [cancelingOrder, setCancelingOrder] = useState<string | null>(null);
 
+  const loadOrders = useCallback(async () => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const response = await fetch('/api/payments/medicine-orders', {
+        headers: { Authorization: 'Bearer ' + token },
+        cache: 'no-store',
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || 'Unable to load your medicine orders.');
+      setPatientOrders(payload.orders ?? []);
+      setOrderError('');
+    } catch (caught) {
+      setOrderError(caught instanceof Error ? caught.message : 'Unable to load your medicine orders.');
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     async function loadCatalog() {
@@ -81,26 +99,8 @@ export function MedicineCatalogCheckout() {
   }, []);
 
   useEffect(() => {
-    let active = true;
-    async function loadOrders() {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        if (!token) return;
-        const response = await fetch('/api/payments/medicine-orders', {
-          headers: { Authorization: 'Bearer ' + token },
-          cache: 'no-store',
-        });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || 'Unable to load your medicine orders.');
-        if (active) setPatientOrders(payload.orders ?? []);
-      } catch (caught) {
-        if (active) setOrderError(caught instanceof Error ? caught.message : 'Unable to load your medicine orders.');
-      }
-    }
     void loadOrders();
-    return () => { active = false; };
-  }, []);
+  }, [loadOrders]);
 
   const cancelOrder = async (order: PatientMedicineOrder) => {
     if (!window.confirm('Request cancellation and a full refund review for this order?')) return;
@@ -215,6 +215,7 @@ export function MedicineCatalogCheckout() {
                   }}
                   description={`${product.name} from ${product.pharmacyName}`}
                   disabled={deliveryAddress.trim().length < 10 || (product.requiresPrescription && !selectedPrescriptionId)}
+                  onPaymentComplete={() => { void loadOrders(); }}
                 />
               </div>
             </article>

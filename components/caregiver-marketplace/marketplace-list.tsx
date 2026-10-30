@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { MarketplaceCaregiver } from '@/lib/caregiver-marketplace';
 import { useTranslations } from 'next-intl';
 
-export default function CaregiverMarketplaceList({ caregivers }: { caregivers: MarketplaceCaregiver[] }) {
+export default function CaregiverMarketplaceList({ caregivers, error }: { caregivers: MarketplaceCaregiver[]; error?: string }) {
   const t = useTranslations('components.caregiverMarketplace.marketplaceList');
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -201,6 +201,12 @@ export default function CaregiverMarketplaceList({ caregivers }: { caregivers: M
           </div>
         </div>
       </section>
+
+      {error && (
+        <div role="alert" className="mx-auto mt-6 max-w-6xl rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          The caregiver marketplace could not load: {error}
+        </div>
+      )}
 
       <section className="min-h-[55vh] bg-slate-50">
         <div className="mx-auto max-w-6xl px-6 py-7">

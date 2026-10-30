@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authenticatePaymentRequest, isPlatformPaymentAdmin } from '@/lib/payments/auth';
-import { paymentWebhookSchema, processPaymentWebhook } from '@/lib/payments/webhook';
+import { processPaymentWebhook } from '@/lib/payments/webhook';
+import { paymentWebhookSchema } from '@/lib/payments/webhook-schema';
 
 const requestSchema = z.object({ providerEventId: z.string().min(1).max(255) }).strict();
 
@@ -38,7 +39,6 @@ export async function POST(request: Request) {
   if (!parsedEvent.success || parsedEvent.data.event !== stored.event_type) {
     return NextResponse.json({ error: 'Stored webhook payload is invalid or does not match its event type.' }, { status: 409 });
   }
-  const payment = parsedEvent.data.payload.payment.entity;
   const { data: claimed, error: claimError } = await auth.admin.rpc('claim_payment_webhook_event', {
     p_provider_event_id: stored.provider_event_id,
     p_event_type: stored.event_type,
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
   if (!claimed) return NextResponse.json({ error: 'This webhook is already being processed or has been completed.' }, { status: 409 });
 
   try {
-    await processPaymentWebhook(auth.admin, parsedEvent.data.event, payment);
+    await processPaymentWebhook(auth.admin, parsedEvent.data);
     const { error: finishError } = await auth.admin.rpc('finish_payment_webhook_event', {
       p_provider_event_id: stored.provider_event_id,
       p_error: null,

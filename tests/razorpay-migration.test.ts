@@ -17,6 +17,7 @@ const migrationFiles = [
   '20261028000000_razorpay_payment_foundation.sql',
   '20261029000000_durable_razorpay_payments.sql',
   '20261030000000_razorpay_lifecycle_hardening.sql',
+  '20261030010000_caregiver_payment_bookings.sql',
 ];
 
 test('payment migrations enforce paid tele-oncology access and idempotent quota use', async () => {
@@ -159,6 +160,35 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
       [appointmentId],
     );
     assert.equal(usages[0].count, 1);
+
+    const caregiverOrderId = randomUUID();
+    const caregiverProviderOrderId = `rp_order_${randomUUID()}`;
+    const caregiverPaymentId = `rp_payment_${randomUUID()}`;
+    const caregiverId = randomUUID();
+    const serviceId = randomUUID();
+    await db.query(
+      `INSERT INTO public.payment_orders (id, user_id, kind, amount_in_paise, provider_order_id)
+       VALUES ($1, $2, 'caregiver', 25000, $3)`,
+      [caregiverOrderId, userId, caregiverProviderOrderId],
+    );
+    await db.query(
+      `INSERT INTO public.caregiver_payment_bookings (
+        payment_order_id, patient_id, caregiver_id, service_id, requested_date,
+        requested_start_time, requested_end_time, location, amount_in_paise
+      ) VALUES ($1, $2, $3, $4, current_date + 1, '10:00', '11:00', 'Bengaluru', 25000)`,
+      [caregiverOrderId, userId, caregiverId, serviceId],
+    );
+    const caregiverCapture = await db.query<{ result: { status: string; duplicate: boolean } }>(
+      'SELECT public.finalize_razorpay_payment($1, $2, 25000, $3) AS result',
+      [caregiverProviderOrderId, caregiverPaymentId, 'INR'],
+    );
+    assert.equal(caregiverCapture.rows[0].result.status, 'paid');
+    const { rows: caregiverBookings } = await db.query<{ status: string }>(
+      'SELECT status FROM public.caregiver_payment_bookings WHERE payment_order_id = $1',
+      [caregiverOrderId],
+    );
+    assert.equal(caregiverBookings.length, 1);
+    assert.equal(caregiverBookings[0].status, 'requested');
   } finally {
     await db.close();
   }

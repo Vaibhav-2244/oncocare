@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { data: order, error } = await auth.admin.from('payment_orders')
-    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id, created_at, updated_at')
+    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id, expires_at, created_at, updated_at')
     .eq('provider_order_id', parsed.data.orderId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to load payment status.' }, { status: 500 });
@@ -33,6 +33,13 @@ export async function POST(request: Request) {
       fetchRazorpayOrderStatus(parsed.data.orderId),
       fetchRazorpayOrderPayments(parsed.data.orderId),
     ]);
+    if (
+      provider.id !== order.provider_order_id
+      || provider.amount !== Number(order.amount_in_paise)
+      || provider.currency !== order.currency
+    ) {
+      return NextResponse.json({ error: 'Provider order does not match the stored order amount, currency, or ID.' }, { status: 409 });
+    }
     const captured = payments.items?.find((payment) => (
       payment.order_id === order.provider_order_id && payment.status === 'captured' && payment.captured === true
     ));
@@ -42,6 +49,24 @@ export async function POST(request: Request) {
         paymentId: captured.id,
         expectedUserId: auth.user.id,
       });
+    } else if (
+      order.expires_at
+      && new Date(order.expires_at).getTime() <= Date.now()
+      && (provider.status === 'created' || provider.status === 'attempted')
+    ) {
+      const hasUnresolvedPayment = (payments.items ?? []).some((payment) => (
+        payment.status !== 'failed'
+        || !payment.id
+        || payment.order_id !== order.provider_order_id
+      ));
+      if (!hasUnresolvedPayment) {
+        const { error: expiryError } = await auth.admin.rpc('expire_stale_provider_payment_order', {
+          p_order_id: order.id,
+          p_provider_status: provider.status,
+          p_has_unresolved_payment: false,
+        });
+        if (expiryError) return NextResponse.json({ error: 'Unable to release this expired checkout safely.' }, { status: 503 });
+      }
     }
     const { data: current, error: currentError } = await auth.admin.from('payment_orders')
       .select('id, kind, amount_in_paise, currency, status, provider_payment_id, created_at, updated_at')

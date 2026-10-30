@@ -11,7 +11,7 @@ export default async function CaregiverMarketplacePage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
-        <CaregiverMarketplaceList caregivers={result.caregivers} />
+        <CaregiverMarketplaceList caregivers={result.caregivers} error={result.success ? undefined : result.error} />
       </DashboardLayout>
     </ProtectedRoute>
   );
