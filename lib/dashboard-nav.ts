@@ -73,6 +73,7 @@ export const commonNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard', icon: LayoutDashboard },
   { label: 'Personalized Nutrition', href: '/dashboard/diet-plan', icon: ChefHat },
   { label: 'BPL Donations', href: '/dashboard/bpl-donations', icon: Heart },
+  { label: 'Payment history', href: '/dashboard/payments', icon: CreditCard },
   { label: 'Symptoms', href: '/dashboard/symptoms', icon: AlertCircle },
   { label: 'Treatments', href: '/dashboard/treatments', icon: TrendingUp },
   { label: 'Medications', href: '/dashboard/medications', icon: Pill },
@@ -110,6 +111,7 @@ export const patientNavItems: NavItem[] = [
 
 export const caregiverNavItems: NavItem[] = [
   { label: 'Dashboard', href: '/dashboard/caregiver', icon: LayoutDashboard },
+  { label: 'Payment history', href: '/dashboard/payments', icon: CreditCard },
   { label: 'My Patients', href: '/dashboard/caregiver/patients', icon: Users },
   { label: 'Medicine Finder', href: '/medicine-finder', icon: Pill },
   { label: 'Caregiver Support', href: '/dashboard/caregiver-support', icon: Heart },
@@ -174,6 +176,7 @@ export const pharmacyNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { label: 'Overview', href: '/dashboard/admin', icon: LayoutDashboard },
+  { label: 'Payment history', href: '/dashboard/payments', icon: CreditCard },
   { label: 'Verification requests', href: '/dashboard/admin#verifications', icon: Stethoscope },
   { label: 'User Management', href: '/dashboard/admin#users', icon: Users },
   { label: 'Audit log', href: '/dashboard/admin#audit', icon: ClipboardList },

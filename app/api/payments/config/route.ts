@@ -19,17 +19,15 @@ export async function GET() {
     if (result.error) {
       return NextResponse.json({
         ...config,
-        configurationError: config.configurationError || 'Payment configuration could not be verified because approved payment data is unavailable.',
         teleOncology: { available: false, unavailableReason: 'Tele-oncology pricing is temporarily unavailable.' },
-      }, { status: 503 });
+      });
     }
     data = result.data;
   } catch {
     return NextResponse.json({
       ...config,
-      configurationError: config.configurationError || 'Payment configuration could not be verified because approved payment data is unavailable.',
       teleOncology: { available: false, unavailableReason: 'Tele-oncology pricing is temporarily unavailable.' },
-    }, { status: 503 });
+    });
   }
   const offers = new Map((data ?? []).map((offer) => [offer.offer_type, offer]));
   const oneTime = offers.get('one-time');

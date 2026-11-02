@@ -32,7 +32,7 @@ import { PatientMiniCard } from '@/components/bpl-donations/patient-mini-card';
 import { PatientListCard } from '@/components/bpl-donations/patient-list-card';
 import { PatientProfileModal } from '@/components/bpl-donations/patient-profile-modal';
 import { CheckoutModal } from '@/components/bpl-donations/checkout-modal';
-import { SuccessModal } from '@/components/bpl-donations/success-modal';
+import { PrelaunchDemoDonation } from '@/components/payments/prelaunch-demo-checkout';
 import { RegisterPatientModal } from '@/components/bpl-donations/register-patient-modal';
 import { useTranslations } from 'next-intl';
 
@@ -57,11 +57,8 @@ export default function BplDonationsPage() {
   const [filteredPatients, setFilteredPatients] = useState<BplPatient[]>([]);
 
   const [selectedPatient, setSelectedPatient] = useState<BplPatient | null>(null);
-  const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [donationCheckout, setDonationCheckout] = useState<{ patient: BplPatient; amount: number } | null>(null);
   const [showRegister, setShowRegister] = useState(false);
-  const [currentDonation, setCurrentDonation] = useState<(BplDonation & { patientName?: string }) | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,26 +109,30 @@ export default function BplDonationsPage() {
   const handleDonateClick = (patient: BplPatient) => {
     setError(null);
     setSelectedPatient(patient);
-    setSelectedAmount(null);
-    setShowCheckout(false);
-    setShowSuccess(false);
   };
 
   const handleDonate = (patient: BplPatient, amount: number) => {
-    setError('Donation checkout and donation recording are disabled until approvals and payment configuration are in place.');
-    setSelectedPatient(patient);
-    setSelectedAmount(amount);
-    setShowCheckout(false);
+    setError(null);
+    setNotice(null);
+    setSelectedPatient(null);
+    setDonationCheckout({ patient, amount });
   };
 
-  const handleCheckoutComplete = async (data: {
-    donorName: string;
-    donorEmail: string;
-    paymentMethod: string;
-  }): Promise<void> => {
-    void data;
-    setError('Donation checkout and donation recording are disabled until approvals and payment configuration are in place.');
-    setShowCheckout(false);
+  const refreshDonationsAfterPayment = async () => {
+    try {
+      const [patientsData, donationsData, statsData] = await Promise.all([
+        fetchBplPatients(),
+        user ? fetchDonations(user.id) : fetchDonations(),
+        fetchBplStatistics(user?.id),
+      ]);
+      setPatients(patientsData);
+      setFilteredPatients(patientsData);
+      setDonations(donationsData);
+      setStats(statsData);
+    } catch (refreshError) {
+      const message = refreshError instanceof Error ? refreshError.message : 'Refresh the page to see updated campaign details.';
+      setNotice(`Payment was verified, but campaign details could not refresh: ${message}`);
+    }
   };
 
   const handleRegisterPatient = async (formData: Record<string, string>, imageFile: File | null): Promise<void> => {
@@ -219,9 +220,6 @@ export default function BplDonationsPage() {
 
   const closeDonation = () => {
     setSelectedPatient(null);
-    setSelectedAmount(null);
-    setShowCheckout(false);
-    setShowSuccess(false);
   };
 
   const renderContent = () => {
@@ -287,8 +285,9 @@ export default function BplDonationsPage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="BPL Donations">
+        <PrelaunchDemoDonation />
         <div className="mx-6 mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
-          Donation checkout and new donation records are disabled pending required approvals and payment configuration. Existing records are read-only and their payment status has not been independently verified.
+          Live campaign payments require operator approval and verification of BPL status, medical documents, and beneficiary account. Test Mode payments are simulations and do not create charitable contributions. Live funds are collected by the registered OncoCare+ merchant and disbursed separately; payment does not pay a beneficiary directly.
         </div>
         {notice && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
@@ -304,7 +303,7 @@ export default function BplDonationsPage() {
         )}
         {renderContent()}
 
-      {selectedPatient && !showCheckout && !showSuccess && (
+      {selectedPatient && (
         <PatientProfileModal
           patient={selectedPatient}
           onClose={closeDonation}
@@ -312,25 +311,12 @@ export default function BplDonationsPage() {
         />
       )}
 
-      {showCheckout && selectedPatient && selectedAmount && (
+      {donationCheckout && (
         <CheckoutModal
-          patient={selectedPatient}
-          amount={selectedAmount}
-          onComplete={handleCheckoutComplete}
-          onClose={() => setShowCheckout(false)}
-          error={error}
-        />
-      )}
-
-      {showSuccess && currentDonation && (
-        <SuccessModal
-          donation={currentDonation}
-          onClose={closeDonation}
-          onDownloadReceipt={handleDownloadReceipt}
-          onViewHistory={() => {
-            closeDonation();
-            setViewMode('donations');
-          }}
+          patient={donationCheckout.patient}
+          amount={donationCheckout.amount}
+          onClose={() => setDonationCheckout(null)}
+          onComplete={() => { void refreshDonationsAfterPayment(); }}
         />
       )}
 

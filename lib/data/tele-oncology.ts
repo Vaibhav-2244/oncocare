@@ -218,7 +218,14 @@ export const doctors: Doctor[] = [
     languages: ["English", "Hindi"],
     verified: true
   }
-];
+].map((doctor) => ({
+  ...doctor,
+  name: `DEMO: Consultation Provider ${doctor.id}`,
+  hospital: 'DEMO: OncoCare Training Catalogue',
+  experience: 'Demo profile only',
+  expertise: ['Demo only - no medical service'],
+  verified: false,
+}));
 
 export const doctorAvailability: Record<number, Record<string, string[]>> = {
   1: {

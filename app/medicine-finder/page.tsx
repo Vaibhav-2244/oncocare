@@ -28,6 +28,7 @@ import { popularSearches } from '@/lib/medicine-types';
 import { useAuth } from '@/lib/auth-context';
 import { useTranslations } from 'next-intl';
 import { MedicineCatalogCheckout } from '@/components/payments/medicine-catalog-checkout';
+import { PrelaunchDemoCheckout } from '@/components/payments/prelaunch-demo-checkout';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_ROLES } from '@/components/auth/dashboard-layout';
 
@@ -370,6 +371,7 @@ function MedicineFinderContent() {
           </AnimatePresence>
         </div>
         <MedicineCatalogCheckout />
+        <PrelaunchDemoCheckout kind="medicine" title="Medicine catalogue checkout" />
       </section>
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
 import { PaymentCheckoutButton } from "@/components/payments/checkout-button";
+import { PrelaunchDemoCheckout } from "@/components/payments/prelaunch-demo-checkout";
 import { useTranslations } from 'next-intl';
 
 type InsuranceProvider = {
@@ -336,6 +337,7 @@ export default function InsurancePlanDetailsPage() {
           </div>
         </section>
 
+        <PrelaunchDemoCheckout kind="insurance" title="Insurance application" />
         <section className="mb-6 rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm">
           <h2 className="text-xl font-bold">Configured payment options</h2>
           <p className="mt-1 text-sm text-[#64748B]">Payment confirms only your application. Insurance coverage begins only after the insurer&apos;s separate policy issuance and confirmation. Recurring billing is not configured; displayed payment options are one-time charges only.</p>

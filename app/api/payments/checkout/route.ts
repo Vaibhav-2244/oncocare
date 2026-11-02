@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { authenticatePaymentRequest } from '@/lib/payments/auth';
+import { authenticatePaymentRequest, isAuthorizedPrelaunchDemoUser } from '@/lib/payments/auth';
 import { checkoutSchema } from '@/lib/payments/checkout-schema';
 import { rupeesToPaise } from '@/lib/payments/security';
 import {
@@ -81,11 +81,6 @@ export async function POST(request: Request) {
   const parsed = checkoutSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const input = parsed.data;
-
-  if (input.kind === 'donation') {
-    return jsonError('Donation checkout is disabled pending required approvals and operational configuration.', 403);
-  }
-
   let amountInPaise: number | null = null;
   let orderNotes: Record<string, unknown> = {};
   let item: {
@@ -96,10 +91,164 @@ export async function POST(request: Request) {
     unitAmountInPaise: number;
     terms?: Record<string, unknown>;
   } | null = null;
+
+  const isSimulatedDonation = input.kind === 'donation' && input.bplPatientId === undefined;
+  const isDemoCheckout = Boolean(input.demoCatalogId) || isSimulatedDonation;
+  let demoCatalog: {
+    id: string;
+    provider_label: string;
+    service_name: string;
+    description: string;
+    amount_in_paise: number | string;
+    pricing_unit: string;
+    available_weekdays: number[];
+    daily_start_time: string;
+    daily_end_time: string;
+  } | null = null;
+  if (isDemoCheckout) {
+    if (!flags.prelaunchDemoEnabled || !flags.demoPaymentsEnabled) {
+      return jsonError('Pre-launch demo checkout is disabled by the server operator.', 403);
+    }
+    if (flags.mode === 'live' && (!flags.liveDemoPaymentsEnabled || !input.demoCatalogId)) {
+      return jsonError('Live checkout is restricted to explicitly enabled, consented demo bookings. Donation collection is test-only.', 403);
+    }
+    try {
+      if (!(await isAuthorizedPrelaunchDemoUser(user.id))) {
+        return jsonError('This account is not authorized to make pre-launch demo payments.', 403);
+      }
+    } catch {
+      return jsonError('Unable to verify pre-launch tester authorization.', 500);
+    }
+    if (input.demoDisclosureAccepted !== true) {
+      return jsonError('Acknowledge the pre-launch demo disclosure before continuing.', 400);
+    }
+    if (flags.mode === 'live' && input.liveDemoConsent !== true) {
+      return jsonError('Confirm the live amount and OncoCare+ merchant disclosure before continuing.', 400);
+    }
+
+    if (isSimulatedDonation) {
+      if (flags.mode !== 'test' || input.demoCatalogId || !input.donationAmountInPaise) {
+        return jsonError('Simulated donations are available only in Test Mode and never represent a charitable contribution.', 403);
+      }
+      amountInPaise = input.donationAmountInPaise;
+      orderNotes = {
+        isDemo: true,
+        demoDisclosureVersion: 'prelaunch-demo-v1',
+        simulatedDonation: true,
+        charitableContribution: false,
+        merchantDisclosure: 'Razorpay Test Mode; no charitable contribution',
+      };
+      item = {
+        entityId: 'DEMO: simulated-campaign',
+        description: 'DEMO: Simulated contribution - no beneficiary',
+        quantity: 1,
+        unitAmountInPaise: amountInPaise,
+        terms: { simulated: true, charitableContribution: false },
+      };
+    } else {
+      if (!input.demoCatalogId) return jsonError('Select a pre-launch demo item.', 400);
+      const { data: catalogEntry, error: catalogError } = await admin.from('prelaunch_demo_catalog')
+        .select('id, kind, provider_label, service_name, description, amount_in_paise, pricing_unit, available_weekdays, daily_start_time, daily_end_time, active')
+        .eq('id', input.demoCatalogId)
+        .eq('active', true)
+        .maybeSingle();
+      if (catalogError) return jsonError('Unable to validate the selected demo item.', 503);
+      if (!catalogEntry || catalogEntry.kind !== input.kind || !catalogEntry.provider_label.startsWith('DEMO:') || !catalogEntry.service_name.startsWith('DEMO:')) {
+        return jsonError('The selected item is not an active demo entry for this checkout type.', 409);
+      }
+      demoCatalog = catalogEntry;
+      amountInPaise = Number(catalogEntry.amount_in_paise);
+      if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+        return jsonError('The demo item has an invalid server-configured price.', 409);
+      }
+      if (['caregiver', 'booking', 'tele-oncology'].includes(input.kind)) {
+        const requestedDate = input.bookingDate!;
+        if (requestedDate < new Date().toISOString().slice(0, 10)) {
+          return jsonError('Choose a current or future demo booking date.', 400);
+        }
+        const weekday = new Date(`${requestedDate}T00:00:00.000Z`).getUTCDay();
+        if (!catalogEntry.available_weekdays.includes(weekday)) {
+          return jsonError('The selected demo provider is not available on that date.', 409);
+        }
+        if (input.startTime! < String(catalogEntry.daily_start_time).slice(0, 5)
+          || input.endTime! > String(catalogEntry.daily_end_time).slice(0, 5)
+          || input.endTime! <= input.startTime!) {
+          return jsonError('The selected time is outside this demo provider’s available hours.', 409);
+        }
+      }
+      orderNotes = {
+        isDemo: true,
+        demoCatalogId: catalogEntry.id,
+        demoDisclosureVersion: 'prelaunch-demo-v1',
+        liveDemoConsent: flags.mode === 'live',
+        providerLabel: catalogEntry.provider_label,
+        serviceName: catalogEntry.service_name,
+        requestedDate: input.bookingDate ?? null,
+        requestedStartTime: input.startTime ?? null,
+        requestedEndTime: input.endTime ?? null,
+        location: input.location ?? null,
+        demoDisclosure: catalogEntry.description,
+      };
+      item = {
+        entityId: catalogEntry.id,
+        description: catalogEntry.service_name,
+        quantity: 1,
+        unitAmountInPaise: amountInPaise,
+        terms: { isDemo: true, pricingUnit: catalogEntry.pricing_unit, disclosureVersion: 'prelaunch-demo-v1' },
+      };
+    }
+  }
+
   let stockProductId: string | null = null;
   let teleAppointmentDate: string | null = null;
 
-  if (input.kind === 'tele-oncology') {
+  if (isDemoCheckout) {
+    // Demo checkout details were validated above. They deliberately do not create real service entitlements or fulfilment records.
+  } else if (input.kind === 'donation') {
+    if (!input.bplPatientId || !input.donationAmountInPaise || !input.donorName || !input.donorEmail) {
+      return jsonError('Choose a verified BPL campaign and enter a donation amount and donor details.', 400);
+    }
+    if (!flags.patientDonationsEnabled) {
+      return jsonError('Patient donations are disabled by the payment operator. Enable PATIENT_DONATIONS_ENABLED after campaign and merchant approvals.', 403);
+    }
+    const { data: patient, error: patientError } = await admin.from('bpl_patients')
+      .select('id, name, goal_amount, raised_amount, verified')
+      .eq('id', input.bplPatientId)
+      .eq('verified', true)
+      .maybeSingle();
+    if (patientError) return jsonError('Unable to verify the selected fundraising campaign.', 503);
+    if (!patient) return jsonError('The selected fundraising campaign is not verified or is no longer available.', 409);
+    const { data: verification, error: verificationError } = await admin.from('bpl_verification')
+      .select('bpl_status_verified, medical_documents_verified, beneficiary_account_verified')
+      .eq('patient_id', patient.id)
+      .maybeSingle();
+    if (verificationError) return jsonError('Unable to verify campaign approvals.', 503);
+    if (!verification?.bpl_status_verified || !verification.medical_documents_verified || !verification.beneficiary_account_verified) {
+      return jsonError('This campaign is not approved for payment: BPL status, medical documents, and beneficiary account must all be verified.', 409);
+    }
+    const remaining = Math.round((Number(patient.goal_amount) - Number(patient.raised_amount)) * 100);
+    if (!Number.isSafeInteger(remaining) || remaining < 100 || input.donationAmountInPaise > remaining) {
+      return jsonError('The donation amount exceeds the campaign’s remaining verified goal.', 409);
+    }
+    amountInPaise = input.donationAmountInPaise;
+    orderNotes = {
+      bplPatientId: patient.id,
+      donorName: input.donorName,
+      donorEmail: input.donorEmail,
+      donationPurpose: 'Verified BPL cancer-treatment campaign contribution',
+      merchantDisclosure: 'Funds are collected to the registered OncoCare+ Razorpay merchant account and disbursed separately.',
+    };
+    item = {
+      entityId: `bpl-patient:${patient.id}`,
+      description: `BPL treatment campaign donation: ${patient.name}`,
+      quantity: 1,
+      unitAmountInPaise: amountInPaise,
+      terms: {
+        campaignId: patient.id,
+        processingFeeDisclosure: 'Funds are collected to the registered OncoCare+ Razorpay merchant account and disbursed separately.',
+      },
+    };
+  } else if (input.kind === 'tele-oncology') {
     if (!flags.teleOncologyCallProviderEnabled) {
       return jsonError('Tele-oncology checkout is unavailable until a real consultation provider is configured.', 503);
     }
@@ -151,6 +300,92 @@ export async function POST(request: Request) {
         includedCalls: Number(price.included_usage),
         durationDays: price.duration_days === null ? null : Number(price.duration_days),
       },
+    };
+  } else if (input.kind === 'caregiver') {
+    if (!input.caregiverId || !input.serviceId || !input.bookingDate || !input.startTime || !input.endTime || !input.location) {
+      return jsonError('Choose a caregiver, service, date, time, and location.', 400);
+    }
+    if (input.bookingDate < new Date().toISOString().slice(0, 10)) {
+      return jsonError('Choose a current or future booking date.', 400);
+    }
+    const timeToMinutes = (value: string) => {
+      const [hours, minutes] = value.split(':').map(Number);
+      return hours <= 23 && minutes <= 59 ? hours * 60 + minutes : null;
+    };
+    const startMinutes = timeToMinutes(input.startTime);
+    const endMinutes = timeToMinutes(input.endTime);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+      return jsonError('Choose a valid booking time range.', 400);
+    }
+    const { data: caregiver, error: caregiverError } = await admin.from('caregiver_profiles')
+      .select('id, professional_title, is_available')
+      .eq('id', input.caregiverId)
+      .eq('is_active', true)
+      .eq('verification_status', 'verified')
+      .maybeSingle();
+    if (caregiverError) return jsonError('Unable to validate the selected caregiver.', 500);
+    if (!caregiver || !caregiver.is_available) {
+      return jsonError('The selected caregiver is not currently verified and available for booking.', 409);
+    }
+    const { data: service, error: serviceError } = await admin.from('caregiver_services')
+      .select('id, caregiver_id, service_name, price, pricing_unit')
+      .eq('id', input.serviceId)
+      .eq('caregiver_id', caregiver.id)
+      .eq('is_active', true)
+      .maybeSingle();
+    if (serviceError) return jsonError('Unable to validate the selected caregiver service.', 500);
+    if (!service) return jsonError('The selected service is no longer available.', 409);
+
+    const weekday = new Date(`${input.bookingDate}T00:00:00.000Z`).getUTCDay();
+    const { data: slots, error: availabilityError } = await admin.from('caregiver_availability')
+      .select('start_time, end_time')
+      .eq('caregiver_id', caregiver.id)
+      .eq('day_of_week', weekday)
+      .eq('is_available', true);
+    if (availabilityError) return jsonError('Unable to validate caregiver availability.', 500);
+    if (!(slots ?? []).some((slot) => (
+      String(slot.start_time).slice(0, 5) <= input.startTime!
+      && String(slot.end_time).slice(0, 5) >= input.endTime!
+    ))) {
+      return jsonError('The selected time is outside this caregiver’s available hours.', 409);
+    }
+
+    const unitPriceInPaise = rupeesToPaise(service.price);
+    if (unitPriceInPaise === null) return jsonError('This service does not have a valid approved price.', 409);
+    const pricingUnit = String(service.pricing_unit).trim().toLowerCase();
+    let quantity = 1;
+    if (['hour', 'hourly', 'per hour', 'per_hour'].includes(pricingUnit)) {
+      const durationMinutes = endMinutes - startMinutes;
+      if (durationMinutes % 60 !== 0 || durationMinutes > 12 * 60) {
+        return jsonError('Hourly caregiver bookings must use whole hours and cannot exceed 12 hours.', 400);
+      }
+      quantity = durationMinutes / 60;
+    } else if (!['day', 'daily', 'per day', 'per_day', 'visit', 'per visit', 'session', 'per session'].includes(pricingUnit)) {
+      return jsonError('This caregiver service has an unsupported pricing unit and cannot be charged safely.', 409);
+    }
+    amountInPaise = unitPriceInPaise * quantity;
+    if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+      return jsonError('The caregiver service total is invalid.', 409);
+    }
+    item = {
+      entityId: service.id,
+      description: service.service_name,
+      quantity,
+      unitAmountInPaise: unitPriceInPaise,
+      terms: { caregiverId: caregiver.id, pricingUnit: service.pricing_unit },
+    };
+    orderNotes = {
+      caregiverId: caregiver.id,
+      caregiverTitle: caregiver.professional_title,
+      serviceId: service.id,
+      serviceName: service.service_name,
+      bookingDate: input.bookingDate,
+      startTime: input.startTime,
+      endTime: input.endTime,
+      location: input.location,
+      requirements: input.reason ?? '',
+      pricingUnit: service.pricing_unit,
+      billedQuantity: quantity,
     };
   } else if (input.kind === 'medicine') {
     if (input.offerType && input.offerType !== 'one-time') {
@@ -264,12 +499,13 @@ export async function POST(request: Request) {
     }
     if (!['daily', 'monthly'].includes(input.offerType)) return jsonError('Unsupported home-care offer.', 400);
     const { data: helper, error: helperError } = await admin.from('cook_maid_helpers')
-      .select('id, name, service, location, verified')
+      .select('id, name, service, location, verified, is_demo')
       .eq('id', input.helperId)
       .eq('verified', true)
       .maybeSingle();
     if (helperError) return jsonError('Unable to validate the home-care provider.', 500);
     if (!helper) return jsonError('The selected home-care provider is not approved.', 409);
+    if (helper.is_demo) return jsonError('DEMO home-care providers must use the pre-launch demo checkout; no real service will be booked.', 409);
     const { data: offer, error: offerError } = await admin.from('payment_offers')
       .select('id, amount_in_paise, duration_days, included_usage, terms')
       .eq('kind', 'booking')
@@ -291,101 +527,12 @@ export async function POST(request: Request) {
     amountInPaise = total;
     item = { entityId: helper.id, description: `${helper.service} service - ${input.offerType}`, quantity: 1, unitAmountInPaise: total, terms: { offerId: offer.id, durationDays } };
     orderNotes = { helperId: helper.id, helperName: helper.name, service: helper.service, location: input.location, patientName: input.patientName, startDate: input.startDate, durationDays, offerType: input.offerType, offerId: offer.id };
-  } else if (input.kind === 'caregiver') {
-    if (!input.caregiverId || !input.serviceId || !input.bookingDate || !input.startTime || !input.endTime || !input.location) {
-      return jsonError('Choose a caregiver, service, date, time, and location.', 400);
-    }
-    if (input.bookingDate < new Date().toISOString().slice(0, 10)) {
-      return jsonError('Choose a current or future booking date.', 400);
-    }
-    const timeToMinutes = (value: string) => {
-      const [hours, minutes] = value.split(':').map(Number);
-      return hours <= 23 && minutes <= 59 ? hours * 60 + minutes : null;
-    };
-    const startMinutes = timeToMinutes(input.startTime);
-    const endMinutes = timeToMinutes(input.endTime);
-    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
-      return jsonError('Choose a valid booking time range.', 400);
-    }
-    const { data: caregiver, error: caregiverError } = await admin.from('caregiver_profiles')
-      .select('id, professional_title, is_active, is_available, verification_status')
-      .eq('id', input.caregiverId)
-      .eq('is_active', true)
-      .eq('verification_status', 'verified')
-      .maybeSingle();
-    if (caregiverError) return jsonError('Unable to validate the selected caregiver.', 500);
-    if (!caregiver || !caregiver.is_available) {
-      return jsonError('The selected caregiver is not currently verified and available for booking.', 409);
-    }
-    const { data: service, error: serviceError } = await admin.from('caregiver_services')
-      .select('id, caregiver_id, service_name, description, price, pricing_unit, is_active')
-      .eq('id', input.serviceId)
-      .eq('caregiver_id', caregiver.id)
-      .eq('is_active', true)
-      .maybeSingle();
-    if (serviceError) return jsonError('Unable to validate the selected caregiver service.', 500);
-    if (!service) return jsonError('The selected service is no longer available.', 409);
-
-    const weekday = new Date(`${input.bookingDate}T00:00:00.000Z`).getUTCDay();
-    const { data: slots, error: availabilityError } = await admin.from('caregiver_availability')
-      .select('start_time, end_time')
-      .eq('caregiver_id', caregiver.id)
-      .eq('day_of_week', weekday)
-      .eq('is_available', true);
-    if (availabilityError) return jsonError('Unable to validate caregiver availability.', 500);
-    const fitsAvailableSlot = (slots ?? []).some((slot) => (
-      String(slot.start_time).slice(0, 5) <= input.startTime!
-      && String(slot.end_time).slice(0, 5) >= input.endTime!
-    ));
-    if (!fitsAvailableSlot) {
-      return jsonError('The selected time is outside this caregiver’s available hours.', 409);
-    }
-
-    const unitPriceInPaise = rupeesToPaise(service.price);
-    if (unitPriceInPaise === null) {
-      return jsonError('This service does not have a valid approved price.', 409);
-    }
-    const pricingUnit = String(service.pricing_unit).trim().toLowerCase();
-    let quantity = 1;
-    if (['hour', 'hourly', 'per hour', 'per_hour'].includes(pricingUnit)) {
-      const durationMinutes = endMinutes - startMinutes;
-      if (durationMinutes % 60 !== 0 || durationMinutes > 12 * 60) {
-        return jsonError('Hourly caregiver bookings must use whole hours and cannot exceed 12 hours.', 400);
-      }
-      quantity = durationMinutes / 60;
-    } else if (!['day', 'daily', 'per day', 'per_day', 'visit', 'per visit', 'session', 'per session'].includes(pricingUnit)) {
-      return jsonError('This caregiver service has an unsupported pricing unit and cannot be charged safely.', 409);
-    }
-    amountInPaise = unitPriceInPaise * quantity;
-    if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
-      return jsonError('The caregiver service total is invalid.', 409);
-    }
-    item = {
-      entityId: service.id,
-      description: service.service_name,
-      quantity,
-      unitAmountInPaise: unitPriceInPaise,
-      terms: { caregiverId: caregiver.id, pricingUnit: service.pricing_unit },
-    };
-    orderNotes = {
-      caregiverId: caregiver.id,
-      caregiverTitle: caregiver.professional_title,
-      serviceId: service.id,
-      serviceName: service.service_name,
-      bookingDate: input.bookingDate,
-      startTime: input.startTime,
-      endTime: input.endTime,
-      location: input.location,
-      requirements: input.reason ?? '',
-      pricingUnit: service.pricing_unit,
-      billedQuantity: quantity,
-    };
   }
 
   if (!amountInPaise || !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) return jsonError('No valid server-approved amount is available.', 409);
 
   const existingResult = await admin.from('payment_orders')
-    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, checkout_state, expires_at, updated_at')
+    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, payment_mode, is_demo, checkout_state, expires_at, updated_at')
     .eq('user_id', user.id)
     .eq('idempotency_key', input.idempotencyKey)
     .maybeSingle();
@@ -394,9 +541,10 @@ export async function POST(request: Request) {
     const old = existingResult.data;
     if (
       old.kind !== input.kind
+      || old.payment_mode !== flags.mode
       || Number(old.amount_in_paise) !== amountInPaise
       || canonicalJson(old.notes) !== canonicalJson(orderNotes)
-    ) return jsonError('Approved checkout terms changed. Start a new checkout to review the current price.', 409, { restartCheckout: true });
+    ) return jsonError('Checkout mode or approved terms changed. Start a new checkout to review them.', 409, { restartCheckout: true });
     if (old.status !== 'pending') {
       return jsonError('This checkout is no longer payable. Start a new checkout.', 409, { restartCheckout: true });
     }
@@ -432,7 +580,16 @@ export async function POST(request: Request) {
           return jsonError('Unable to reconcile the previous checkout right now. Retry the same checkout reference later.', 502, { retrySameCheckout: true });
         }
       }
-      return NextResponse.json({ internalOrderId: old.id, orderId: old.provider_order_id, amount: Number(old.amount_in_paise), currency: old.currency, key: flags.keyId });
+      return NextResponse.json({
+        internalOrderId: old.id,
+        orderId: old.provider_order_id,
+        amount: Number(old.amount_in_paise),
+        currency: old.currency,
+        key: flags.keyId,
+        name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+        paymentMode: flags.mode,
+        isDemo: Boolean(old.is_demo),
+      });
     }
     if (old.checkout_state === 'initializing') {
       const { data: expired, error: expiryError } = await admin.rpc('expire_incomplete_payment_checkout', {
@@ -456,7 +613,16 @@ export async function POST(request: Request) {
         kind: input.kind,
         amountInPaise,
       });
-      return NextResponse.json({ internalOrderId: old.id, orderId: providerOrderId, amount: amountInPaise, currency: 'INR', key: flags.keyId });
+      return NextResponse.json({
+        internalOrderId: old.id,
+        orderId: providerOrderId,
+        amount: amountInPaise,
+        currency: 'INR',
+        key: flags.keyId,
+        name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+        paymentMode: flags.mode,
+        isDemo: isDemoCheckout,
+      });
     } catch {
       return jsonError('Payment recovery is temporarily unavailable. Retry with the same checkout reference.', 503);
     }
@@ -469,6 +635,9 @@ export async function POST(request: Request) {
     checkout_state: 'initializing',
     amount_in_paise: amountInPaise,
     currency: 'INR',
+    payment_mode: flags.mode,
+    is_demo: isDemoCheckout,
+    live_demo_consent_at: flags.mode === 'live' && input.liveDemoConsent === true ? new Date().toISOString() : null,
     notes: orderNotes,
     idempotency_key: input.idempotencyKey,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -492,7 +661,7 @@ export async function POST(request: Request) {
     actor_user_id: user.id,
     action: 'payment.checkout_created',
     order_id: order.id,
-    details: { kind: input.kind, amount_in_paise: amountInPaise },
+    details: { kind: input.kind, amount_in_paise: amountInPaise, payment_mode: flags.mode, is_demo: isDemoCheckout },
   });
   if (auditError) {
     const { error: failError } = await admin.from('payment_orders').update({
@@ -523,6 +692,70 @@ export async function POST(request: Request) {
     }
   }
 
+  if (isDemoCheckout) {
+    const { error: demoBookingError } = await admin.from('prelaunch_demo_bookings').insert({
+      payment_order_id: order.id,
+      catalog_id: demoCatalog?.id ?? null,
+      patient_id: user.id,
+      kind: input.kind,
+      provider_label: demoCatalog?.provider_label ?? 'DEMO: Simulated Campaign',
+      service_name: demoCatalog?.service_name ?? 'DEMO: Simulated contribution - no beneficiary',
+      requested_date: input.bookingDate ?? null,
+      requested_start_time: input.startTime ?? null,
+      requested_end_time: input.endTime ?? null,
+      amount_in_paise: amountInPaise,
+      payment_mode: flags.mode,
+      disclosure_version: 'prelaunch-demo-v1',
+    });
+    if (demoBookingError) {
+      const { error: failError } = await admin.from('payment_orders').update({
+        status: 'failed', checkout_state: 'failed', failure_reason: 'Demo record creation failed', updated_at: new Date().toISOString(),
+      }).eq('id', order.id);
+      const duplicateSlot = demoBookingError.code === '23505';
+      return jsonError(
+        failError ? 'Demo checkout setup failed and requires support review.' : duplicateSlot ? 'That demo time slot is already reserved. Choose another time.' : 'Unable to save the demo booking record.',
+        failError ? 503 : duplicateSlot ? 409 : 500,
+        { restartCheckout: !failError },
+      );
+    }
+    if (input.kind === 'donation') {
+      const { error: donationError } = await admin.from('payment_donations').insert({
+        order_id: order.id,
+        case_id: null,
+        purpose: 'PRELAUNCH_SIMULATION_NO_BENEFICIARY_NO_CHARITABLE_CONTRIBUTION',
+      });
+      if (donationError) {
+        const { error: failError } = await admin.from('payment_orders').update({
+          status: 'failed', checkout_state: 'failed', failure_reason: 'Simulated donation ledger creation failed', updated_at: new Date().toISOString(),
+        }).eq('id', order.id);
+        return jsonError(failError ? 'Simulated donation setup requires support review.' : 'Unable to record the simulated donation transaction.', failError ? 503 : 500, { restartCheckout: !failError });
+      }
+    }
+  } else if (input.kind === 'donation') {
+    const { error: donationError } = await admin.from('payment_donations').insert({
+      order_id: order.id,
+      case_id: null,
+      bpl_patient_id: input.bplPatientId,
+      donor_name: input.donorName,
+      donor_email: input.donorEmail,
+      payment_method: 'razorpay',
+      purpose: String(orderNotes.donationPurpose),
+    });
+    if (donationError) {
+      const { error: failError } = await admin.from('payment_orders').update({
+        status: 'failed',
+        checkout_state: 'failed',
+        failure_reason: 'BPL donation campaign record creation failed',
+        updated_at: new Date().toISOString(),
+      }).eq('id', order.id);
+      return jsonError(
+        failError ? 'Donation setup failed and requires support review.' : 'Unable to save the donation campaign record.',
+        failError ? 503 : 500,
+        { restartCheckout: !failError },
+      );
+    }
+  }
+
   if (stockProductId) {
     const { error: reserveError } = await admin.rpc('reserve_payment_order_stock', {
       p_order_id: order.id,
@@ -537,7 +770,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (input.kind === 'insurance') {
+  if (!isDemoCheckout && input.kind === 'insurance') {
     const { error: appError } = await admin.from('insurance_payment_applications').insert({
       order_id: order.id, user_id: user.id, plan_id: input.insurancePlanId, issuance_status: 'payment_pending',
     });
@@ -549,33 +782,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (input.kind === 'caregiver') {
-    const { error: caregiverBookingError } = await admin.from('caregiver_payment_bookings').insert({
-      payment_order_id: order.id,
-      patient_id: user.id,
-      caregiver_id: String(orderNotes.caregiverId),
-      service_id: String(orderNotes.serviceId),
-      requested_date: String(orderNotes.bookingDate),
-      requested_start_time: String(orderNotes.startTime),
-      requested_end_time: String(orderNotes.endTime),
-      location: String(orderNotes.location),
-      requirements: String(orderNotes.requirements),
-      amount_in_paise: amountInPaise,
-      status: 'payment_pending',
-    });
-    if (caregiverBookingError) {
-      const { error: failError } = await admin.from('payment_orders').update({
-        status: 'failed', checkout_state: 'failed', failure_reason: 'Caregiver booking reservation failed', updated_at: new Date().toISOString(),
-      }).eq('id', order.id);
-      return jsonError(
-        failError ? 'Caregiver booking setup failed and requires support review.' : 'The caregiver booking could not be reserved. Review availability and try again.',
-        failError ? 503 : 409,
-        { restartCheckout: !failError },
-      );
-    }
-  }
-
-  if (input.kind === 'booking') {
+  if (!isDemoCheckout && input.kind === 'booking') {
     const durationDays = Number(orderNotes.durationDays);
     const { error: bookingError } = await admin.rpc('create_payment_homecare_booking', {
       p_order_id: order.id,
@@ -596,7 +803,36 @@ export async function POST(request: Request) {
     }
   }
 
-  if (input.kind === 'tele-oncology' && teleAppointmentDate) {
+  if (!isDemoCheckout && input.kind === 'caregiver') {
+    const { error: caregiverBookingError } = await admin.from('caregiver_payment_bookings').insert({
+      payment_order_id: order.id,
+      patient_id: user.id,
+      caregiver_id: String(orderNotes.caregiverId),
+      service_id: String(orderNotes.serviceId),
+      requested_date: String(orderNotes.bookingDate),
+      requested_start_time: String(orderNotes.startTime),
+      requested_end_time: String(orderNotes.endTime),
+      location: String(orderNotes.location),
+      requirements: String(orderNotes.requirements),
+      amount_in_paise: amountInPaise,
+      status: 'payment_pending',
+    });
+    if (caregiverBookingError) {
+      const { error: failError } = await admin.from('payment_orders').update({
+        status: 'failed',
+        checkout_state: 'failed',
+        failure_reason: 'Caregiver booking reservation failed',
+        updated_at: new Date().toISOString(),
+      }).eq('id', order.id);
+      return jsonError(
+        failError ? 'Caregiver booking setup failed and requires support review.' : 'The caregiver booking could not be reserved. Review availability and try again.',
+        failError ? 503 : 409,
+        { restartCheckout: !failError },
+      );
+    }
+  }
+
+  if (!isDemoCheckout && input.kind === 'tele-oncology' && teleAppointmentDate) {
     const { error: appointmentError } = await admin.rpc('create_payment_tele_appointment', {
       p_order_id: order.id,
       p_user_id: user.id,
@@ -640,6 +876,9 @@ export async function POST(request: Request) {
       amount: amountInPaise,
       currency: 'INR',
       key: flags.keyId,
+      name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+      paymentMode: flags.mode,
+      isDemo: isDemoCheckout,
       receipt: order.id,
     });
   } catch {

@@ -12,23 +12,50 @@ export type TeleOncologyPlan = 'one-time' | 'monthly';
 
 export function getPaymentFeatureFlags() {
   const enabledFlag = (value: string | undefined) => ['true', '1', 'yes'].includes((value ?? '').trim().toLowerCase());
+  const configuredMode = (process.env.RAZORPAY_MODE ?? 'test').trim().toLowerCase();
+  const mode = configuredMode === 'live' ? 'live' : 'test';
+  const modeValid = configuredMode === 'test' || configuredMode === 'live';
   const keyId = process.env.RAZORPAY_KEY_ID?.trim() || null;
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || null;
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || null;
+  const keyModeValid = Boolean(keyId?.startsWith(`rzp_${mode}_`));
   const marketplaceTransfersRequested = enabledFlag(process.env.MARKETPLACE_TRANSFERS_ENABLED);
-  const teleOncologyCallProviderEnabled = enabledFlag(process.env.TELE_ONCOLOGY_CALL_PROVIDER_ENABLED);
+  const teleOncologyProviderFlagRequested = enabledFlag(process.env.TELE_ONCOLOGY_CALL_PROVIDER_ENABLED);
+  const teleOncologyCallProviderEnabled = false;
   const donationsEnabledByFlag = enabledFlag(process.env.PATIENT_DONATIONS_ENABLED);
+  const livePaymentsEnabled = enabledFlag(process.env.LIVE_PAYMENTS_ENABLED);
+  const prelaunchDemoEnabled = enabledFlag(process.env.PRELAUNCH_DEMO_MODE);
+  const demoPaymentsEnabled = enabledFlag(process.env.DEMO_PAYMENTS_ENABLED);
+  const liveMerchantValue = process.env.PRELAUNCH_LIVE_MERCHANT_NAME?.trim() || '';
+  const liveMerchantName = liveMerchantValue.length <= 120 && !/[\r\n]/.test(liveMerchantValue)
+    ? liveMerchantValue || null
+    : null;
+  const liveDemoPaymentsEnabled = mode === 'live'
+    && livePaymentsEnabled
+    && prelaunchDemoEnabled
+    && demoPaymentsEnabled
+    && Boolean(liveMerchantName)
+    && enabledFlag(process.env.PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED);
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || null;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || null;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
 
   return {
+    mode,
+    modeValid,
+    keyModeValid,
     paymentsEnabled: enabledFlag(process.env.PAYMENTS_ENABLED),
+    livePaymentsEnabled,
+    prelaunchDemoEnabled,
+    demoPaymentsEnabled,
+    liveDemoPaymentsEnabled,
+    liveMerchantName,
     marketplaceTransfersEnabled: false,
     marketplaceTransfersRequested,
     patientDonationsEnabled: donationsEnabledByFlag,
     donationsEnabledByFlag,
     teleOncologyCallProviderEnabled,
+    teleOncologyProviderFlagRequested,
     keyId,
     keySecret,
     webhookSecret,
@@ -36,7 +63,10 @@ export function getPaymentFeatureFlags() {
     supabaseAnonKeyConfigured: Boolean(supabaseAnonKey),
     supabaseServiceRoleConfigured: Boolean(supabaseServiceRoleKey),
     enabled: enabledFlag(process.env.PAYMENTS_ENABLED)
-      && Boolean(keyId && keySecret && supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey),
+      && modeValid
+      && keyModeValid
+      && Boolean(keyId && keySecret && webhookSecret && supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey)
+      && (mode !== 'live' || livePaymentsEnabled),
   };
 }
 
@@ -173,21 +203,29 @@ export function serializePublicPaymentConfig() {
   const config = getPaymentFeatureFlags();
   const missingConfiguration = [
     !config.paymentsEnabled && 'PAYMENTS_ENABLED',
+    !config.modeValid && 'RAZORPAY_MODE (must be test or live)',
     !config.keyId && 'RAZORPAY_KEY_ID',
     !config.keySecret && 'RAZORPAY_KEY_SECRET',
+    !config.keyModeValid && 'RAZORPAY_KEY_ID (must match RAZORPAY_MODE)',
     !config.webhookSecret && 'RAZORPAY_WEBHOOK_SECRET',
+    config.mode === 'live' && !config.livePaymentsEnabled && 'LIVE_PAYMENTS_ENABLED',
     !config.supabaseUrlConfigured && 'NEXT_PUBLIC_SUPABASE_URL',
     !config.supabaseAnonKeyConfigured && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     !config.supabaseServiceRoleConfigured && 'SUPABASE_SERVICE_ROLE_KEY',
   ].filter((variable): variable is string => Boolean(variable));
   return {
     enabled: config.enabled,
+    mode: config.mode,
+    demoPaymentsEnabled: config.demoPaymentsEnabled && config.prelaunchDemoEnabled,
+    liveDemoPaymentsEnabled: config.liveDemoPaymentsEnabled,
+    liveMerchantName: config.mode === 'live' ? config.liveMerchantName : null,
     paymentsEnabled: config.paymentsEnabled,
     marketplaceTransfersEnabled: config.marketplaceTransfersEnabled,
     marketplaceTransfersRequested: config.marketplaceTransfersRequested,
-    patientDonationsEnabled: false,
+    patientDonationsEnabled: config.patientDonationsEnabled,
     donationsEnabledByFlag: config.donationsEnabledByFlag,
     teleOncologyCallProviderEnabled: config.teleOncologyCallProviderEnabled,
+    teleOncologyProviderFlagRequested: config.teleOncologyProviderFlagRequested,
     configuration: {
       razorpayKeyIdConfigured: Boolean(config.keyId),
       razorpayKeySecretConfigured: Boolean(config.keySecret),
@@ -199,7 +237,7 @@ export function serializePublicPaymentConfig() {
     },
     configurationError: config.enabled
       ? null
-      : 'Online payments are unavailable. Configure the required Razorpay variables and enable PAYMENTS_ENABLED.',
+      : 'Online payments are unavailable. Configure the required Razorpay variables and enable PAYMENTS_ENABLED. Live mode also requires LIVE_PAYMENTS_ENABLED.',
     keyId: config.enabled ? config.keyId : null,
     currency: 'INR',
     teleOncology: {

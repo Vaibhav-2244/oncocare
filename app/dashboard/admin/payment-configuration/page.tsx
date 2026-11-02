@@ -7,6 +7,7 @@ import { ADMIN_ROLES, DashboardLayout } from '@/components/auth/dashboard-layout
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { PrelaunchDemoAdmin } from '@/components/payments/prelaunch-demo-admin';
 
 type PaymentOffer = {
   id: string;
@@ -51,6 +52,10 @@ type InsuranceApplication = {
 };
 type RuntimePaymentConfig = {
   enabled: boolean;
+  mode?: 'test' | 'live';
+  livePaymentsEnabled?: boolean;
+  demoPaymentsEnabled?: boolean;
+  liveDemoPaymentsEnabled?: boolean;
   configurationError?: string | null;
   paymentsEnabled: boolean;
   marketplaceTransfersEnabled: boolean;
@@ -68,6 +73,22 @@ type RuntimePaymentConfig = {
     missingVariables: string[];
   };
 };
+type PaymentTransaction = {
+  id: string;
+  user_id: string;
+  kind: string;
+  status: string;
+  amount_in_paise: number;
+  payment_mode: 'test' | 'live';
+  is_demo: boolean;
+  provider_order_id: string | null;
+  provider_payment_id: string | null;
+  provider_refund_id: string | null;
+  failure_reason: string | null;
+  demo: { provider_label: string; service_name: string; status: string } | null;
+  refunds: Array<{ id: string; amount_in_paise: number; status: string; provider_refund_id: string | null }>;
+  created_at: string;
+};
 
 function PaymentConfigurationContent() {
   const { user } = useAuth();
@@ -80,6 +101,10 @@ function PaymentConfigurationContent() {
   const [donations, setDonations] = useState<Array<{ id: string; order_id: string; purpose: string; payment: { amount_in_paise: number; status: string } | null }>>([]);
   const [insuranceApplications, setInsuranceApplications] = useState<InsuranceApplication[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimePaymentConfig | null>(null);
+  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
+  const [transactionKind, setTransactionKind] = useState('all');
+  const [transactionStatus, setTransactionStatus] = useState('all');
+  const [transactionMode, setTransactionMode] = useState('all');
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -101,16 +126,18 @@ function PaymentConfigurationContent() {
   const load = useCallback(async () => {
     const token = await accessToken();
     if (!token) return;
-    const [offerResponse, commissionResponse, reconciliationResponse, refundResponse] = await Promise.all([
+    const [offerResponse, commissionResponse, reconciliationResponse, refundResponse, transactionResponse] = await Promise.all([
       fetch('/api/payments/admin/offers', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }),
       fetch('/api/payments/admin/commissions', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }),
       fetch('/api/payments/admin/reconciliation', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }),
       fetch('/api/payments/admin/refunds', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }),
+      fetch('/api/payments/admin/transactions', { headers: { Authorization: 'Bearer ' + token }, cache: 'no-store' }),
     ]);
     const offerPayload = await offerResponse.json();
     const commissionPayload = await commissionResponse.json();
     const reconciliationPayload = await reconciliationResponse.json();
     const refundPayload = await refundResponse.json();
+    const transactionPayload = await transactionResponse.json();
     const insuranceResponse = await fetch('/api/payments/insurance-applications', {
       headers: { Authorization: 'Bearer ' + token },
       cache: 'no-store',
@@ -119,8 +146,8 @@ function PaymentConfigurationContent() {
     const configResponse = await fetch('/api/payments/config', { cache: 'no-store' });
     const configPayload = await configResponse.json().catch(() => null);
     if (configPayload) setRuntimeConfig(configPayload);
-    if (!offerResponse.ok || !commissionResponse.ok || !reconciliationResponse.ok || !refundResponse.ok) {
-      setError(offerPayload.error || commissionPayload.error || reconciliationPayload.error || refundPayload.error || 'Unable to load payment configuration.');
+    if (!offerResponse.ok || !commissionResponse.ok || !reconciliationResponse.ok || !refundResponse.ok || !transactionResponse.ok) {
+      setError(offerPayload.error || commissionPayload.error || reconciliationPayload.error || refundPayload.error || transactionPayload.error || 'Unable to load payment configuration.');
       return;
     }
     if (!insuranceResponse.ok) {
@@ -135,6 +162,7 @@ function PaymentConfigurationContent() {
     setSettlements(commissionPayload.settlements ?? []);
     setDonations(commissionPayload.donations ?? []);
     setInsuranceApplications(insurancePayload.applications ?? []);
+    setTransactions(transactionPayload.transactions ?? []);
     const activePolicy = commissionPayload.policies?.find((policy: { active: boolean }) => policy.active);
     if (activePolicy) {
       setPolicyVersion(activePolicy.policy_version);
@@ -143,6 +171,12 @@ function PaymentConfigurationContent() {
   }, [accessToken]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const visibleTransactions = transactions.filter((transaction) => (
+    (transactionKind === 'all' || transaction.kind === transactionKind)
+    && (transactionStatus === 'all' || transaction.status === transactionStatus)
+    && (transactionMode === 'all' || transaction.payment_mode === transactionMode)
+  ));
 
   const reconcile = async (orderId: string) => {
     setSaving(true);
@@ -314,14 +348,20 @@ function PaymentConfigurationContent() {
       <header>
         <p className="text-sm font-medium text-teal-700">Protected administration</p>
         <h1 className="mt-1 text-3xl font-bold text-slate-900">Payment configuration</h1>
-        <p className="mt-2 text-sm text-slate-600">Prices and seller commission rules take effect only for new checkouts. Donation collection and external seller transfers remain disabled.</p>
+        <p className="mt-2 text-sm text-slate-600">Prices and seller commission rules take effect only for new checkouts. Campaign donations require explicit operator enablement and complete campaign verification; external seller transfers are not implemented.</p>
       </header>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="Payment runtime configuration">
         <h2 className="font-semibold text-slate-900">Payment runtime status</h2>
         {!runtimeConfig ? <p className="mt-2 text-sm text-slate-500">Loading configuration diagnostics…</p> : (
           <>
             <p className={`mt-2 text-sm font-medium ${runtimeConfig.enabled ? 'text-emerald-700' : 'text-rose-700'}`}>
-              Checkout {runtimeConfig.enabled ? 'enabled' : 'unavailable'}
+              Checkout {runtimeConfig.enabled ? `enabled (${runtimeConfig.mode?.toUpperCase() ?? 'UNKNOWN'} MODE)` : 'unavailable'}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-amber-900">
+              Demo payments: {runtimeConfig.demoPaymentsEnabled ? 'enabled for authorized testers' : 'disabled'} · Live demo charges: {runtimeConfig.liveDemoPaymentsEnabled ? 'explicitly enabled' : 'disabled'}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Real Live checkout: {runtimeConfig.mode === 'live' && runtimeConfig.livePaymentsEnabled ? 'enabled' : 'disabled'} · campaign donations: {runtimeConfig.patientDonationsEnabled ? 'enabled (verified campaigns only)' : 'disabled by PATIENT_DONATIONS_ENABLED'}
             </p>
             <p className="mt-2 text-sm text-slate-600">
               Payment flag: {runtimeConfig.paymentsEnabled ? 'enabled' : 'disabled'} · Razorpay key ID: {runtimeConfig.configuration?.razorpayKeyIdConfigured ? 'configured' : 'missing'} · API secret: {runtimeConfig.configuration?.razorpayKeySecretConfigured ? 'configured' : 'missing'} · webhook secret: {runtimeConfig.configuration?.razorpayWebhookSecretConfigured ? 'configured' : 'missing'}
@@ -331,7 +371,7 @@ function PaymentConfigurationContent() {
             </p>
             {runtimeConfig.configurationError && <p className="mt-2 text-sm text-amber-800">{runtimeConfig.configurationError}</p>}
             <p className="mt-1 text-sm text-slate-600">
-              Marketplace transfers: disabled{runtimeConfig.marketplaceTransfersRequested ? ' (flag is on, but transfers remain unavailable until the transfer workflow and approvals exist)' : ''} · donations: disabled{runtimeConfig.donationsEnabledByFlag ? ' (flag is on, but approvals are still required)' : ''} · tele-oncology provider: {runtimeConfig.teleOncologyCallProviderEnabled ? 'configured by operator' : 'not configured'}
+              Marketplace transfers: disabled{runtimeConfig.marketplaceTransfersRequested ? ' (flag is on, but transfers remain unavailable until the transfer workflow and approvals exist)' : ''} · tele-oncology provider: {runtimeConfig.teleOncologyCallProviderEnabled ? 'configured by operator' : 'not configured; real consultation checkout remains unavailable'}
             </p>
             {!!runtimeConfig.configuration?.missingVariables.length && (
               <p className="mt-2 text-sm text-amber-800">Missing or disabled settings: {runtimeConfig.configuration.missingVariables.join(', ')}</p>
@@ -342,6 +382,49 @@ function PaymentConfigurationContent() {
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
 
+      <PrelaunchDemoAdmin />
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <h2 className="border-b border-slate-100 px-5 py-4 font-semibold text-slate-900">Recent payment transactions</h2>
+        <p className="px-5 py-3 text-xs text-slate-600">Recent transactions show mode, demo status, provider identifiers, associated demo listing, and refund status. Patient identity is limited to the account UUID.</p>
+        <div className="flex flex-wrap gap-3 px-5 pb-3">
+          <label className="text-xs font-medium">Feature
+            <select value={transactionKind} onChange={(event) => setTransactionKind(event.target.value)} className="ml-2 rounded border p-1.5">
+              <option value="all">All</option>
+              {['caregiver', 'booking', 'tele-oncology', 'medicine', 'insurance', 'donation'].map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-medium">Status
+            <select value={transactionStatus} onChange={(event) => setTransactionStatus(event.target.value)} className="ml-2 rounded border p-1.5">
+              <option value="all">All</option>
+              {Array.from(new Set(transactions.map((transaction) => transaction.status))).map((value) => <option key={value}>{value}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-medium">Mode
+            <select value={transactionMode} onChange={(event) => setTransactionMode(event.target.value)} className="ml-2 rounded border p-1.5">
+              <option value="all">All</option>
+              <option value="test">Test</option>
+              <option value="live">Live</option>
+            </select>
+          </label>
+        </div>
+        <div className="max-h-[32rem] divide-y divide-slate-100 overflow-auto">
+          {visibleTransactions.length ? visibleTransactions.map((transaction) => (
+            <article key={transaction.id} className="space-y-1 px-5 py-3 text-sm">
+              <p className="font-semibold text-slate-900">
+                {transaction.kind} · {transaction.status === 'paid' ? 'SUCCESS' : transaction.status} · ₹{(Number(transaction.amount_in_paise) / 100).toLocaleString('en-IN')}
+                {' · '}{transaction.payment_mode.toUpperCase()}{transaction.is_demo ? ' · DEMO' : ''}
+              </p>
+              <p className="break-all text-xs text-slate-600">Order {transaction.id} · patient {transaction.user_id}</p>
+              {transaction.demo && <p className="text-xs text-amber-800">{transaction.demo.provider_label} · {transaction.demo.service_name} · demo record {transaction.demo.status}</p>}
+              <p className="break-all text-xs text-slate-500">Razorpay order {transaction.provider_order_id ?? '—'} · payment {transaction.provider_payment_id ?? '—'}</p>
+              {transaction.failure_reason && <p className="text-xs text-rose-700">{transaction.failure_reason}</p>}
+              {transaction.refunds.map((refund) => (
+                <p key={refund.id} className="break-all text-xs text-slate-600">Refund {refund.provider_refund_id ?? refund.id} · {refund.status} · ₹{(refund.amount_in_paise / 100).toFixed(2)}</p>
+              ))}
+            </article>
+          )) : <p className="px-5 py-6 text-sm text-slate-500">No transactions match these filters.</p>}
+        </div>
+      </section>
       <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <form onSubmit={saveOffer} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Create or update an offer</h2>

@@ -11,6 +11,7 @@ const migrationFiles = [
   '20260709024756_create_dashboard_support_tables.sql',
   '20260827000000_create_insurance_schema.sql',
   '20260909000000_create_cook_maid_schema.sql',
+  '20260903000000_sync_bpl_donation_totals.sql',
   '20261001110000_pharmacy_foundation.sql',
   '20261001120000_pharmacy_inventory_catalogue.sql',
   '20261001130000_pharmacy_customers_prescriptions.sql',
@@ -18,6 +19,8 @@ const migrationFiles = [
   '20261029000000_durable_razorpay_payments.sql',
   '20261030000000_razorpay_lifecycle_hardening.sql',
   '20261030010000_caregiver_payment_bookings.sql',
+  '20261031000000_prelaunch_demo_payments.sql',
+  '20261031130000_live_bpl_payment_records.sql',
 ];
 
 test('payment migrations enforce paid tele-oncology access and idempotent quota use', async () => {
@@ -42,7 +45,27 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
         SELECT COALESCE(current_setting('request.jwt.claim.role', true), 'anon')
       $$;
       CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS $$ SELECT '{}'::jsonb $$;
-      CREATE TABLE public.bpl_donations (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), donor_id uuid);
+      CREATE TABLE public.bpl_patients (
+        id bigserial PRIMARY KEY,
+        name text NOT NULL DEFAULT 'Test patient',
+        goal_amount numeric NOT NULL DEFAULT 1000,
+        raised_amount numeric NOT NULL DEFAULT 0,
+        donors_count integer NOT NULL DEFAULT 0,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE public.bpl_donations (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        patient_id bigint NOT NULL REFERENCES public.bpl_patients(id),
+        donor_id uuid,
+        donor_name varchar(255) NOT NULL DEFAULT 'Test donor',
+        donor_email varchar(255) NOT NULL DEFAULT 'donor@example.com',
+        amount numeric(12, 2) NOT NULL DEFAULT 1,
+        payment_method varchar(50) NOT NULL DEFAULT 'upi',
+        status varchar(50) NOT NULL DEFAULT 'successful',
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        CONSTRAINT valid_payment_method CHECK (payment_method IN ('upi', 'card', 'netbanking'))
+      );
       ALTER TABLE public.bpl_donations ENABLE ROW LEVEL SECURITY;
       CREATE POLICY "auth_create_donations" ON public.bpl_donations
         FOR INSERT TO authenticated WITH CHECK (true);
@@ -189,6 +212,117 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
     );
     assert.equal(caregiverBookings.length, 1);
     assert.equal(caregiverBookings[0].status, 'requested');
+
+    const demoOrderId = randomUUID();
+    const demoProviderOrderId = `rp_order_${randomUUID()}`;
+    const demoPaymentId = `rp_payment_${randomUUID()}`;
+    const { rows: demoCatalog } = await db.query<{ id: string }>(
+      `SELECT id FROM public.prelaunch_demo_catalog WHERE slug = 'demo-caregiver-session'`,
+    );
+    await db.query(
+      `INSERT INTO public.payment_orders (
+        id, user_id, kind, amount_in_paise, provider_order_id, is_demo, payment_mode, notes
+      ) VALUES ($1, $2, 'caregiver', 10000, $3, true, 'test', '{"isDemo":true}'::jsonb)`,
+      [demoOrderId, userId, demoProviderOrderId],
+    );
+    await db.query(
+      `INSERT INTO public.prelaunch_demo_bookings (
+        payment_order_id, catalog_id, patient_id, kind, provider_label, service_name,
+        requested_date, requested_start_time, requested_end_time, amount_in_paise, payment_mode, disclosure_version
+      ) VALUES ($1, $2, $3, 'caregiver', 'DEMO: Test provider', 'DEMO: Test service',
+        current_date + 1, '10:00', '11:00', 10000, 'test', 'prelaunch-demo-v1')`,
+      [demoOrderId, demoCatalog[0].id, userId],
+    );
+    const demoCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
+      'SELECT public.finalize_razorpay_payment($1, $2, 10000, $3) AS result',
+      [demoProviderOrderId, demoPaymentId, 'INR'],
+    );
+    assert.deepEqual(demoCapture.rows[0].result, { status: 'paid', duplicate: false, order_id: demoOrderId, demo: true });
+    const duplicateDemoCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
+      'SELECT public.finalize_razorpay_payment($1, $2, 10000, $3) AS result',
+      [demoProviderOrderId, demoPaymentId, 'INR'],
+    );
+    assert.equal(duplicateDemoCapture.rows[0].result.duplicate, true);
+    const { rows: demoBookings } = await db.query<{ status: string }>(
+      'SELECT status FROM public.prelaunch_demo_bookings WHERE payment_order_id = $1',
+      [demoOrderId],
+    );
+    assert.deepEqual(demoBookings, [{ status: 'paid_demo' }]);
+    const { rows: realCaregiverBookings } = await db.query<{ count: number }>(
+      'SELECT count(*)::integer AS count FROM public.caregiver_payment_bookings WHERE payment_order_id = $1',
+      [demoOrderId],
+    );
+    assert.equal(realCaregiverBookings[0].count, 0);
+
+    const { rows: patients } = await db.query<{ id: number }>(
+      `INSERT INTO public.bpl_patients (goal_amount) VALUES (1000) RETURNING id`,
+    );
+    const campaignOrderId = randomUUID();
+    const campaignProviderOrderId = `rp_order_${randomUUID()}`;
+    await db.query(
+      `INSERT INTO public.payment_orders (
+        id, user_id, kind, amount_in_paise, provider_order_id, payment_mode, is_demo
+      ) VALUES ($1, $2, 'donation', 10000, $3, 'live', false)`,
+      [campaignOrderId, userId, campaignProviderOrderId],
+    );
+    await db.query(
+      `INSERT INTO public.payment_donations (
+        order_id, bpl_patient_id, donor_name, donor_email, payment_method, purpose
+      ) VALUES ($1, $2, 'Live donor', 'live@example.com', 'razorpay', 'verified campaign')`,
+      [campaignOrderId, patients[0].id],
+    );
+    await db.query(
+      `UPDATE public.payment_orders SET status = 'paid', provider_payment_id = $2 WHERE id = $1`,
+      [campaignOrderId, `rp_payment_${randomUUID()}`],
+    );
+    const { rows: campaignDonation } = await db.query<{ count: number; payment_method: string }>(
+      `SELECT count(*)::integer AS count, max(payment_method) AS payment_method
+       FROM public.bpl_donations WHERE payment_order_id = $1`,
+      [campaignOrderId],
+    );
+    assert.deepEqual(campaignDonation[0], { count: 1, payment_method: 'razorpay' });
+    const { rows: campaignTotals } = await db.query<{ raised_amount: number | string; donors_count: number }>(
+      'SELECT raised_amount, donors_count FROM public.bpl_patients WHERE id = $1',
+      [patients[0].id],
+    );
+    assert.equal(Number(campaignTotals[0].raised_amount), 100);
+    assert.equal(campaignTotals[0].donors_count, 1);
+    await db.query(`UPDATE public.payment_orders SET status = 'paid' WHERE id = $1`, [campaignOrderId]);
+    const { rows: duplicateCampaignDonation } = await db.query<{ count: number }>(
+      'SELECT count(*)::integer AS count FROM public.bpl_donations WHERE payment_order_id = $1',
+      [campaignOrderId],
+    );
+    assert.equal(duplicateCampaignDonation[0].count, 1);
+
+    const testDonationOrderId = randomUUID();
+    const testDonationProviderOrderId = `rp_order_${randomUUID()}`;
+    await db.query(
+      `INSERT INTO public.payment_orders (
+        id, user_id, kind, amount_in_paise, provider_order_id, payment_mode, is_demo
+      ) VALUES ($1, $2, 'donation', 10000, $3, 'test', false)`,
+      [testDonationOrderId, userId, testDonationProviderOrderId],
+    );
+    await db.query(
+      `INSERT INTO public.payment_donations (
+        order_id, bpl_patient_id, donor_name, donor_email, payment_method, purpose
+      ) VALUES ($1, $2, 'Test donor', 'test@example.com', 'razorpay', 'test campaign')`,
+      [testDonationOrderId, patients[0].id],
+    );
+    await db.query(
+      `UPDATE public.payment_orders SET status = 'paid', provider_payment_id = $2 WHERE id = $1`,
+      [testDonationOrderId, `rp_payment_${randomUUID()}`],
+    );
+    const { rows: testCampaignDonation } = await db.query<{ count: number }>(
+      'SELECT count(*)::integer AS count FROM public.bpl_donations WHERE payment_order_id = $1',
+      [testDonationOrderId],
+    );
+    assert.equal(testCampaignDonation[0].count, 0);
+    const { rows: totalsAfterTestDonation } = await db.query<{ raised_amount: number | string; donors_count: number }>(
+      'SELECT raised_amount, donors_count FROM public.bpl_patients WHERE id = $1',
+      [patients[0].id],
+    );
+    assert.equal(Number(totalsAfterTestDonation[0].raised_amount), 100);
+    assert.equal(totalsAfterTestDonation[0].donors_count, 1);
   } finally {
     await db.close();
   }

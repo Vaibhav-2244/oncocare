@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { fetchRazorpayPayment, verifyRazorpaySignature, type PaymentKind } from '@/lib/razorpay';
+import { fetchRazorpayPayment, getPaymentFeatureFlags, verifyRazorpaySignature, type PaymentKind } from '@/lib/razorpay';
 import { isCapturedPaymentForOrder } from '@/lib/payments/security';
 
 export async function finalizeCapturedPayment(
@@ -21,11 +21,14 @@ export async function finalizeCapturedPayment(
   },
 ) {
   const { data: order, error: orderError } = await admin.from('payment_orders')
-    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id')
+    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id, payment_mode')
     .eq('provider_order_id', providerOrderId)
     .maybeSingle();
   if (orderError) throw new Error('Unable to load payment order.');
   if (!order) throw new Error('Payment order was not found.');
+  if (order.payment_mode !== getPaymentFeatureFlags().mode) {
+    throw new Error('Payment mode does not match the stored order. Configure the matching Razorpay mode before reconciliation.');
+  }
   if (expectedUserId && order.user_id !== expectedUserId) throw new Error('Payment order does not belong to this user.');
   if (expectedKind && order.kind !== expectedKind) throw new Error('Payment order type does not match the request.');
 

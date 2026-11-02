@@ -6,6 +6,8 @@ The user reports that `20261028000000_razorpay_payment_foundation.sql` and `2026
 
 The lifecycle migration adds serialized provider-order creation/recovery, pharmacy online orders and audit, pharmacy transitions and delivery-fee settings, provider-aware expiry, late-capture exceptions, insurance review, tele-oncology authorization/quota operations, and refund fulfillment handling. The caregiver migration adds a separate durable caregiver-booking relation and advances its status only after verified payment capture. Do not mark rollout complete until both migrations have been reviewed and applied, then verified against the target PostgreSQL schema.
 
+The additional `20261031130000_live_bpl_payment_records.sql` migration is required for Live BPL campaign donations. It links payment donation metadata to a campaign and payment order, records a BPL donation only when a non-demo Live payment becomes verified-paid, and makes that campaign-record insertion idempotent. It deliberately does not count Test Mode transactions as fundraising totals. Apply this migration after the user-reported `20261031000000_prelaunch_demo_payments.sql` migration before enabling `PATIENT_DONATIONS_ENABLED`.
+
 ## Server configuration
 
 Configure these only in the server runtime environment; never expose or commit secret values:
@@ -13,21 +15,36 @@ Configure these only in the server runtime environment; never expose or commit s
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` (server only; never prefix with `NEXT_PUBLIC_`)
-- `PAYMENTS_ENABLED=true` only while testing with Razorpay Test Mode credentials. Checkout stays unavailable unless this flag and both Razorpay API credentials are present.
-- Keep `TELE_ONCOLOGY_CALL_PROVIDER_ENABLED=false` until a real call provider is integrated and end-to-end tested. Tele-oncology checkout is server-blocked while this is false.
-- `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` from the Razorpay Test Mode dashboard.
-- `RAZORPAY_WEBHOOK_SECRET` set to the secret configured for the webhook endpoint.
+- `RAZORPAY_MODE=test` (default when absent). It must match the Razorpay key ID prefix (`rzp_test_` or `rzp_live_`).
+- `PAYMENTS_ENABLED=true` only with matching Razorpay credentials and Supabase configuration.
+- `PRELAUNCH_DEMO_MODE=true`, `DEMO_PAYMENTS_ENABLED=true`, and `PRELAUNCH_DEMO_USER_IDS=<comma-separated Supabase auth user UUIDs>` enable the demo catalogue for those accounts. Platform payment administrators are also authorized. Keep the user list limited to team testers.
+- `LIVE_PAYMENTS_ENABLED=true` is required with `RAZORPAY_MODE=live` and matching `rzp_live_` credentials to allow genuine Live checkout for configured real services. It does not depend on demo flags or demo tester authorization. Keep it false until Razorpay has activated the account for Live Mode and the business is ready to collect payments.
+- `PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED` and `PRELAUNCH_LIVE_MERCHANT_NAME` are separate, optional gates for explicitly disclosed pre-launch demo charges only. Demo payments also require `PRELAUNCH_DEMO_MODE`, `DEMO_PAYMENTS_ENABLED`, an authorized tester, a `DEMO:` catalogue entry, and consent. Demo checkout never fulfills a real service.
+- `PATIENT_DONATIONS_ENABLED=true` separately enables verified BPL campaign checkout. Each campaign must be approved for BPL status, medical documents, and beneficiary account. Razorpay collects funds into the registered OncoCare+ merchant account; the application records the verified payment and campaign receipt, but campaign disbursement is a separate operational process.
+- `TELE_ONCOLOGY_CALL_PROVIDER_ENABLED` is informational only in this build: real tele-oncology remains hard-disabled in code because no consultation provider is integrated. Do not rely on setting this environment variable to enable real consultations.
+- `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` from the same Razorpay mode.
+- `RAZORPAY_WEBHOOK_SECRET` matching the webhook configured in that Razorpay mode.
 - Leave `MARKETPLACE_TRANSFERS_ENABLED=false` and `PATIENT_DONATIONS_ENABLED=false` until the required product, compliance, and operational approvals are confirmed.
+
+Do not switch `RAZORPAY_MODE` while there are pending orders or webhook retries. Reconciliation checks the mode recorded on each order and refuses to use credentials from a different mode. Test and Live credentials, webhook secret, and dashboard configuration must be deployed together.
+
+## Pre-launch demo checkout
+
+The additive `20261031000000_prelaunch_demo_payments.sql` migration creates an isolated DEMO catalogue and payment-linked demo record. It seeds clearly labelled caregiver, cook/maid, consultation, medicine, and insurance simulations. An administrator can add/update/deactivate DEMO entries in the Payment configuration page. Labels must begin with `DEMO:`. These rows are not genuine providers, verified professionals, live inventory, insurance products, or beneficiaries.
+
+Demo bookings record the selected date and time, server-priced amount, mode, consent version, and capture/refund state. A successful demo capture updates only the demo record; it does not create a real caregiver booking, home-care booking, teleconsultation appointment or entitlement, pharmacy order, or issued insurance policy. Real caregiver checkout is available only for verified, active, available providers with a valid configured service price and open availability. The new migration marks existing cook/maid profiles as DEMO by default; their legacy payment flow rejects those entries. Test Mode simulated donations have no beneficiary and are recorded as having no charitable purpose.
+
+Live pre-launch checkout collects actual funds to the configured merchant account. It is not a free test. The customer-facing confirmation requires explicit acceptance of the live amount and merchant and discloses that no real service or goods are supplied. Do not configure Live collection unless the company and Razorpay merchant account are authorized for the exact pilot collection and refund process.
 
 ## Razorpay webhook configuration
 
-Configure the Test Mode webhook URL as:
+Configure webhook endpoints separately for Test and Live Mode at:
 
 `https://<your-deployed-host>/api/payments/webhook`
 
 Subscribe to exactly these six implemented events: `payment.captured`, `payment.failed`, `order.paid`, `refund.created`, `refund.processed`, and `refund.failed`. Copy the dashboard-generated webhook secret into `RAZORPAY_WEBHOOK_SECRET`; do not share it in chat or source control. The route verifies the exact raw-body signature, claims a durable event ID, validates captured payments/refunds against Razorpay's current API state, and applies idempotent payment-state changes. Unsupported or malformed event payloads receive a client error; transient provider/database reconciliation failures are stored and return a retryable server error.
 
-After configuration, make a sandbox transaction and confirm the internal payment order, appointment/order fulfillment, webhook event, and provider state in the admin Payment configuration page. No Razorpay dashboard settings or real provider transaction have been verified by this code change.
+After configuration, make a Test Mode transaction and confirm the internal payment order, webhook event, and provider state in the admin Payment configuration page. Live payments must use the Live Mode webhook secret and endpoint configuration. No real provider transaction has been performed by this code change.
 
 Failed payment webhooks are recorded as failed attempts while the internal order remains pending and retryable. The checkout client reuses its idempotency key for retries of that attempt. Do not manually release inventory or provider booking holds based only on a failed payment attempt; reconcile the provider order first.
 
@@ -37,10 +54,11 @@ Failed payment webhooks are recorded as failed attempts while the internal order
 - The patient medicine catalogue lists active products only from verified pharmacies accepting online orders and currently in stock. One-time purchases use the selected approved pharmacy product's selling price, prescription verification, and reserved stock. Checkout remains blocked until an administrator sets an explicit versioned commission policy. Medicine subscription entitlements are not yet wired to fulfillment.
 - Insurance payment options require an active per-plan `payment_offers` row. Payment only moves the application to `pending_issuance`; it does not represent an issued policy.
 - Home-care bookings require an active helper offer with configured duration and usage. The booking screen displays configured daily/monthly offers rather than creating a booking directly; payment confirms the database booking only after provider capture. A cancellation for a paid booking submits a refund request and does not immediately cancel the booking.
-- Caregiver-marketplace bookings use the selected verified caregiver and active service, revalidate availability and price server-side, and remain `payment_pending` until capture. Paid bookings become requests awaiting caregiver confirmation; a payment is not treated as caregiver acceptance.
-- Donations and seller payouts are blocked. The BPL donation page preserves legacy history as read-only and labels payment status unverified; new records cannot be created through the application. The donation environment flag alone does not grant legal, campaign, or payment-account approval. Internal seller settlement entries remain `approval_required`, and no transfer API is enabled.
+- Caregiver-marketplace bookings are offered only for real providers that are onboarded, verified, active, available, and have a configured service/availability slot. The separate DEMO catalogue can simulate checkout without creating a real booking or service request.
+- Real tele-oncology remains blocked in code until an actual consultation provider and operations integration exist. Test/live DEMO consultation simulations make no medical service claim.
+- Patient-linked charitable donations and seller payouts are blocked. The BPL donation page preserves legacy history as read-only; a separate simulated donation is available only in Test Mode, has no beneficiary, and makes no charitable contribution. Live donation collection remains blocked regardless of environment flags. Internal seller settlement entries remain `approval_required`, and no transfer API is enabled.
 - Refund requests are reviewed by an administrator. A provider refund is not represented as complete until Razorpay reports `processed`.
 
 ## Validation and rollout limitations
 
-Run `npx tsx --test tests/razorpay-security.test.ts tests/razorpay-migration.test.ts` for local payment-security and PGlite lifecycle regressions. Local tests do not prove that the migrations apply to the remote schema or that a Razorpay Test Mode transaction succeeds. The two additive lifecycle/caregiver migrations require review/application by an authorized database operator if absent from migration history. Insurance monthly subscriptions and medicine subscriptions remain disabled pending approved terms and recurring-billing/fulfillment support. Home-care daily/monthly offers are configured one-time booking windows, not recurring payments or unlimited entitlements. Donations and seller transfers remain unavailable pending approvals and configuration.
+Run `npx tsx --test tests/razorpay-security.test.ts tests/razorpay-migration.test.ts` for local payment-security and PGlite lifecycle regressions. Local tests do not prove that migrations apply to the remote schema or that a Razorpay transaction succeeds. Check target Supabase migration history and apply `20261030000000_razorpay_lifecycle_hardening.sql`, `20261030010000_caregiver_payment_bookings.sql`, and `20261031000000_prelaunch_demo_payments.sql` only if absent. Existing caregiver marketplace tables are referenced by application code but their source migrations are not present in this repository; the isolated demo catalogue does not depend on those external tables. Insurance monthly subscriptions and medicine subscriptions remain disabled pending approved terms and fulfillment support. Live patient donations and seller transfers remain unavailable.

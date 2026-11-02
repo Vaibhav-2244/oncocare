@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authenticatePaymentRequest } from '@/lib/payments/auth';
 import { finalizeCapturedPayment } from '@/lib/payments/provider';
-import { fetchRazorpayOrderPayments, fetchRazorpayOrderStatus } from '@/lib/razorpay';
+import { fetchRazorpayOrderPayments, fetchRazorpayOrderStatus, getPaymentFeatureFlags } from '@/lib/razorpay';
 
 const statusSchema = z.object({ orderId: z.string().min(1).max(100) }).strict();
 
@@ -21,12 +21,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { data: order, error } = await auth.admin.from('payment_orders')
-    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id, expires_at, created_at, updated_at')
+    .select('id, user_id, kind, amount_in_paise, currency, status, provider_order_id, payment_mode, expires_at, created_at, updated_at')
     .eq('provider_order_id', parsed.data.orderId)
     .maybeSingle();
   if (error) return NextResponse.json({ error: 'Unable to load payment status.' }, { status: 500 });
   if (!order) return NextResponse.json({ error: 'Payment order not found.' }, { status: 404 });
   if (order.user_id !== auth.user.id) return NextResponse.json({ error: 'You cannot view another user’s payment.' }, { status: 403 });
+  if (order.payment_mode !== getPaymentFeatureFlags().mode) {
+    return NextResponse.json({ error: 'This order was created in another Razorpay mode. Contact an administrator to reconcile it safely.' }, { status: 409 });
+  }
 
   try {
     const [provider, payments] = await Promise.all([

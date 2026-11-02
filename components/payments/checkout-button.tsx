@@ -6,7 +6,14 @@ import { supabase } from '@/lib/supabase-client';
 import { getPublicPaymentAvailability, loadRazorpayCheckout } from '@/lib/razorpay-checkout';
 
 type CheckoutPayload = {
-  kind: 'medicine' | 'insurance' | 'booking' | 'caregiver';
+  kind: 'medicine' | 'insurance' | 'booking' | 'caregiver' | 'tele-oncology' | 'donation';
+  demoCatalogId?: string;
+  demoDisclosureAccepted?: boolean;
+  liveDemoConsent?: boolean;
+  donationAmountInPaise?: number;
+  bplPatientId?: number;
+  donorName?: string;
+  donorEmail?: string;
   productId?: string;
   quantity?: number;
   pharmacyId?: string;
@@ -79,9 +86,30 @@ export function PaymentCheckoutButton({
       const order = await createResponse.json().catch(() => ({}));
       if (!createResponse.ok) {
         if (order.restartCheckout) idempotencyKey.current = null;
-        throw new Error(typeof order.error === 'string' ? order.error : 'Unable to start checkout.');
+        throw new Error(typeof order.error === 'string'
+          ? order.error
+          : `Unable to start checkout (server returned ${createResponse.status}). Check the payment status and try again.`);
       }
-      if (!Number.isSafeInteger(order.amount) || order.amount <= 0) throw new Error('The server returned an invalid amount.');
+      if (!Number.isSafeInteger(order.amount) || order.amount <= 0
+        || order.currency !== 'INR' || typeof order.orderId !== 'string'
+        || typeof order.key !== 'string' || !['test', 'live'].includes(order.paymentMode)) {
+        throw new Error('The server returned invalid Razorpay checkout details.');
+      }
+
+      const successMessage = () => {
+        if (order.isDemo || payload.demoCatalogId) {
+          return 'Demo payment confirmed. No real-world service, goods, or charitable contribution is being provided.';
+        }
+        if (order.paymentMode === 'test') {
+          return 'Test Mode payment confirmed. No real money was charged.';
+        }
+        if (payload.kind === 'donation') {
+          return 'Donation payment verified. Funds are collected to the OncoCare+ merchant account; campaign disbursement is handled separately.';
+        }
+        return payload.kind === 'insurance'
+          ? 'Payment confirmed. Your application is pending insurer policy issuance.'
+          : 'Payment confirmed.';
+      };
 
       await loadRazorpayCheckout();
       if (!window.Razorpay) throw new Error('Razorpay is unavailable in this browser.');
@@ -98,9 +126,7 @@ export function PaymentCheckoutButton({
             setStatus(typeof result.error === 'string' ? result.error : 'Payment confirmation is pending.');
             return;
           }
-          setStatus(payload.kind === 'insurance'
-            ? 'Payment confirmed. Your application is pending insurer policy issuance.'
-            : 'Payment confirmed.');
+          setStatus(successMessage());
           idempotencyKey.current = null;
           onPaymentComplete?.();
         } catch {
@@ -125,9 +151,7 @@ export function PaymentCheckoutButton({
           });
           const result = await response.json().catch(() => ({}));
           if (response.ok && result.order?.status === 'paid') {
-            setStatus(payload.kind === 'insurance'
-              ? 'Payment confirmed. Your application is pending insurer policy issuance.'
-              : 'Payment confirmed.');
+            setStatus(successMessage());
             idempotencyKey.current = null;
             onPaymentComplete?.();
           } else if (response.ok && result.order?.status === 'cancelled') {
@@ -148,7 +172,7 @@ export function PaymentCheckoutButton({
         key: order.key,
         amount: order.amount,
         currency: order.currency,
-        name: 'OncoCare+',
+        name: order.name || 'OncoCare+',
         description,
         order_id: order.orderId,
         handler: (response: { razorpay_payment_id: string; razorpay_signature: string }) => {

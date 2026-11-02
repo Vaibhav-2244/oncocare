@@ -26,3 +26,14 @@ export async function isPlatformPaymentAdmin(userId: string) {
   if (error) throw new Error('Unable to verify payment administration permissions.');
   return Boolean(data?.length);
 }
+
+export async function isAuthorizedPrelaunchDemoUser(userId: string) {
+  const allowedUserIds = new Set(
+    (process.env.PRELAUNCH_DEMO_USER_IDS ?? '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  if (allowedUserIds.has(userId)) return true;
+  return isPlatformPaymentAdmin(userId);
+}

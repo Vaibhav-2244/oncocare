@@ -29,7 +29,7 @@ export function PatientProfileModal({ patient, onClose, onDonate }: PatientProfi
 
   const handleDonate = () => {
     const amount = Number(donationAmount);
-    if (amount > 0 && amount <= remaining) {
+    if (Number.isSafeInteger(amount) && amount > 0 && amount <= remaining) {
       onDonate(patient, amount);
     }
   };
@@ -185,6 +185,7 @@ export function PatientProfileModal({ patient, onClose, onDonate }: PatientProfi
                 <input
                   type="number"
                   min="1"
+                  step="1"
                   max={remaining}
                   placeholder={t('enterCustomAmount')}
                   value={donationAmount}
@@ -201,16 +202,16 @@ export function PatientProfileModal({ patient, onClose, onDonate }: PatientProfi
               <div className="mt-6 flex gap-3 rounded-lg bg-white p-4">
                 <ShieldCheck size={20} className="flex-shrink-0 text-teal-600" />
                 <div>
-                  <p className="font-medium text-slate-900">
-                    {t('directToVerifiedPatientAccount')}{' '}</p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    {t('yourDonationIsDesignatedForThisPatientAposSVerifiedTreatmentCampaign')}{' '}</p>
+                <p className="font-medium text-slate-900">Verified campaign; merchant-collected</p>
+                <p className="mt-1 text-xs text-slate-600">
+                  Payments are collected by the registered OncoCare+ merchant. Campaign funds are disbursed separately after review, not transferred directly by this checkout.
+                </p>
                 </div>
               </div>
 
               <button
                 onClick={handleDonate}
-                disabled={!donationAmount || Number(donationAmount) <= 0 || Number(donationAmount) > remaining}
+                disabled={!donationAmount || !Number.isSafeInteger(Number(donationAmount)) || Number(donationAmount) <= 0 || Number(donationAmount) > remaining}
                 className="mt-6 w-full flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-3 font-semibold text-white transition-colors disabled:opacity-50 hover:bg-teal-700"
               >
                 {t('donate')}{' '}

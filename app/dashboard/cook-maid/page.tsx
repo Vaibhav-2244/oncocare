@@ -7,6 +7,7 @@ import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/aut
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
+import { PrelaunchDemoCheckout } from '@/components/payments/prelaunch-demo-checkout';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
@@ -22,6 +23,7 @@ type HelperProfile = {
   reviews: number;
   avatar: string;
   verified: boolean;
+  isDemo: boolean;
   skills: string[];
   languages: string[];
   about: string;
@@ -107,14 +109,15 @@ function BookingPageContent() {
         if (helperRows) {
           setHelpers(helperRows.map((row: any) => ({
             id: row.id,
-            name: row.name,
+            name: row.is_demo ? `DEMO: ${row.name}` : row.name,
             service: row.service,
             location: row.location,
             experience: row.experience,
             rating: Number(row.rating || 4.8),
             reviews: Number(row.reviews || 0),
             avatar: row.avatar || row.name.split(' ').map((part: string) => part[0]).join('').slice(0, 2).toUpperCase(),
-            verified: Boolean(row.verified),
+            verified: Boolean(row.verified) && !Boolean(row.is_demo),
+            isDemo: Boolean(row.is_demo),
             skills: Array.isArray(row.skills) ? row.skills : [],
             languages: Array.isArray(row.languages) ? row.languages : [],
             about: row.about || 'Experienced home support professional.',
@@ -244,15 +247,17 @@ function BookingPageContent() {
 
   return (
     <div className="space-y-6">
+      <PrelaunchDemoCheckout kind="booking" title="Cook / maid booking" />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-teal-700">
             <ChefHat className="h-4 w-4" /> {t('careSupport')}{' '}</div>
           <h1 className="text-3xl font-bold text-slate-900">{t('cookMaid')}</h1>
-          <p className="mt-1 text-sm text-slate-600">{t('verifiedHouseholdSupportForHomeBasedCareDietaryAssistanceAndDailyRoutines')}</p>
+          <p className="mt-1 text-sm text-amber-800">All profiles listed below are DEMO entries. No household support, dietary assistance, or care service is being offered.</p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-sm font-medium text-teal-700">
-          <ShieldCheck className="h-4 w-4" /> {t('verifiedProfilesOnly')}{' '}</div>
+        <div className="inline-flex gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-900">
+          DEMO LISTINGS — NOT REAL PROVIDERS
+        </div>
       </div>
 
       {bookingConfirmation && (
@@ -320,10 +325,11 @@ function BookingPageContent() {
         <div className="mb-4 flex items-center justify-between gap-2">
           <div>
             <h2 className="text-xl font-semibold text-slate-900">{t('availableHelpers')}</h2>
-            <p className="text-sm text-slate-600">{filteredHelpers.length} {t('verifiedHelpersAvailable')}</p>
+            <p className="text-sm text-slate-600">{filteredHelpers.length} demo listings; no real home-care service is available here yet.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            <ShieldCheck className="h-3.5 w-3.5" /> {t('verifiedProfiles')}{' '}</div>
+          <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+            DEMO LISTINGS
+          </div>
         </div>
 
         {loading ? (
@@ -344,6 +350,7 @@ function BookingPageContent() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="text-lg font-semibold text-slate-900">{helper.name}</h3>
+                        {helper.isDemo && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">DEMO · NOT VERIFIED</span>}
                         {helper.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> {t('verified')}</span>}
                       </div>
                       <p className="text-sm text-slate-600">{helper.service} · {helper.location}</p>
@@ -458,6 +465,7 @@ function BookingPageContent() {
                     {showDetails.verified && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700"><ShieldCheck className="h-3 w-3" /> {t('verified')}</span>}
                   </div>
                   <p className="text-sm text-slate-600">{showDetails.service} · {showDetails.location}</p>
+                  {showDetails.isDemo && <p className="mt-2 text-sm font-semibold text-amber-800">DEMO provider only. No cook, maid, or home-care service is being offered.</p>}
                   <div className="mt-2 flex items-center gap-1 text-sm font-medium text-amber-600">
                     <Star className="h-4 w-4 fill-current" /> {showDetails.rating} ({showDetails.reviews} {t('reviews2')}{' '}</div>
                 </div>
@@ -549,12 +557,17 @@ function BookingPageContent() {
               {bookingError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{bookingError}</div>}
 
               <div className="space-y-3">
+                {selectedHelper.isDemo && (
+                  <p role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    This listing is DEMO only. No service is provided through it. Use the separate pre-launch demo checkout above to simulate a payment.
+                  </p>
+                )}
                 <p className="text-sm font-semibold text-slate-800">Approved payment options</p>
                 {offersLoading ? <p className="text-sm text-slate-500">Loading configured prices…</p> : null}
-                {!offersLoading && bookingOffers.length === 0 && (
+                {!offersLoading && bookingOffers.length === 0 && !selectedHelper.isDemo && (
                   <p className="text-sm text-slate-600">This provider has no approved daily or monthly payment offer configured.</p>
                 )}
-                {bookingOffers.map((offer) => {
+                {!selectedHelper.isDemo && bookingOffers.map((offer) => {
                   const days = offer.offer_type === 'daily' ? 1 : offer.duration_days;
                   if (!days) return null;
                   return (

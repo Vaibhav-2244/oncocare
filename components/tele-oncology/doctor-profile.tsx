@@ -43,6 +43,7 @@ export function DoctorProfile({ doctor, onClose, onBook }: DoctorProfileProps) {
             {doctor.name}
             {doctor.verified && <CheckCircle className="h-5 w-5 text-teal-500" />}
           </h2>
+          <span className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">DEMO PROFILE · NOT A DOCTOR</span>
           <p className="mt-1 font-semibold text-teal-700">{doctor.specialty}</p>
           <p className="mt-1 text-slate-600">{doctor.hospital}</p>
         </div>

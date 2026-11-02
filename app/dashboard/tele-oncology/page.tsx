@@ -10,6 +10,7 @@ import { BookingModal } from '@/components/tele-oncology/booking-modal';
 import { doctors, type Doctor } from '@/lib/data/tele-oncology';
 import { Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { PrelaunchDemoCheckout } from '@/components/payments/prelaunch-demo-checkout';
 
 function TeleOncologyContent() {
   const t = useTranslations('teleOncology');
@@ -37,6 +38,10 @@ function TeleOncologyContent() {
 
   return (
     <div className="space-y-8">
+      <div role="note" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+        The provider profiles on this page are training/demo entries, not verified or bookable doctors. Booking them does not provide a consultation, diagnosis, prescription, or medical care.
+      </div>
+      <PrelaunchDemoCheckout kind="tele-oncology" title="Consultation booking" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{t('teleOncologyConsultations')}</h1>

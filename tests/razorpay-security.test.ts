@@ -76,6 +76,35 @@ test('caregiver checkout accepts service details but never a browser-supplied am
   assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, endTime: '09:00' }).success, false);
 });
 
+test('BPL campaign checkout requires campaign and donor data; simulated donation remains explicitly separate', () => {
+  const base = {
+    kind: 'donation',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    donationAmountInPaise: 10000,
+  };
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    bplPatientId: 42,
+    donorName: 'Example Donor',
+    donorEmail: 'donor@example.com',
+  }).success, true);
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    demoDisclosureAccepted: true,
+  }).success, true);
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    bplPatientId: 42,
+    demoDisclosureAccepted: true,
+  }).success, false);
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    bplPatientId: 42,
+    donorName: 'Example Donor',
+    donorEmail: 'not-an-email',
+  }).success, false);
+});
+
 test('webhook schema accepts every configured Razorpay event and rejects mismatched payload shapes', () => {
   const payment = { id: 'pay_1', order_id: 'order_1', status: 'captured' };
   const refund = { id: 'rfnd_1', payment_id: 'pay_1', amount: 100, status: 'processed' };

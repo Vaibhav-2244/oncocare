@@ -33,6 +33,7 @@ export function DoctorCard({ doctor, onView, onBook }: DoctorCardProps) {
             <h3 className="truncate text-base font-bold text-slate-900">{doctor.name}</h3>
             {doctor.verified && <CheckCircle className="h-4 w-4 text-teal-500" />}
           </div>
+          <span className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900">DEMO PROFILE · NOT A DOCTOR</span>
           <p className="mt-0.5 text-sm font-semibold text-teal-700">{doctor.specialty}</p>
           <p className="mt-0.5 truncate text-xs text-slate-500">{doctor.hospital}</p>
         </div>
@@ -62,7 +63,7 @@ export function DoctorCard({ doctor, onView, onBook }: DoctorCardProps) {
 
       <div className="mt-4 flex items-center gap-2 rounded-lg bg-purple-50 p-2.5 text-xs font-medium text-purple-700">
         <Video className="h-4 w-4" />
-        {t('videoConsultationAvailable')}{' '}</div>
+        Demo listing only. No consultation is provided.</div>
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
         <div>

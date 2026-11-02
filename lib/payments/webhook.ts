@@ -8,6 +8,7 @@ import {
   fetchRazorpayOrderPayments,
   fetchRazorpayPayment,
   fetchRazorpayPaymentRefunds,
+  getPaymentFeatureFlags,
 } from '@/lib/razorpay';
 
 async function reconcileCapturedOrder(
@@ -15,11 +16,12 @@ async function reconcileCapturedOrder(
   providerOrderId: string,
 ) {
   const { data: order, error: orderError } = await admin.from('payment_orders')
-    .select('provider_order_id, amount_in_paise, currency')
+    .select('provider_order_id, amount_in_paise, currency, payment_mode')
     .eq('provider_order_id', providerOrderId)
     .maybeSingle();
   if (orderError) throw new Error('Unable to find the internal order for the captured Razorpay order.');
   if (!order) throw new Error('No internal payment order is linked to the paid Razorpay order.');
+  if (order.payment_mode !== getPaymentFeatureFlags().mode) throw new Error('Webhook payment mode does not match the stored order.');
 
   const payments = await fetchRazorpayOrderPayments(providerOrderId);
   const capturedPayment = payments.items?.find((payment) => (
@@ -43,6 +45,14 @@ async function processRefundWebhook(
   eventType: 'refund.created' | 'refund.processed' | 'refund.failed',
   refundEntity: RefundWebhookEntity,
 ) {
+  const { data: order, error: orderError } = await admin.from('payment_orders')
+    .select('id, provider_payment_id, payment_mode')
+    .eq('provider_payment_id', refundEntity.payment_id)
+    .maybeSingle();
+  if (orderError) throw new Error('Unable to find the payment order for this refund.');
+  if (!order) throw new Error('No internal payment order is linked to the refunded payment.');
+  if (order.payment_mode !== getPaymentFeatureFlags().mode) throw new Error('Refund webhook payment mode does not match the stored order.');
+
   const providerRefunds = await fetchRazorpayPaymentRefunds(refundEntity.payment_id);
   const providerRefund = providerRefunds.items?.find((item) => item.id === refundEntity.id);
   if (
@@ -60,13 +70,6 @@ async function processRefundWebhook(
   if (eventType === 'refund.failed' && !['failed', 'processed'].includes(providerRefund.status)) {
     throw new Error('Razorpay does not currently report this refund as failed or processed.');
   }
-
-  const { data: order, error: orderError } = await admin.from('payment_orders')
-    .select('id, provider_payment_id')
-    .eq('provider_payment_id', refundEntity.payment_id)
-    .maybeSingle();
-  if (orderError) throw new Error('Unable to find the payment order for this refund.');
-  if (!order) throw new Error('No internal payment order is linked to the refunded payment.');
 
   const eventRefundId = refundEntity.notes?.internalRefundId;
   const currentRefundId = providerRefund.notes?.internalRefundId;
@@ -108,6 +111,31 @@ async function processRefundWebhook(
 }
 
 export async function processPaymentWebhook(admin: SupabaseClient, event: PaymentWebhook) {
+  const providerOrderId = event.event === 'payment.captured' || event.event === 'payment.failed'
+    ? event.payload.payment.entity.order_id
+    : event.event === 'order.paid'
+      ? event.payload.order.entity.id
+      : null;
+  if (providerOrderId) {
+    const { data: order, error } = await admin.from('payment_orders')
+      .select('payment_mode')
+      .eq('provider_order_id', providerOrderId)
+      .maybeSingle();
+    if (error || !order) throw new Error('Unable to match the webhook to its internal payment order.');
+    if (order.payment_mode !== getPaymentFeatureFlags().mode) throw new Error('Webhook payment mode does not match the stored order.');
+  } else if (
+    event.event === 'refund.created'
+    || event.event === 'refund.processed'
+    || event.event === 'refund.failed'
+  ) {
+    const { data: order, error } = await admin.from('payment_orders')
+      .select('payment_mode')
+      .eq('provider_payment_id', event.payload.refund.entity.payment_id)
+      .maybeSingle();
+    if (error || !order) throw new Error('Unable to match the refund webhook to its internal payment order.');
+    if (order.payment_mode !== getPaymentFeatureFlags().mode) throw new Error('Refund webhook payment mode does not match the stored order.');
+  }
+
   if (event.event === 'payment.captured') {
     const { id, order_id: providerOrderId } = event.payload.payment.entity;
     return finalizeCapturedPayment(admin, { providerOrderId, paymentId: id });
