@@ -56,7 +56,9 @@ type RuntimePaymentConfig = {
   livePaymentsEnabled?: boolean;
   demoPaymentsEnabled?: boolean;
   liveDemoPaymentsEnabled?: boolean;
+  demoTesterAllowlistConfigured?: boolean;
   configurationError?: string | null;
+  prelaunchDemoConfigurationError?: string | null;
   paymentsEnabled: boolean;
   marketplaceTransfersEnabled: boolean;
   marketplaceTransfersRequested: boolean;
@@ -71,6 +73,7 @@ type RuntimePaymentConfig = {
     supabaseAnonKeyConfigured: boolean;
     supabaseServiceRoleConfigured: boolean;
     missingVariables: string[];
+    prelaunchDemoMissingVariables: string[];
   };
 };
 type PaymentTransaction = {
@@ -360,6 +363,15 @@ function PaymentConfigurationContent() {
             <p className="mt-1 text-sm font-semibold text-amber-900">
               Demo payments: {runtimeConfig.demoPaymentsEnabled ? 'enabled for authorized testers' : 'disabled'} · Live demo charges: {runtimeConfig.liveDemoPaymentsEnabled ? 'explicitly enabled' : 'disabled'}
             </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Internal tester allowlist: {runtimeConfig.demoTesterAllowlistConfigured ? 'configured' : 'not configured (platform payment administrators can still access)'}
+            </p>
+            {!runtimeConfig.liveDemoPaymentsEnabled && !!runtimeConfig.configuration?.prelaunchDemoMissingVariables.length && (
+              <p className="mt-1 text-sm text-amber-800">Live pilot missing or disabled settings: {runtimeConfig.configuration.prelaunchDemoMissingVariables.join(', ')}</p>
+            )}
+            {runtimeConfig.prelaunchDemoConfigurationError && !runtimeConfig.configuration?.prelaunchDemoMissingVariables.length && (
+              <p className="mt-1 text-sm text-amber-800">{runtimeConfig.prelaunchDemoConfigurationError}</p>
+            )}
             <p className="mt-1 text-sm text-slate-600">
               Real Live checkout: {runtimeConfig.mode === 'live' && runtimeConfig.livePaymentsEnabled ? 'enabled' : 'disabled'} · campaign donations: {runtimeConfig.patientDonationsEnabled ? 'enabled (verified campaigns only)' : 'disabled by PATIENT_DONATIONS_ENABLED'}
             </p>

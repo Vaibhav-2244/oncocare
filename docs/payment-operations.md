@@ -15,16 +15,42 @@ Configure these only in the server runtime environment; never expose or commit s
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY` (server only; never prefix with `NEXT_PUBLIC_`)
-- `RAZORPAY_MODE=test` (default when absent). It must match the Razorpay key ID prefix (`rzp_test_` or `rzp_live_`).
-- `PAYMENTS_ENABLED=true` only with matching Razorpay credentials and Supabase configuration.
-- `PRELAUNCH_DEMO_MODE=true`, `DEMO_PAYMENTS_ENABLED=true`, and `PRELAUNCH_DEMO_USER_IDS=<comma-separated Supabase auth user UUIDs>` enable the demo catalogue for those accounts. Platform payment administrators are also authorized. Keep the user list limited to team testers.
-- `LIVE_PAYMENTS_ENABLED=true` is required with `RAZORPAY_MODE=live` and matching `rzp_live_` credentials to allow genuine Live checkout for configured real services. It does not depend on demo flags or demo tester authorization. Keep it false until Razorpay has activated the account for Live Mode and the business is ready to collect payments.
-- `PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED` and `PRELAUNCH_LIVE_MERCHANT_NAME` are separate, optional gates for explicitly disclosed pre-launch demo charges only. Demo payments also require `PRELAUNCH_DEMO_MODE`, `DEMO_PAYMENTS_ENABLED`, an authorized tester, a `DEMO:` catalogue entry, and consent. Demo checkout never fulfills a real service.
-- `PATIENT_DONATIONS_ENABLED=true` separately enables verified BPL campaign checkout. Each campaign must be approved for BPL status, medical documents, and beneficiary account. Razorpay collects funds into the registered OncoCare+ merchant account; the application records the verified payment and campaign receipt, but campaign disbursement is a separate operational process.
-- `TELE_ONCOLOGY_CALL_PROVIDER_ENABLED` is informational only in this build: real tele-oncology remains hard-disabled in code because no consultation provider is integrated. Do not rely on setting this environment variable to enable real consultations.
-- `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` from the same Razorpay mode.
-- `RAZORPAY_WEBHOOK_SECRET` matching the webhook configured in that Razorpay mode.
-- Leave `MARKETPLACE_TRANSFERS_ENABLED=false` and `PATIENT_DONATIONS_ENABLED=false` until the required product, compliance, and operational approvals are confirmed.
+- `RAZORPAY_MODE` must be exactly `test` or `live` and match `RAZORPAY_KEY_ID` (`rzp_test_...` or `rzp_live_...`).
+- `RAZORPAY_KEY_SECRET` must be from the same Razorpay mode as the key ID. `RAZORPAY_WEBHOOK_SECRET` must match the webhook secret configured in that mode.
+- `PAYMENTS_ENABLED=true` enables checkout only when the mode, matching credentials, webhook secret, and all three Supabase values above are present.
+- `LIVE_PAYMENTS_ENABLED=true` is an additional required gate in Live Mode. Razorpay must have activated the account for Live Mode.
+- `PRELAUNCH_DEMO_MODE=true` and `DEMO_PAYMENTS_ENABLED=true` enable the separate demo catalogue. `PRELAUNCH_DEMO_USER_IDS` should contain comma-separated internal Supabase Auth user UUIDs; platform payment administrators are also authorized. Limit this list to internal testers.
+- `PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED=true` and a non-empty `PRELAUNCH_LIVE_MERCHANT_NAME` are additionally required for an actual Live pre-launch pilot charge. The merchant name must be the registered Razorpay merchant name. Each Live pilot requires an authorized user, an active `DEMO:` listing, and explicit consent. It charges real money but provides no service or goods.
+- Keep `PATIENT_DONATIONS_ENABLED=false` for an internal pilot. It is a separate BPL campaign flow and should only be enabled when campaigns, beneficiary details, approvals, and required database rollout are complete.
+- Keep `MARKETPLACE_TRANSFERS_ENABLED=false`; seller transfers are not enabled. `TELE_ONCOLOGY_CALL_PROVIDER_ENABLED` does not activate real consultations: no provider is integrated and the feature is hard-disabled in this build.
+
+### Vercel profile for an internal ₹100 Live pilot
+
+Set these in the Vercel **Production** environment (or the specific environment you intend to use), then redeploy. Use values from the same Razorpay Live account:
+
+| Variable | Required value |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Existing Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Existing Supabase anon/publishable key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Existing server-only Supabase service-role key |
+| `RAZORPAY_MODE` | `live` |
+| `RAZORPAY_KEY_ID` | Razorpay Live Key ID beginning `rzp_live_` |
+| `RAZORPAY_KEY_SECRET` | Matching Razorpay Live Key Secret; server-only |
+| `RAZORPAY_WEBHOOK_SECRET` | Secret for the Live Mode webhook configured below; server-only |
+| `PAYMENTS_ENABLED` | `true` |
+| `LIVE_PAYMENTS_ENABLED` | `true` |
+| `PRELAUNCH_DEMO_MODE` | `true` |
+| `DEMO_PAYMENTS_ENABLED` | `true` |
+| `PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED` | `true` |
+| `PRELAUNCH_LIVE_MERCHANT_NAME` | Exact registered merchant name displayed in the consent |
+| `PRELAUNCH_DEMO_USER_IDS` | Comma-separated UUID(s) of internal Supabase Auth users allowed to pay; platform payment admins may instead use their admin role |
+| `PATIENT_DONATIONS_ENABLED` | `false` |
+| `MARKETPLACE_TRANSFERS_ENABLED` | `false` |
+| `TELE_ONCOLOGY_CALL_PROVIDER_ENABLED` | `false` |
+
+For Test Mode, use `RAZORPAY_MODE=test`, a matching `rzp_test_` key ID, Test Key Secret, and Test Mode webhook secret; set `PAYMENTS_ENABLED=true`, `PRELAUNCH_DEMO_MODE=true`, and `DEMO_PAYMENTS_ENABLED=true`, while keeping `LIVE_PAYMENTS_ENABLED=false` and `PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED=false`.
+
+The smallest internal Live transaction is on the signed-in `/medicine-finder` page: choose the seeded **DEMO: Medicine checkout simulation** priced at ₹100. It is an actual Live charge to the merchant account, not a donation, medicine order, or fulfilled service. The page labels the pilot and requires acknowledgement and consent before opening Razorpay Checkout. Use a tester account listed above, or an authorized platform payment administrator. Confirm the verified transaction under the admin Payment configuration page.
 
 Do not switch `RAZORPAY_MODE` while there are pending orders or webhook retries. Reconciliation checks the mode recorded on each order and refuses to use credentials from a different mode. Test and Live credentials, webhook secret, and dashboard configuration must be deployed together.
 

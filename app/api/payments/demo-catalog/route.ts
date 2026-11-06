@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { authenticatePaymentRequest, isAuthorizedPrelaunchDemoUser } from '@/lib/payments/auth';
-import { getPaymentFeatureFlags } from '@/lib/razorpay';
+import { getPaymentFeatureFlags, serializePublicPaymentConfig } from '@/lib/razorpay';
 
 export async function GET(request: Request) {
   const auth = await authenticatePaymentRequest(request);
@@ -9,7 +9,18 @@ export async function GET(request: Request) {
 
   const flags = getPaymentFeatureFlags();
   if (!flags.enabled || !flags.prelaunchDemoEnabled || !flags.demoPaymentsEnabled) {
-    return NextResponse.json({ error: 'Pre-launch demo checkout is not enabled.' }, { status: 403 });
+    const config = serializePublicPaymentConfig();
+    return NextResponse.json({
+      error: config.prelaunchDemoConfigurationError ?? 'Pre-launch checkout is unavailable because its server configuration is incomplete.',
+      missingSettings: config.configuration?.prelaunchDemoMissingVariables ?? [],
+    }, { status: 403 });
+  }
+  if (flags.mode === 'live' && !flags.liveDemoPaymentsEnabled) {
+    const config = serializePublicPaymentConfig();
+    return NextResponse.json({
+      error: config.prelaunchDemoConfigurationError ?? 'Live pilot checkout is not enabled by the server operator.',
+      missingSettings: config.configuration?.prelaunchDemoMissingVariables ?? [],
+    }, { status: 403 });
   }
   try {
     if (!(await isAuthorizedPrelaunchDemoUser(auth.user.id))) {

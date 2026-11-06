@@ -9,6 +9,7 @@ import {
   fetchRazorpayOrderStatus,
   findRazorpayOrderByReceipt,
   getPaymentFeatureFlags,
+  serializePublicPaymentConfig,
   type PaymentKind,
 } from '@/lib/razorpay';
 
@@ -70,7 +71,9 @@ export async function POST(request: Request) {
   const { admin, user } = auth;
 
   const flags = getPaymentFeatureFlags();
-  if (!flags.enabled || !flags.keyId) return jsonError('Payments are disabled or not configured.', 503);
+  if (!flags.enabled || !flags.keyId) {
+    return jsonError(serializePublicPaymentConfig().configurationError ?? 'Online payments are unavailable due to server configuration.', 503);
+  }
 
   let body: unknown;
   try {
@@ -107,10 +110,17 @@ export async function POST(request: Request) {
   } | null = null;
   if (isDemoCheckout) {
     if (!flags.prelaunchDemoEnabled || !flags.demoPaymentsEnabled) {
-      return jsonError('Pre-launch demo checkout is disabled by the server operator.', 403);
+      return jsonError(
+        serializePublicPaymentConfig().prelaunchDemoConfigurationError ?? 'Pre-launch checkout is disabled by the server operator.',
+        403,
+      );
     }
     if (flags.mode === 'live' && (!flags.liveDemoPaymentsEnabled || !input.demoCatalogId)) {
-      return jsonError('Live checkout is restricted to explicitly enabled, consented demo bookings. Donation collection is test-only.', 403);
+      return jsonError(
+        serializePublicPaymentConfig().prelaunchDemoConfigurationError
+          ?? 'Live pilot checkout requires a DEMO catalogue item and explicit per-payment consent. Simulated donations are Test Mode only.',
+        403,
+      );
     }
     try {
       if (!(await isAuthorizedPrelaunchDemoUser(user.id))) {

@@ -26,6 +26,7 @@ export function getPaymentFeatureFlags() {
   const livePaymentsEnabled = enabledFlag(process.env.LIVE_PAYMENTS_ENABLED);
   const prelaunchDemoEnabled = enabledFlag(process.env.PRELAUNCH_DEMO_MODE);
   const demoPaymentsEnabled = enabledFlag(process.env.DEMO_PAYMENTS_ENABLED);
+  const liveDemoCollectionEnabled = enabledFlag(process.env.PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED);
   const liveMerchantValue = process.env.PRELAUNCH_LIVE_MERCHANT_NAME?.trim() || '';
   const liveMerchantName = liveMerchantValue.length <= 120 && !/[\r\n]/.test(liveMerchantValue)
     ? liveMerchantValue || null
@@ -35,7 +36,10 @@ export function getPaymentFeatureFlags() {
     && prelaunchDemoEnabled
     && demoPaymentsEnabled
     && Boolean(liveMerchantName)
-    && enabledFlag(process.env.PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED);
+    && liveDemoCollectionEnabled;
+  const demoTesterAllowlistConfigured = Boolean(
+    process.env.PRELAUNCH_DEMO_USER_IDS?.split(',').some((value) => value.trim()),
+  );
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || null;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || null;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
@@ -48,8 +52,10 @@ export function getPaymentFeatureFlags() {
     livePaymentsEnabled,
     prelaunchDemoEnabled,
     demoPaymentsEnabled,
+    liveDemoCollectionEnabled,
     liveDemoPaymentsEnabled,
     liveMerchantName,
+    demoTesterAllowlistConfigured,
     marketplaceTransfersEnabled: false,
     marketplaceTransfersRequested,
     patientDonationsEnabled: donationsEnabledByFlag,
@@ -206,18 +212,36 @@ export function serializePublicPaymentConfig() {
     !config.modeValid && 'RAZORPAY_MODE (must be test or live)',
     !config.keyId && 'RAZORPAY_KEY_ID',
     !config.keySecret && 'RAZORPAY_KEY_SECRET',
-    !config.keyModeValid && 'RAZORPAY_KEY_ID (must match RAZORPAY_MODE)',
+    Boolean(config.modeValid && config.keyId && !config.keyModeValid) && `RAZORPAY_KEY_ID (must use the rzp_${config.mode}_ prefix)`,
     !config.webhookSecret && 'RAZORPAY_WEBHOOK_SECRET',
     config.mode === 'live' && !config.livePaymentsEnabled && 'LIVE_PAYMENTS_ENABLED',
     !config.supabaseUrlConfigured && 'NEXT_PUBLIC_SUPABASE_URL',
     !config.supabaseAnonKeyConfigured && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     !config.supabaseServiceRoleConfigured && 'SUPABASE_SERVICE_ROLE_KEY',
   ].filter((variable): variable is string => Boolean(variable));
+  const prelaunchDemoMissingVariables = [
+    ...missingConfiguration,
+    !config.prelaunchDemoEnabled && 'PRELAUNCH_DEMO_MODE',
+    !config.demoPaymentsEnabled && 'DEMO_PAYMENTS_ENABLED',
+    config.mode === 'live' && !config.liveDemoCollectionEnabled && 'PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED',
+    config.mode === 'live' && !config.liveMerchantName && 'PRELAUNCH_LIVE_MERCHANT_NAME',
+  ].filter((variable): variable is string => Boolean(variable));
+  const configurationError = missingConfiguration.length
+    ? `Online payments are unavailable. Configure or enable: ${missingConfiguration.join(', ')}.`
+    : null;
+  const prelaunchDemoConfigurationError = prelaunchDemoMissingVariables.length
+    ? `Pre-launch checkout is unavailable. Configure or enable: ${[...new Set(prelaunchDemoMissingVariables)].join(', ')}.`
+    : null;
   return {
     enabled: config.enabled,
     mode: config.mode,
+    modeValid: config.modeValid,
+    keyModeValid: config.keyModeValid,
+    prelaunchDemoEnabled: config.prelaunchDemoEnabled,
     demoPaymentsEnabled: config.demoPaymentsEnabled && config.prelaunchDemoEnabled,
+    liveDemoCollectionEnabled: config.liveDemoCollectionEnabled,
     liveDemoPaymentsEnabled: config.liveDemoPaymentsEnabled,
+    demoTesterAllowlistConfigured: config.demoTesterAllowlistConfigured,
     liveMerchantName: config.mode === 'live' ? config.liveMerchantName : null,
     paymentsEnabled: config.paymentsEnabled,
     marketplaceTransfersEnabled: config.marketplaceTransfersEnabled,
@@ -234,10 +258,10 @@ export function serializePublicPaymentConfig() {
       supabaseAnonKeyConfigured: config.supabaseAnonKeyConfigured,
       supabaseServiceRoleConfigured: config.supabaseServiceRoleConfigured,
       missingVariables: missingConfiguration,
+      prelaunchDemoMissingVariables: [...new Set(prelaunchDemoMissingVariables)],
     },
-    configurationError: config.enabled
-      ? null
-      : 'Online payments are unavailable. Configure the required Razorpay variables and enable PAYMENTS_ENABLED. Live mode also requires LIVE_PAYMENTS_ENABLED.',
+    configurationError,
+    prelaunchDemoConfigurationError,
     keyId: config.enabled ? config.keyId : null,
     currency: 'INR',
     teleOncology: {

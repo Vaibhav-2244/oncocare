@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
@@ -197,13 +198,23 @@ export function PrelaunchDemoDonation() {
   const [amount, setAmount] = useState('500');
   const [acknowledged, setAcknowledged] = useState(false);
   const [testModeAvailable, setTestModeAvailable] = useState(false);
+  const [mode, setMode] = useState<'test' | 'live' | null>(null);
+  const [livePilotAvailable, setLivePilotAvailable] = useState(false);
+  const [pilotMissingSettings, setPilotMissingSettings] = useState<string[]>([]);
+  const [checkoutError, setCheckoutError] = useState('');
   const [configLoaded, setConfigLoaded] = useState(false);
   useEffect(() => {
     let active = true;
     void fetch('/api/payments/config', { cache: 'no-store' })
       .then(async (response) => {
         const config = await response.json().catch(() => ({}));
-        if (active) setTestModeAvailable(response.ok && config.enabled === true && config.mode === 'test' && config.demoPaymentsEnabled === true);
+        if (active) {
+          setMode(config.mode === 'test' || config.mode === 'live' ? config.mode : null);
+          setTestModeAvailable(response.ok && config.enabled === true && config.mode === 'test' && config.demoPaymentsEnabled === true);
+          setLivePilotAvailable(response.ok && config.enabled === true && config.liveDemoPaymentsEnabled === true);
+          setPilotMissingSettings(config.configuration?.prelaunchDemoMissingVariables ?? []);
+          setCheckoutError(config.prelaunchDemoConfigurationError ?? config.configurationError ?? '');
+        }
       })
       .catch(() => {
         if (active) setTestModeAvailable(false);
@@ -220,20 +231,34 @@ export function PrelaunchDemoDonation() {
       <p className="text-xs font-bold uppercase tracking-wide text-amber-900">TEST MODE SIMULATION ONLY</p>
       <h2 className="mt-1 text-xl font-bold text-slate-900">Simulate a donation checkout</h2>
       <p className="mt-2 text-sm text-slate-700">No beneficiary or campaign receives funds. Test Mode only: this is not a charitable contribution and no real money is collected. Fictional patient profiles below cannot receive payments.</p>
-      {configLoaded && !testModeAvailable && <p role="status" className="mt-2 text-sm font-medium text-amber-900">Simulated donations require the server to be explicitly configured for Razorpay Test Mode and authorized demo payments.</p>}
-      <label className="mt-3 block max-w-xs text-sm font-medium text-slate-800">
-        Test amount (₹)
-        <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="mt-1 block w-full rounded-lg border border-amber-400 bg-white p-2" />
-      </label>
-      <label className="mt-3 flex items-start gap-2 text-sm text-slate-800">
-        <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
-        <span>I understand this is a simulated Test Mode transaction with no charitable beneficiary.</span>
-      </label>
-      <PaymentCheckoutButton
-        payload={{ kind: 'donation', donationAmountInPaise: paise, demoDisclosureAccepted: acknowledged }}
-        description="Simulated donation - no beneficiary"
-        disabled={!valid || !acknowledged || !testModeAvailable}
-      />
+      {configLoaded && mode === 'live' ? (
+        <div role="status" className="mt-3 rounded-lg border border-amber-300 bg-white p-3 text-sm text-slate-800">
+          This no-beneficiary donation simulation is intentionally Test Mode only. {livePilotAvailable
+            ? <>For a disclosed ₹100 Live internal pilot charge (not a donation or service purchase), open <Link className="font-semibold text-teal-800 underline" href="/medicine-finder">Medicine Finder</Link> and choose the DEMO checkout.</>
+            : <>The Live pilot is not ready. {pilotMissingSettings.length ? `Configure or enable: ${pilotMissingSettings.join(', ')}.` : 'Check the Live pilot flags and authorized tester access.'}</>}
+        </div>
+      ) : (
+        <>
+          {configLoaded && !testModeAvailable && (
+            <p role="status" className="mt-2 text-sm font-medium text-amber-900">
+              {checkoutError || 'Test Mode simulation is unavailable. Check PAYMENTS_ENABLED, matching Test Mode Razorpay credentials and webhook secret, Supabase server configuration, PRELAUNCH_DEMO_MODE, and DEMO_PAYMENTS_ENABLED.'}
+            </p>
+          )}
+          <label className="mt-3 block max-w-xs text-sm font-medium text-slate-800">
+            Test amount (₹)
+            <input inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} className="mt-1 block w-full rounded-lg border border-amber-400 bg-white p-2" />
+          </label>
+          <label className="mt-3 flex items-start gap-2 text-sm text-slate-800">
+            <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
+            <span>I understand this is a simulated Test Mode transaction with no charitable beneficiary.</span>
+          </label>
+          <PaymentCheckoutButton
+            payload={{ kind: 'donation', donationAmountInPaise: paise, demoDisclosureAccepted: acknowledged }}
+            description="Simulated donation - no beneficiary"
+            disabled={!valid || !acknowledged || !testModeAvailable}
+          />
+        </>
+      )}
     </section>
   );
 }
