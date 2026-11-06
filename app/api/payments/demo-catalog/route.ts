@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { authenticatePaymentRequest, isAuthorizedPrelaunchDemoUser } from '@/lib/payments/auth';
+import { authenticatePaymentRequest } from '@/lib/payments/auth';
+import { PRELAUNCH_PILOT_MERCHANT_LABEL } from '@/lib/payments/constants';
 import { getPaymentFeatureFlags, serializePublicPaymentConfig } from '@/lib/razorpay';
 
 export async function GET(request: Request) {
@@ -22,14 +23,6 @@ export async function GET(request: Request) {
       missingSettings: config.configuration?.prelaunchDemoMissingVariables ?? [],
     }, { status: 403 });
   }
-  try {
-    if (!(await isAuthorizedPrelaunchDemoUser(auth.user.id))) {
-      return NextResponse.json({ error: 'This account is not authorized for pre-launch payment tests.' }, { status: 403 });
-    }
-  } catch {
-    return NextResponse.json({ error: 'Unable to verify pre-launch tester authorization.' }, { status: 500 });
-  }
-
   const kind = new URL(request.url).searchParams.get('kind');
   const allowedKinds = ['caregiver', 'booking', 'tele-oncology', 'medicine', 'insurance'];
   if (kind && !allowedKinds.includes(kind)) {
@@ -46,7 +39,7 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: 'Unable to load the pre-launch demo catalogue.' }, { status: 503 });
   return NextResponse.json({
     mode: flags.mode,
-    merchantName: flags.mode === 'live' ? process.env.PRELAUNCH_LIVE_MERCHANT_NAME?.trim() || null : null,
+    merchantName: flags.mode === 'live' ? PRELAUNCH_PILOT_MERCHANT_LABEL : null,
     entries: data ?? [],
   });
 }

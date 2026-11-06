@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
+import { PRELAUNCH_PILOT_MERCHANT_LABEL } from '@/lib/payments/constants';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
 
 type DemoKind = 'caregiver' | 'booking' | 'tele-oncology' | 'medicine' | 'insurance';
@@ -39,7 +40,6 @@ export function PrelaunchDemoCheckout({ kind, title }: { kind: DemoKind; title: 
   const [entries, setEntries] = useState<DemoEntry[]>([]);
   const [bookings, setBookings] = useState<DemoBooking[]>([]);
   const [mode, setMode] = useState<'test' | 'live' | null>(null);
-  const [merchantName, setMerchantName] = useState('OncoCare+');
   const [selectedId, setSelectedId] = useState('');
   const [bookingDate, setBookingDate] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -57,7 +57,7 @@ export function PrelaunchDemoCheckout({ kind, title }: { kind: DemoKind; title: 
     try {
       const { data } = await supabase.auth.getSession();
       const token = data.session?.access_token;
-      if (!token) throw new Error('Sign in with an authorized pre-launch tester account.');
+      if (!token) throw new Error('Sign in to use the pre-launch checkout.');
       const [catalogResponse, bookingsResponse] = await Promise.all([
         fetch(`/api/payments/demo-catalog?kind=${encodeURIComponent(kind)}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -77,7 +77,6 @@ export function PrelaunchDemoCheckout({ kind, title }: { kind: DemoKind; title: 
       setEntries(catalog.entries ?? []);
       setBookings((bookingPayload.bookings ?? []).filter((item: DemoBooking) => item.kind === kind));
       setMode(catalog.mode);
-      setMerchantName(catalog.merchantName || 'OncoCare+');
       setSelectedId((current) => current && (catalog.entries ?? []).some((item: DemoEntry) => item.id === current)
         ? current
         : catalog.entries?.[0]?.id ?? '');
@@ -103,7 +102,7 @@ export function PrelaunchDemoCheckout({ kind, title }: { kind: DemoKind; title: 
       ) : (
         <p className="mt-2 text-sm font-semibold text-rose-800">LIVE PRE-LAUNCH PILOT: A successful payment charges the shown amount to the registered OncoCare+ merchant. No real-world service or goods are provided.</p>
       )}
-      {loading && <p className="mt-3 text-sm text-slate-600">Loading authorized demo items…</p>}
+      {loading && <p className="mt-3 text-sm text-slate-600">Loading demo items…</p>}
       {error && <p role="alert" className="mt-3 rounded-lg bg-white p-3 text-sm text-rose-700">{error}</p>}
       {!loading && !error && entries.length === 0 && <p className="mt-3 text-sm text-slate-700">No active DEMO items are configured for this category.</p>}
       {selected && (
@@ -146,18 +145,18 @@ export function PrelaunchDemoCheckout({ kind, title }: { kind: DemoKind; title: 
           </div>
           <div className="space-y-3 rounded-xl border border-amber-300 bg-white p-4">
             <p className="text-sm font-semibold text-slate-900">Please read before continuing</p>
-            <p className="text-sm text-slate-700">This is a fictional DEMO listing. It does not book an actual caregiver, cook, maid, doctor, medical consultation, medicine, insurance policy, or other service. The entry is labelled DEMO and has no real provider verification.</p>
+            <p className="text-sm text-slate-700">This pre-launch pilot payment is an internal merchant payment only. It does not guarantee or purchase any real-world service, charitable donation, insurance coverage, medical consultation, medicine, or other fulfilment. Demo listings are fictional and are not verified providers or products.</p>
             <label className="flex items-start gap-2 text-sm text-slate-800">
               <input type="checkbox" checked={disclosureAccepted} onChange={(event) => {
                 setDisclosureAccepted(event.target.checked);
                 if (!event.target.checked) setLiveConsent(false);
               }} />
-              <span>I understand this is a pre-launch demo, not a real service or order.</span>
+              <span>I understand this is an internal pre-launch pilot payment, not a real service, donation, insurance policy, consultation, medicine order, or fulfilment.</span>
             </label>
             {mode === 'live' && (
               <label className="flex items-start gap-2 text-sm font-semibold text-rose-800">
                 <input type="checkbox" checked={liveConsent} onChange={(event) => setLiveConsent(event.target.checked)} />
-                <span>I explicitly authorize a LIVE charge of ₹{amount} to {merchantName} for this DEMO transaction only, and understand no service/goods will be delivered.</span>
+                <span>I explicitly authorize a LIVE pre-launch pilot charge of ₹{amount} to {PRELAUNCH_PILOT_MERCHANT_LABEL}. This is an internal merchant payment only and does not guarantee or purchase a real-world service, donation, insurance, consultation, medicine, or other fulfilment.</span>
               </label>
             )}
             <PaymentCheckoutButton
@@ -235,7 +234,7 @@ export function PrelaunchDemoDonation() {
         <div role="status" className="mt-3 rounded-lg border border-amber-300 bg-white p-3 text-sm text-slate-800">
           This no-beneficiary donation simulation is intentionally Test Mode only. {livePilotAvailable
             ? <>For a disclosed ₹100 Live internal pilot charge (not a donation or service purchase), open <Link className="font-semibold text-teal-800 underline" href="/medicine-finder">Medicine Finder</Link> and choose the DEMO checkout.</>
-            : <>The Live pilot is not ready. {pilotMissingSettings.length ? `Configure or enable: ${pilotMissingSettings.join(', ')}.` : 'Check the Live pilot flags and authorized tester access.'}</>}
+            : <>The Live pilot is not ready. {pilotMissingSettings.length ? `Configure or enable: ${pilotMissingSettings.join(', ')}.` : 'Check the Live pilot flags and sign in to an OncoCare+ account.'}</>}
         </div>
       ) : (
         <>

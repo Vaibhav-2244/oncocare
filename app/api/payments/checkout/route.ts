@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { authenticatePaymentRequest, isAuthorizedPrelaunchDemoUser } from '@/lib/payments/auth';
+import { authenticatePaymentRequest } from '@/lib/payments/auth';
 import { checkoutSchema } from '@/lib/payments/checkout-schema';
+import { PRELAUNCH_PILOT_MERCHANT_LABEL } from '@/lib/payments/constants';
 import { rupeesToPaise } from '@/lib/payments/security';
 import {
   createRazorpayOrder,
@@ -121,13 +122,6 @@ export async function POST(request: Request) {
           ?? 'Live pilot checkout requires a DEMO catalogue item and explicit per-payment consent. Simulated donations are Test Mode only.',
         403,
       );
-    }
-    try {
-      if (!(await isAuthorizedPrelaunchDemoUser(user.id))) {
-        return jsonError('This account is not authorized to make pre-launch demo payments.', 403);
-      }
-    } catch {
-      return jsonError('Unable to verify pre-launch tester authorization.', 500);
     }
     if (input.demoDisclosureAccepted !== true) {
       return jsonError('Acknowledge the pre-launch demo disclosure before continuing.', 400);
@@ -596,7 +590,7 @@ export async function POST(request: Request) {
         amount: Number(old.amount_in_paise),
         currency: old.currency,
         key: flags.keyId,
-        name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+        name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
         paymentMode: flags.mode,
         isDemo: Boolean(old.is_demo),
       });
@@ -629,7 +623,7 @@ export async function POST(request: Request) {
         amount: amountInPaise,
         currency: 'INR',
         key: flags.keyId,
-        name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+        name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
         paymentMode: flags.mode,
         isDemo: isDemoCheckout,
       });
@@ -886,7 +880,7 @@ export async function POST(request: Request) {
       amount: amountInPaise,
       currency: 'INR',
       key: flags.keyId,
-      name: flags.mode === 'live' && isDemoCheckout ? flags.liveMerchantName : 'OncoCare+',
+      name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
       paymentMode: flags.mode,
       isDemo: isDemoCheckout,
       receipt: order.id,

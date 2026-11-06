@@ -53,10 +53,10 @@ type InsuranceApplication = {
 type RuntimePaymentConfig = {
   enabled: boolean;
   mode?: 'test' | 'live';
+  modeInferred?: boolean;
   livePaymentsEnabled?: boolean;
   demoPaymentsEnabled?: boolean;
   liveDemoPaymentsEnabled?: boolean;
-  demoTesterAllowlistConfigured?: boolean;
   configurationError?: string | null;
   prelaunchDemoConfigurationError?: string | null;
   paymentsEnabled: boolean;
@@ -358,13 +358,10 @@ function PaymentConfigurationContent() {
         {!runtimeConfig ? <p className="mt-2 text-sm text-slate-500">Loading configuration diagnostics…</p> : (
           <>
             <p className={`mt-2 text-sm font-medium ${runtimeConfig.enabled ? 'text-emerald-700' : 'text-rose-700'}`}>
-              Checkout {runtimeConfig.enabled ? `enabled (${runtimeConfig.mode?.toUpperCase() ?? 'UNKNOWN'} MODE)` : 'unavailable'}
+              Checkout {runtimeConfig.enabled ? `enabled (${runtimeConfig.mode?.toUpperCase() ?? 'UNKNOWN'} MODE${runtimeConfig.modeInferred ? ', detected from credentials/flags' : ''})` : 'unavailable'}
             </p>
             <p className="mt-1 text-sm font-semibold text-amber-900">
-              Demo payments: {runtimeConfig.demoPaymentsEnabled ? 'enabled for authorized testers' : 'disabled'} · Live demo charges: {runtimeConfig.liveDemoPaymentsEnabled ? 'explicitly enabled' : 'disabled'}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              Internal tester allowlist: {runtimeConfig.demoTesterAllowlistConfigured ? 'configured' : 'not configured (platform payment administrators can still access)'}
+              Demo payments: {runtimeConfig.demoPaymentsEnabled ? 'enabled for authenticated users' : 'disabled'} · Live demo charges: {runtimeConfig.liveDemoPaymentsEnabled ? 'explicitly enabled' : 'disabled'}
             </p>
             {!runtimeConfig.liveDemoPaymentsEnabled && !!runtimeConfig.configuration?.prelaunchDemoMissingVariables.length && (
               <p className="mt-1 text-sm text-amber-800">Live pilot missing or disabled settings: {runtimeConfig.configuration.prelaunchDemoMissingVariables.join(', ')}</p>

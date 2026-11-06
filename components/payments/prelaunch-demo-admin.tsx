@@ -139,7 +139,7 @@ export function PrelaunchDemoAdmin() {
       <div>
         <p className="text-xs font-bold uppercase tracking-wide text-amber-900">DEMO ONLY</p>
         <h2 className="text-lg font-semibold text-slate-900">Pre-launch demo catalogue</h2>
-        <p className="mt-1 text-sm text-slate-700">Only administrator-managed items labelled DEMO are accepted. Live purchases require server configuration, tester allowlisting, per-payment consent and a registered merchant account. This form cannot enable Live Mode.</p>
+        <p className="mt-1 text-sm text-slate-700">Only administrator-managed items labelled DEMO are accepted. Any authenticated OncoCare+ user can make a Live pilot payment when the server flags are enabled and the user explicitly consents. This form cannot enable Live Mode.</p>
       </div>
       {error && <p role="alert" className="rounded-lg bg-white p-3 text-sm text-rose-700">{error}</p>}
       {notice && <p role="status" className="rounded-lg bg-white p-3 text-sm text-emerald-700">{notice}</p>}
@@ -198,7 +198,7 @@ export function PrelaunchDemoAdmin() {
         <label className="text-sm font-medium md:col-span-2">Disclosure
           <textarea maxLength={1000} value={form.description} onChange={(event) => updateForm('description', event.target.value)} className="mt-1 block w-full rounded-lg border p-2" rows={2} />
         </label>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(event) => updateForm('active', event.target.checked)} /> Active for authorized demo testers</label>
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={(event) => updateForm('active', event.target.checked)} /> Active for authenticated demo users</label>
         <div className="flex gap-2">
           <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-lg bg-amber-800 px-4 py-2 font-semibold text-white disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {editingId ? 'Save demo item' : 'Create demo item'}

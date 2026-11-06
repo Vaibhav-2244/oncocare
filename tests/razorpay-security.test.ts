@@ -10,6 +10,56 @@ import {
   verifyPaymentSignature,
   verifyRawBodySignature,
 } from '../lib/payments/security';
+import { resolveRazorpayMode } from '../lib/payments/razorpay-mode';
+
+test('Razorpay mode honors explicit Test and Live configuration', () => {
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: 'test',
+    livePaymentsEnabled: false,
+    keyId: 'rzp_test_example',
+  }), { mode: 'test', modeValid: true, inferred: false });
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: 'live',
+    livePaymentsEnabled: true,
+    keyId: 'rzp_live_example',
+  }), { mode: 'live', modeValid: true, inferred: false });
+});
+
+test('Razorpay mode detects Live credentials and never downgrades a Live request to Test', () => {
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: undefined,
+    livePaymentsEnabled: true,
+    keyId: 'rzp_live_example',
+  }), { mode: 'live', modeValid: true, inferred: true });
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: 'test',
+    livePaymentsEnabled: true,
+    keyId: 'rzp_live_example',
+  }), { mode: 'live', modeValid: true, inferred: true });
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: undefined,
+    livePaymentsEnabled: false,
+    keyId: 'rzp_live_example',
+  }), { mode: 'live', modeValid: true, inferred: true });
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: undefined,
+    livePaymentsEnabled: true,
+    keyId: 'rzp_test_example',
+  }), { mode: 'live', modeValid: true, inferred: true });
+});
+
+test('Razorpay mode keeps Test defaults and rejects an invalid explicit mode', () => {
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: undefined,
+    livePaymentsEnabled: false,
+    keyId: 'rzp_test_example',
+  }), { mode: 'test', modeValid: true, inferred: true });
+  assert.deepEqual(resolveRazorpayMode({
+    configuredMode: 'staging',
+    livePaymentsEnabled: true,
+    keyId: 'rzp_live_example',
+  }), { mode: 'live', modeValid: false, inferred: true });
+});
 
 test('checkout rejects client-supplied prices and unknown fields', () => {
   const parsed = checkoutSchema.safeParse({
