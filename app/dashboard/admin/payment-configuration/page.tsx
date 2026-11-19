@@ -7,7 +7,6 @@ import { ADMIN_ROLES, DashboardLayout } from '@/components/auth/dashboard-layout
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
-import { PrelaunchDemoAdmin } from '@/components/payments/prelaunch-demo-admin';
 
 type PaymentOffer = {
   id: string;
@@ -55,10 +54,7 @@ type RuntimePaymentConfig = {
   mode?: 'test' | 'live';
   modeInferred?: boolean;
   livePaymentsEnabled?: boolean;
-  demoPaymentsEnabled?: boolean;
-  liveDemoPaymentsEnabled?: boolean;
   configurationError?: string | null;
-  prelaunchDemoConfigurationError?: string | null;
   paymentsEnabled: boolean;
   marketplaceTransfersEnabled: boolean;
   marketplaceTransfersRequested: boolean;
@@ -73,7 +69,6 @@ type RuntimePaymentConfig = {
     supabaseAnonKeyConfigured: boolean;
     supabaseServiceRoleConfigured: boolean;
     missingVariables: string[];
-    prelaunchDemoMissingVariables: string[];
   };
 };
 type PaymentTransaction = {
@@ -88,7 +83,14 @@ type PaymentTransaction = {
   provider_payment_id: string | null;
   provider_refund_id: string | null;
   failure_reason: string | null;
-  demo: { provider_label: string; service_name: string; status: string } | null;
+  items: Array<{
+    entity_id: string;
+    seller_id: string | null;
+    description: string;
+    quantity: number;
+    unit_amount_in_paise: number;
+    total_amount_in_paise: number;
+  }>;
   refunds: Array<{ id: string; amount_in_paise: number; status: string; provider_refund_id: string | null }>;
   created_at: string;
 };
@@ -108,6 +110,7 @@ function PaymentConfigurationContent() {
   const [transactionKind, setTransactionKind] = useState('all');
   const [transactionStatus, setTransactionStatus] = useState('all');
   const [transactionMode, setTransactionMode] = useState('all');
+  const [transactionSearch, setTransactionSearch] = useState('');
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -179,6 +182,14 @@ function PaymentConfigurationContent() {
     (transactionKind === 'all' || transaction.kind === transactionKind)
     && (transactionStatus === 'all' || transaction.status === transactionStatus)
     && (transactionMode === 'all' || transaction.payment_mode === transactionMode)
+    && (!transactionSearch.trim() || [
+      transaction.id,
+      transaction.user_id,
+      transaction.provider_order_id,
+      transaction.provider_payment_id,
+      transaction.kind,
+      ...transaction.items.map((item) => `${item.description} ${item.entity_id} ${item.seller_id ?? ''}`),
+    ].some((value) => value?.toLowerCase().includes(transactionSearch.trim().toLowerCase())))
   ));
 
   const reconcile = async (orderId: string) => {
@@ -360,15 +371,6 @@ function PaymentConfigurationContent() {
             <p className={`mt-2 text-sm font-medium ${runtimeConfig.enabled ? 'text-emerald-700' : 'text-rose-700'}`}>
               Checkout {runtimeConfig.enabled ? `enabled (${runtimeConfig.mode?.toUpperCase() ?? 'UNKNOWN'} MODE${runtimeConfig.modeInferred ? ', detected from credentials/flags' : ''})` : 'unavailable'}
             </p>
-            <p className="mt-1 text-sm font-semibold text-amber-900">
-              Demo payments: {runtimeConfig.demoPaymentsEnabled ? 'enabled for authenticated users' : 'disabled'} · Live demo charges: {runtimeConfig.liveDemoPaymentsEnabled ? 'explicitly enabled' : 'disabled'}
-            </p>
-            {!runtimeConfig.liveDemoPaymentsEnabled && !!runtimeConfig.configuration?.prelaunchDemoMissingVariables.length && (
-              <p className="mt-1 text-sm text-amber-800">Live pilot missing or disabled settings: {runtimeConfig.configuration.prelaunchDemoMissingVariables.join(', ')}</p>
-            )}
-            {runtimeConfig.prelaunchDemoConfigurationError && !runtimeConfig.configuration?.prelaunchDemoMissingVariables.length && (
-              <p className="mt-1 text-sm text-amber-800">{runtimeConfig.prelaunchDemoConfigurationError}</p>
-            )}
             <p className="mt-1 text-sm text-slate-600">
               Real Live checkout: {runtimeConfig.mode === 'live' && runtimeConfig.livePaymentsEnabled ? 'enabled' : 'disabled'} · campaign donations: {runtimeConfig.patientDonationsEnabled ? 'enabled (verified campaigns only)' : 'disabled by PATIENT_DONATIONS_ENABLED'}
             </p>
@@ -391,11 +393,13 @@ function PaymentConfigurationContent() {
       {error && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</div>}
       {notice && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
 
-      <PrelaunchDemoAdmin />
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <h2 className="border-b border-slate-100 px-5 py-4 font-semibold text-slate-900">Recent payment transactions</h2>
-        <p className="px-5 py-3 text-xs text-slate-600">Recent transactions show mode, demo status, provider identifiers, associated demo listing, and refund status. Patient identity is limited to the account UUID.</p>
+        <p className="px-5 py-3 text-xs text-slate-600">Recent transactions show mode, provider identifiers, and refund status. Patient identity is limited to the account UUID.</p>
         <div className="flex flex-wrap gap-3 px-5 pb-3">
+          <label className="text-xs font-medium">Search
+            <input value={transactionSearch} onChange={(event) => setTransactionSearch(event.target.value)} placeholder="Order, user ID, payment, product" className="ml-2 rounded border p-1.5" />
+          </label>
           <label className="text-xs font-medium">Feature
             <select value={transactionKind} onChange={(event) => setTransactionKind(event.target.value)} className="ml-2 rounded border p-1.5">
               <option value="all">All</option>
@@ -421,11 +425,15 @@ function PaymentConfigurationContent() {
             <article key={transaction.id} className="space-y-1 px-5 py-3 text-sm">
               <p className="font-semibold text-slate-900">
                 {transaction.kind} · {transaction.status === 'paid' ? 'SUCCESS' : transaction.status} · ₹{(Number(transaction.amount_in_paise) / 100).toLocaleString('en-IN')}
-                {' · '}{transaction.payment_mode.toUpperCase()}{transaction.is_demo ? ' · DEMO' : ''}
+                {' · '}{transaction.payment_mode.toUpperCase()}{transaction.is_demo ? ' · LEGACY PILOT' : ''}
               </p>
               <p className="break-all text-xs text-slate-600">Order {transaction.id} · patient {transaction.user_id}</p>
-              {transaction.demo && <p className="text-xs text-amber-800">{transaction.demo.provider_label} · {transaction.demo.service_name} · demo record {transaction.demo.status}</p>}
               <p className="break-all text-xs text-slate-500">Razorpay order {transaction.provider_order_id ?? '—'} · payment {transaction.provider_payment_id ?? '—'}</p>
+              {transaction.items.map((item, index) => (
+                <p key={`${item.entity_id}-${index}`} className="text-xs text-slate-600">
+                  {item.description} × {item.quantity} · {item.entity_id}{item.seller_id ? ` · seller ${item.seller_id}` : ''}
+                </p>
+              ))}
               {transaction.failure_reason && <p className="text-xs text-rose-700">{transaction.failure_reason}</p>}
               {transaction.refunds.map((refund) => (
                 <p key={refund.id} className="break-all text-xs text-slate-600">Refund {refund.provider_refund_id ?? refund.id} · {refund.status} · ₹{(refund.amount_in_paise / 100).toFixed(2)}</p>

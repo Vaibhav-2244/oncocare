@@ -7,9 +7,6 @@ import { getPublicPaymentAvailability, loadRazorpayCheckout } from '@/lib/razorp
 
 type CheckoutPayload = {
   kind: 'medicine' | 'insurance' | 'booking' | 'caregiver' | 'tele-oncology' | 'donation';
-  demoCatalogId?: string;
-  demoDisclosureAccepted?: boolean;
-  liveDemoConsent?: boolean;
   donationAmountInPaise?: number;
   bplPatientId?: number;
   donorName?: string;
@@ -97,18 +94,15 @@ export function PaymentCheckoutButton({
       }
 
       const successMessage = () => {
-        if (order.isDemo || payload.demoCatalogId) {
-          return 'Demo payment confirmed. No real-world service, goods, or charitable contribution is being provided.';
-        }
         if (order.paymentMode === 'test') {
-          return 'Test Mode payment confirmed. No real money was charged.';
+          return 'Test Mode payment confirmed. No real money was charged; service fulfilment is separate.';
         }
         if (payload.kind === 'donation') {
-          return 'Donation payment verified. Funds are collected to the OncoCare+ merchant account; campaign disbursement is handled separately.';
+          return 'Payment verified. Campaign disbursement is handled separately and is not confirmed by this payment.';
         }
         return payload.kind === 'insurance'
           ? 'Payment confirmed. Your application is pending insurer policy issuance.'
-          : 'Payment confirmed.';
+          : 'Payment confirmed. Service or product fulfilment is handled separately.';
       };
 
       await loadRazorpayCheckout();

@@ -126,7 +126,7 @@ test('caregiver checkout accepts service details but never a browser-supplied am
   assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, endTime: '09:00' }).success, false);
 });
 
-test('BPL campaign checkout requires campaign and donor data; simulated donation remains explicitly separate', () => {
+test('BPL donation checkout requires a verified campaign and donor data', () => {
   const base = {
     kind: 'donation',
     idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
@@ -138,13 +138,15 @@ test('BPL campaign checkout requires campaign and donor data; simulated donation
     donorName: 'Example Donor',
     donorEmail: 'donor@example.com',
   }).success, true);
+  assert.equal(checkoutSchema.safeParse(base).success, false);
   assert.equal(checkoutSchema.safeParse({
     ...base,
     demoDisclosureAccepted: true,
-  }).success, true);
+  }).success, false);
   assert.equal(checkoutSchema.safeParse({
-    ...base,
-    bplPatientId: 42,
+    kind: 'medicine',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    demoCatalogId: '4ba90ded-9954-48b4-9531-370a1327c819',
     demoDisclosureAccepted: true,
   }).success, false);
   assert.equal(checkoutSchema.safeParse({

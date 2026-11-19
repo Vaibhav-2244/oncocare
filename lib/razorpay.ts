@@ -2,7 +2,6 @@ import 'server-only';
 
 import { verifyPaymentSignature, verifyRawBodySignature } from '@/lib/payments/security';
 import { resolveRazorpayMode } from '@/lib/payments/razorpay-mode';
-import { PRELAUNCH_PILOT_MERCHANT_LABEL } from '@/lib/payments/constants';
 
 export const TELE_ONCOLOGY_PRICING = {
   oneTime: { amountInPaise: 50_000, label: '₹500 one-time consultation', includedCalls: 1 },
@@ -28,14 +27,6 @@ export function getPaymentFeatureFlags() {
   const teleOncologyProviderFlagRequested = enabledFlag(process.env.TELE_ONCOLOGY_CALL_PROVIDER_ENABLED);
   const teleOncologyCallProviderEnabled = false;
   const donationsEnabledByFlag = enabledFlag(process.env.PATIENT_DONATIONS_ENABLED);
-  const prelaunchDemoEnabled = enabledFlag(process.env.PRELAUNCH_DEMO_MODE);
-  const demoPaymentsEnabled = enabledFlag(process.env.DEMO_PAYMENTS_ENABLED);
-  const liveDemoCollectionEnabled = enabledFlag(process.env.PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED);
-  const liveDemoPaymentsEnabled = mode === 'live'
-    && livePaymentsEnabled
-    && prelaunchDemoEnabled
-    && demoPaymentsEnabled
-    && liveDemoCollectionEnabled;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || null;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || null;
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
@@ -47,10 +38,6 @@ export function getPaymentFeatureFlags() {
     keyModeValid,
     paymentsEnabled: enabledFlag(process.env.PAYMENTS_ENABLED),
     livePaymentsEnabled,
-    prelaunchDemoEnabled,
-    demoPaymentsEnabled,
-    liveDemoCollectionEnabled,
-    liveDemoPaymentsEnabled,
     marketplaceTransfersEnabled: false,
     marketplaceTransfersRequested,
     patientDonationsEnabled: donationsEnabledByFlag,
@@ -214,17 +201,8 @@ export function serializePublicPaymentConfig() {
     !config.supabaseAnonKeyConfigured && 'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     !config.supabaseServiceRoleConfigured && 'SUPABASE_SERVICE_ROLE_KEY',
   ].filter((variable): variable is string => Boolean(variable));
-  const prelaunchDemoMissingVariables = [
-    ...missingConfiguration,
-    !config.prelaunchDemoEnabled && 'PRELAUNCH_DEMO_MODE',
-    !config.demoPaymentsEnabled && 'DEMO_PAYMENTS_ENABLED',
-    config.mode === 'live' && !config.liveDemoCollectionEnabled && 'PRELAUNCH_LIVE_DEMO_COLLECTION_ENABLED',
-  ].filter((variable): variable is string => Boolean(variable));
   const configurationError = missingConfiguration.length
     ? `Online payments are unavailable. Configure or enable: ${missingConfiguration.join(', ')}.`
-    : null;
-  const prelaunchDemoConfigurationError = prelaunchDemoMissingVariables.length
-    ? `Pre-launch checkout is unavailable. Configure or enable: ${[...new Set(prelaunchDemoMissingVariables)].join(', ')}.`
     : null;
   return {
     enabled: config.enabled,
@@ -232,11 +210,6 @@ export function serializePublicPaymentConfig() {
     modeValid: config.modeValid,
     modeInferred: config.modeInferred,
     keyModeValid: config.keyModeValid,
-    prelaunchDemoEnabled: config.prelaunchDemoEnabled,
-    demoPaymentsEnabled: config.demoPaymentsEnabled && config.prelaunchDemoEnabled,
-    liveDemoCollectionEnabled: config.liveDemoCollectionEnabled,
-    liveDemoPaymentsEnabled: config.liveDemoPaymentsEnabled,
-    prelaunchPilotMerchantLabel: PRELAUNCH_PILOT_MERCHANT_LABEL,
     paymentsEnabled: config.paymentsEnabled,
     marketplaceTransfersEnabled: config.marketplaceTransfersEnabled,
     marketplaceTransfersRequested: config.marketplaceTransfersRequested,
@@ -252,10 +225,8 @@ export function serializePublicPaymentConfig() {
       supabaseAnonKeyConfigured: config.supabaseAnonKeyConfigured,
       supabaseServiceRoleConfigured: config.supabaseServiceRoleConfigured,
       missingVariables: missingConfiguration,
-      prelaunchDemoMissingVariables: [...new Set(prelaunchDemoMissingVariables)],
     },
     configurationError,
-    prelaunchDemoConfigurationError,
     keyId: config.enabled ? config.keyId : null,
     currency: 'INR',
     teleOncology: {

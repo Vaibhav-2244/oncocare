@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { authenticatePaymentRequest } from '@/lib/payments/auth';
 import { checkoutSchema } from '@/lib/payments/checkout-schema';
-import { PRELAUNCH_PILOT_MERCHANT_LABEL } from '@/lib/payments/constants';
 import { rupeesToPaise } from '@/lib/payments/security';
 import {
   createRazorpayOrder,
@@ -96,119 +95,10 @@ export async function POST(request: Request) {
     terms?: Record<string, unknown>;
   } | null = null;
 
-  const isSimulatedDonation = input.kind === 'donation' && input.bplPatientId === undefined;
-  const isDemoCheckout = Boolean(input.demoCatalogId) || isSimulatedDonation;
-  let demoCatalog: {
-    id: string;
-    provider_label: string;
-    service_name: string;
-    description: string;
-    amount_in_paise: number | string;
-    pricing_unit: string;
-    available_weekdays: number[];
-    daily_start_time: string;
-    daily_end_time: string;
-  } | null = null;
-  if (isDemoCheckout) {
-    if (!flags.prelaunchDemoEnabled || !flags.demoPaymentsEnabled) {
-      return jsonError(
-        serializePublicPaymentConfig().prelaunchDemoConfigurationError ?? 'Pre-launch checkout is disabled by the server operator.',
-        403,
-      );
-    }
-    if (flags.mode === 'live' && (!flags.liveDemoPaymentsEnabled || !input.demoCatalogId)) {
-      return jsonError(
-        serializePublicPaymentConfig().prelaunchDemoConfigurationError
-          ?? 'Live pilot checkout requires a DEMO catalogue item and explicit per-payment consent. Simulated donations are Test Mode only.',
-        403,
-      );
-    }
-    if (input.demoDisclosureAccepted !== true) {
-      return jsonError('Acknowledge the pre-launch demo disclosure before continuing.', 400);
-    }
-    if (flags.mode === 'live' && input.liveDemoConsent !== true) {
-      return jsonError('Confirm the live amount and OncoCare+ merchant disclosure before continuing.', 400);
-    }
-
-    if (isSimulatedDonation) {
-      if (flags.mode !== 'test' || input.demoCatalogId || !input.donationAmountInPaise) {
-        return jsonError('Simulated donations are available only in Test Mode and never represent a charitable contribution.', 403);
-      }
-      amountInPaise = input.donationAmountInPaise;
-      orderNotes = {
-        isDemo: true,
-        demoDisclosureVersion: 'prelaunch-demo-v1',
-        simulatedDonation: true,
-        charitableContribution: false,
-        merchantDisclosure: 'Razorpay Test Mode; no charitable contribution',
-      };
-      item = {
-        entityId: 'DEMO: simulated-campaign',
-        description: 'DEMO: Simulated contribution - no beneficiary',
-        quantity: 1,
-        unitAmountInPaise: amountInPaise,
-        terms: { simulated: true, charitableContribution: false },
-      };
-    } else {
-      if (!input.demoCatalogId) return jsonError('Select a pre-launch demo item.', 400);
-      const { data: catalogEntry, error: catalogError } = await admin.from('prelaunch_demo_catalog')
-        .select('id, kind, provider_label, service_name, description, amount_in_paise, pricing_unit, available_weekdays, daily_start_time, daily_end_time, active')
-        .eq('id', input.demoCatalogId)
-        .eq('active', true)
-        .maybeSingle();
-      if (catalogError) return jsonError('Unable to validate the selected demo item.', 503);
-      if (!catalogEntry || catalogEntry.kind !== input.kind || !catalogEntry.provider_label.startsWith('DEMO:') || !catalogEntry.service_name.startsWith('DEMO:')) {
-        return jsonError('The selected item is not an active demo entry for this checkout type.', 409);
-      }
-      demoCatalog = catalogEntry;
-      amountInPaise = Number(catalogEntry.amount_in_paise);
-      if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
-        return jsonError('The demo item has an invalid server-configured price.', 409);
-      }
-      if (['caregiver', 'booking', 'tele-oncology'].includes(input.kind)) {
-        const requestedDate = input.bookingDate!;
-        if (requestedDate < new Date().toISOString().slice(0, 10)) {
-          return jsonError('Choose a current or future demo booking date.', 400);
-        }
-        const weekday = new Date(`${requestedDate}T00:00:00.000Z`).getUTCDay();
-        if (!catalogEntry.available_weekdays.includes(weekday)) {
-          return jsonError('The selected demo provider is not available on that date.', 409);
-        }
-        if (input.startTime! < String(catalogEntry.daily_start_time).slice(0, 5)
-          || input.endTime! > String(catalogEntry.daily_end_time).slice(0, 5)
-          || input.endTime! <= input.startTime!) {
-          return jsonError('The selected time is outside this demo provider’s available hours.', 409);
-        }
-      }
-      orderNotes = {
-        isDemo: true,
-        demoCatalogId: catalogEntry.id,
-        demoDisclosureVersion: 'prelaunch-demo-v1',
-        liveDemoConsent: flags.mode === 'live',
-        providerLabel: catalogEntry.provider_label,
-        serviceName: catalogEntry.service_name,
-        requestedDate: input.bookingDate ?? null,
-        requestedStartTime: input.startTime ?? null,
-        requestedEndTime: input.endTime ?? null,
-        location: input.location ?? null,
-        demoDisclosure: catalogEntry.description,
-      };
-      item = {
-        entityId: catalogEntry.id,
-        description: catalogEntry.service_name,
-        quantity: 1,
-        unitAmountInPaise: amountInPaise,
-        terms: { isDemo: true, pricingUnit: catalogEntry.pricing_unit, disclosureVersion: 'prelaunch-demo-v1' },
-      };
-    }
-  }
-
   let stockProductId: string | null = null;
   let teleAppointmentDate: string | null = null;
 
-  if (isDemoCheckout) {
-    // Demo checkout details were validated above. They deliberately do not create real service entitlements or fulfilment records.
-  } else if (input.kind === 'donation') {
+  if (input.kind === 'donation') {
     if (!input.bplPatientId || !input.donationAmountInPaise || !input.donorName || !input.donorEmail) {
       return jsonError('Choose a verified BPL campaign and enter a donation amount and donor details.', 400);
     }
@@ -509,7 +399,7 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (helperError) return jsonError('Unable to validate the home-care provider.', 500);
     if (!helper) return jsonError('The selected home-care provider is not approved.', 409);
-    if (helper.is_demo) return jsonError('DEMO home-care providers must use the pre-launch demo checkout; no real service will be booked.', 409);
+    if (helper.is_demo) return jsonError('This home-care provider is marked as a demo profile and cannot be booked or charged. Choose a verified real provider.', 409);
     const { data: offer, error: offerError } = await admin.from('payment_offers')
       .select('id, amount_in_paise, duration_days, included_usage, terms')
       .eq('kind', 'booking')
@@ -536,7 +426,7 @@ export async function POST(request: Request) {
   if (!amountInPaise || !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) return jsonError('No valid server-approved amount is available.', 409);
 
   const existingResult = await admin.from('payment_orders')
-    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, payment_mode, is_demo, checkout_state, expires_at, updated_at')
+    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, payment_mode, checkout_state, expires_at, updated_at')
     .eq('user_id', user.id)
     .eq('idempotency_key', input.idempotencyKey)
     .maybeSingle();
@@ -590,9 +480,8 @@ export async function POST(request: Request) {
         amount: Number(old.amount_in_paise),
         currency: old.currency,
         key: flags.keyId,
-        name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
+        name: 'OncoCare+',
         paymentMode: flags.mode,
-        isDemo: Boolean(old.is_demo),
       });
     }
     if (old.checkout_state === 'initializing') {
@@ -623,9 +512,8 @@ export async function POST(request: Request) {
         amount: amountInPaise,
         currency: 'INR',
         key: flags.keyId,
-        name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
+        name: 'OncoCare+',
         paymentMode: flags.mode,
-        isDemo: isDemoCheckout,
       });
     } catch {
       return jsonError('Payment recovery is temporarily unavailable. Retry with the same checkout reference.', 503);
@@ -640,8 +528,7 @@ export async function POST(request: Request) {
     amount_in_paise: amountInPaise,
     currency: 'INR',
     payment_mode: flags.mode,
-    is_demo: isDemoCheckout,
-    live_demo_consent_at: flags.mode === 'live' && input.liveDemoConsent === true ? new Date().toISOString() : null,
+    is_demo: false,
     notes: orderNotes,
     idempotency_key: input.idempotencyKey,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -665,7 +552,7 @@ export async function POST(request: Request) {
     actor_user_id: user.id,
     action: 'payment.checkout_created',
     order_id: order.id,
-    details: { kind: input.kind, amount_in_paise: amountInPaise, payment_mode: flags.mode, is_demo: isDemoCheckout },
+    details: { kind: input.kind, amount_in_paise: amountInPaise, payment_mode: flags.mode },
   });
   if (auditError) {
     const { error: failError } = await admin.from('payment_orders').update({
@@ -696,46 +583,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (isDemoCheckout) {
-    const { error: demoBookingError } = await admin.from('prelaunch_demo_bookings').insert({
-      payment_order_id: order.id,
-      catalog_id: demoCatalog?.id ?? null,
-      patient_id: user.id,
-      kind: input.kind,
-      provider_label: demoCatalog?.provider_label ?? 'DEMO: Simulated Campaign',
-      service_name: demoCatalog?.service_name ?? 'DEMO: Simulated contribution - no beneficiary',
-      requested_date: input.bookingDate ?? null,
-      requested_start_time: input.startTime ?? null,
-      requested_end_time: input.endTime ?? null,
-      amount_in_paise: amountInPaise,
-      payment_mode: flags.mode,
-      disclosure_version: 'prelaunch-demo-v1',
-    });
-    if (demoBookingError) {
-      const { error: failError } = await admin.from('payment_orders').update({
-        status: 'failed', checkout_state: 'failed', failure_reason: 'Demo record creation failed', updated_at: new Date().toISOString(),
-      }).eq('id', order.id);
-      const duplicateSlot = demoBookingError.code === '23505';
-      return jsonError(
-        failError ? 'Demo checkout setup failed and requires support review.' : duplicateSlot ? 'That demo time slot is already reserved. Choose another time.' : 'Unable to save the demo booking record.',
-        failError ? 503 : duplicateSlot ? 409 : 500,
-        { restartCheckout: !failError },
-      );
-    }
-    if (input.kind === 'donation') {
-      const { error: donationError } = await admin.from('payment_donations').insert({
-        order_id: order.id,
-        case_id: null,
-        purpose: 'PRELAUNCH_SIMULATION_NO_BENEFICIARY_NO_CHARITABLE_CONTRIBUTION',
-      });
-      if (donationError) {
-        const { error: failError } = await admin.from('payment_orders').update({
-          status: 'failed', checkout_state: 'failed', failure_reason: 'Simulated donation ledger creation failed', updated_at: new Date().toISOString(),
-        }).eq('id', order.id);
-        return jsonError(failError ? 'Simulated donation setup requires support review.' : 'Unable to record the simulated donation transaction.', failError ? 503 : 500, { restartCheckout: !failError });
-      }
-    }
-  } else if (input.kind === 'donation') {
+  if (input.kind === 'donation') {
     const { error: donationError } = await admin.from('payment_donations').insert({
       order_id: order.id,
       case_id: null,
@@ -774,7 +622,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!isDemoCheckout && input.kind === 'insurance') {
+  if (input.kind === 'insurance') {
     const { error: appError } = await admin.from('insurance_payment_applications').insert({
       order_id: order.id, user_id: user.id, plan_id: input.insurancePlanId, issuance_status: 'payment_pending',
     });
@@ -786,7 +634,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!isDemoCheckout && input.kind === 'booking') {
+  if (input.kind === 'booking') {
     const durationDays = Number(orderNotes.durationDays);
     const { error: bookingError } = await admin.rpc('create_payment_homecare_booking', {
       p_order_id: order.id,
@@ -807,7 +655,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!isDemoCheckout && input.kind === 'caregiver') {
+  if (input.kind === 'caregiver') {
     const { error: caregiverBookingError } = await admin.from('caregiver_payment_bookings').insert({
       payment_order_id: order.id,
       patient_id: user.id,
@@ -836,7 +684,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!isDemoCheckout && input.kind === 'tele-oncology' && teleAppointmentDate) {
+  if (input.kind === 'tele-oncology' && teleAppointmentDate) {
     const { error: appointmentError } = await admin.rpc('create_payment_tele_appointment', {
       p_order_id: order.id,
       p_user_id: user.id,
@@ -880,9 +728,8 @@ export async function POST(request: Request) {
       amount: amountInPaise,
       currency: 'INR',
       key: flags.keyId,
-      name: flags.mode === 'live' && isDemoCheckout ? PRELAUNCH_PILOT_MERCHANT_LABEL : 'OncoCare+',
+      name: 'OncoCare+',
       paymentMode: flags.mode,
-      isDemo: isDemoCheckout,
       receipt: order.id,
     });
   } catch {

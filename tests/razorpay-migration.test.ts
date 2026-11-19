@@ -21,6 +21,7 @@ const migrationFiles = [
   '20261030010000_caregiver_payment_bookings.sql',
   '20261031000000_prelaunch_demo_payments.sql',
   '20261031130000_live_bpl_payment_records.sql',
+  '20261117000000_guard_caregiver_booking_overlaps.sql',
 ];
 
 test('payment migrations enforce paid tele-oncology access and idempotent quota use', async () => {
@@ -212,18 +213,38 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
     );
     assert.equal(caregiverBookings.length, 1);
     assert.equal(caregiverBookings[0].status, 'requested');
+    const conflictingCaregiverOrderId = randomUUID();
+    await db.query(
+      `INSERT INTO public.payment_orders (id, user_id, kind, amount_in_paise)
+       VALUES ($1, $2, 'caregiver', 25000)`,
+      [conflictingCaregiverOrderId, userId],
+    );
+    await assert.rejects(db.query(
+      `INSERT INTO public.caregiver_payment_bookings (
+        payment_order_id, patient_id, caregiver_id, service_id, requested_date,
+        requested_start_time, requested_end_time, location, amount_in_paise
+      ) VALUES ($1, $2, $3, $4, current_date + 1, '10:30', '11:30', 'Bengaluru', 25000)`,
+      [conflictingCaregiverOrderId, userId, caregiverId, randomUUID()],
+    ));
+    await db.query(
+      `INSERT INTO public.caregiver_payment_bookings (
+        payment_order_id, patient_id, caregiver_id, service_id, requested_date,
+        requested_start_time, requested_end_time, location, amount_in_paise
+      ) VALUES ($1, $2, $3, $4, current_date + 1, '11:00', '12:00', 'Bengaluru', 25000)`,
+      [conflictingCaregiverOrderId, userId, caregiverId, randomUUID()],
+    );
 
-    const demoOrderId = randomUUID();
-    const demoProviderOrderId = `rp_order_${randomUUID()}`;
-    const demoPaymentId = `rp_payment_${randomUUID()}`;
-    const { rows: demoCatalog } = await db.query<{ id: string }>(
+    const legacyPilotOrderId = randomUUID();
+    const legacyPilotProviderOrderId = `rp_order_${randomUUID()}`;
+    const legacyPilotPaymentId = `rp_payment_${randomUUID()}`;
+    const { rows: legacyPilotCatalog } = await db.query<{ id: string }>(
       `SELECT id FROM public.prelaunch_demo_catalog WHERE slug = 'demo-caregiver-session'`,
     );
     await db.query(
       `INSERT INTO public.payment_orders (
         id, user_id, kind, amount_in_paise, provider_order_id, is_demo, payment_mode, notes
       ) VALUES ($1, $2, 'caregiver', 10000, $3, true, 'test', '{"isDemo":true}'::jsonb)`,
-      [demoOrderId, userId, demoProviderOrderId],
+      [legacyPilotOrderId, userId, legacyPilotProviderOrderId],
     );
     await db.query(
       `INSERT INTO public.prelaunch_demo_bookings (
@@ -231,26 +252,26 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
         requested_date, requested_start_time, requested_end_time, amount_in_paise, payment_mode, disclosure_version
       ) VALUES ($1, $2, $3, 'caregiver', 'DEMO: Test provider', 'DEMO: Test service',
         current_date + 1, '10:00', '11:00', 10000, 'test', 'prelaunch-demo-v1')`,
-      [demoOrderId, demoCatalog[0].id, userId],
+      [legacyPilotOrderId, legacyPilotCatalog[0].id, userId],
     );
-    const demoCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
+    const legacyPilotCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
       'SELECT public.finalize_razorpay_payment($1, $2, 10000, $3) AS result',
-      [demoProviderOrderId, demoPaymentId, 'INR'],
+      [legacyPilotProviderOrderId, legacyPilotPaymentId, 'INR'],
     );
-    assert.deepEqual(demoCapture.rows[0].result, { status: 'paid', duplicate: false, order_id: demoOrderId, demo: true });
-    const duplicateDemoCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
+    assert.deepEqual(legacyPilotCapture.rows[0].result, { status: 'paid', duplicate: false, order_id: legacyPilotOrderId, demo: true });
+    const duplicateLegacyPilotCapture = await db.query<{ result: { status: string; duplicate: boolean; demo: boolean } }>(
       'SELECT public.finalize_razorpay_payment($1, $2, 10000, $3) AS result',
-      [demoProviderOrderId, demoPaymentId, 'INR'],
+      [legacyPilotProviderOrderId, legacyPilotPaymentId, 'INR'],
     );
-    assert.equal(duplicateDemoCapture.rows[0].result.duplicate, true);
-    const { rows: demoBookings } = await db.query<{ status: string }>(
+    assert.equal(duplicateLegacyPilotCapture.rows[0].result.duplicate, true);
+    const { rows: legacyPilotBookings } = await db.query<{ status: string }>(
       'SELECT status FROM public.prelaunch_demo_bookings WHERE payment_order_id = $1',
-      [demoOrderId],
+      [legacyPilotOrderId],
     );
-    assert.deepEqual(demoBookings, [{ status: 'paid_demo' }]);
+    assert.deepEqual(legacyPilotBookings, [{ status: 'paid_demo' }]);
     const { rows: realCaregiverBookings } = await db.query<{ count: number }>(
       'SELECT count(*)::integer AS count FROM public.caregiver_payment_bookings WHERE payment_order_id = $1',
-      [demoOrderId],
+      [legacyPilotOrderId],
     );
     assert.equal(realCaregiverBookings[0].count, 0);
 
@@ -323,6 +344,37 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
     );
     assert.equal(Number(totalsAfterTestDonation[0].raised_amount), 100);
     assert.equal(totalsAfterTestDonation[0].donors_count, 1);
+
+    const cleanupMigration = await readFile(
+      path.join(process.cwd(), 'supabase', 'migrations', '20261031140000_remove_prelaunch_payment_demo.sql'),
+      'utf8',
+    );
+    await db.exec('RESET ROLE');
+    await db.exec(cleanupMigration);
+    const { rows: legacyPayment } = await db.query<{
+      status: string;
+      is_demo: boolean;
+      provider_order_id: string;
+      provider_payment_id: string;
+      archived_service_name: string;
+    }>(
+      `SELECT status, is_demo, provider_order_id, provider_payment_id,
+              notes #>> '{legacyPilotRecord,booking,service_name}' AS archived_service_name
+       FROM public.payment_orders WHERE id = $1`,
+      [legacyPilotOrderId],
+    );
+    assert.deepEqual(legacyPayment, [{
+      status: 'paid',
+      is_demo: true,
+      provider_order_id: legacyPilotProviderOrderId,
+      provider_payment_id: legacyPilotPaymentId,
+      archived_service_name: 'DEMO: Test service',
+    }]);
+    const { rows: removedDemoTables } = await db.query<{ catalog: string | null; bookings: string | null }>(
+      `SELECT to_regclass('public.prelaunch_demo_catalog')::text AS catalog,
+              to_regclass('public.prelaunch_demo_bookings')::text AS bookings`,
+    );
+    assert.deepEqual(removedDemoTables[0], { catalog: null, bookings: null });
   } finally {
     await db.close();
   }

@@ -28,6 +28,7 @@ type Caregiver = {
 
 type CaregiverBookingStatus = {
   id: string;
+  payment_order_id: string;
   caregiver_id: string;
   requested_date: string;
   requested_start_time: string;
@@ -35,6 +36,7 @@ type CaregiverBookingStatus = {
   status: string;
   payment_status: string;
   service_name: string;
+  refunds: Array<{ id: string; amount_in_paise: number; status: string }>;
 };
 
 export default function CaregiverBookingPage() {
@@ -55,6 +57,8 @@ export default function CaregiverBookingPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [bookings, setBookings] = useState<CaregiverBookingStatus[]>([]);
+  const [refundRequestId, setRefundRequestId] = useState<string | null>(null);
+  const [bookingNotice, setBookingNotice] = useState('');
 
   useEffect(() => {
     async function loadCaregiver() {
@@ -142,6 +146,35 @@ export default function CaregiverBookingPage() {
   const handlePaymentComplete = () => {
     setSuccess(true);
     void loadBookings();
+  };
+
+  const requestCancellation = async (booking: CaregiverBookingStatus) => {
+    if (!window.confirm('Submit a cancellation and refund request for review? The booking remains active until the refund is approved and processed.')) return;
+    setRefundRequestId(booking.id);
+    setBookingNotice('');
+    setError('');
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Sign in again before requesting cancellation.');
+      const response = await fetch('/api/payments/refunds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          orderId: booking.payment_order_id,
+          reason: 'Caregiver booking cancellation requested',
+          idempotencyKey: booking.payment_order_id,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to request cancellation and refund.');
+      setBookingNotice('Cancellation and refund request submitted for review. The booking remains active until the refund is approved and processed.');
+      await loadBookings();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to request cancellation and refund.');
+    } finally {
+      setRefundRequestId(null);
+    }
   };
 
   if (loading) {
@@ -285,12 +318,30 @@ export default function CaregiverBookingPage() {
           {bookings.length > 0 && (
             <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900">{t('yourCaregiverBookings')}</h2>
+              {bookingNotice && <p role="status" className="mt-3 text-sm text-emerald-700">{bookingNotice}</p>}
+              {error && <p role="alert" className="mt-3 text-sm text-rose-700">{error}</p>}
               <div className="mt-3 space-y-3">
                 {bookings.map((booking) => (
                   <article key={booking.id} className="rounded-xl border border-slate-100 p-4 text-sm">
                     <p className="font-semibold text-slate-900">{booking.service_name}</p>
                     <p className="mt-1 text-slate-600">{booking.requested_date} · {booking.requested_start_time}–{booking.requested_end_time}</p>
                     <p className="mt-1 text-slate-600">{t('paymentStatus')} {booking.payment_status.replaceAll('_', ' ')} · {t('bookingStatus')} {booking.status.replaceAll('_', ' ')}</p>
+                    {booking.refunds.map((refund) => (
+                      <p key={refund.id} className="mt-1 text-xs text-amber-700">Refund request {refund.status} · ₹{(refund.amount_in_paise / 100).toLocaleString('en-IN')}</p>
+                    ))}
+                    {booking.payment_status === 'paid'
+                      && ['requested', 'confirmed'].includes(booking.status)
+                      && !booking.refunds.some((refund) => ['requested', 'approved', 'processed'].includes(refund.status))
+                      && (
+                        <button
+                          type="button"
+                          disabled={refundRequestId === booking.id}
+                          onClick={() => void requestCancellation(booking)}
+                          className="mt-3 rounded-lg border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 disabled:opacity-50"
+                        >
+                          {refundRequestId === booking.id ? 'Submitting…' : 'Request cancellation / refund'}
+                        </button>
+                      )}
                   </article>
                 ))}
               </div>

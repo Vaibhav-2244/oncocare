@@ -2,7 +2,6 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import CaregiverMarketplaceList from '@/components/caregiver-marketplace/marketplace-list';
 import { getMarketplaceCaregivers } from '@/lib/caregiver-marketplace';
-import { PrelaunchDemoCheckout } from '@/components/payments/prelaunch-demo-checkout';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +11,6 @@ export default async function CaregiverMarketplacePage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout navItems={commonNavItems} dashboardTitle="Patient Dashboard">
-        <PrelaunchDemoCheckout kind="caregiver" title="Caregiver booking" />
         <CaregiverMarketplaceList
           caregivers={result.caregivers}
           error={result.success ? undefined : result.error}

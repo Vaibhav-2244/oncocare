@@ -7,7 +7,6 @@ import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/aut
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
-import { PrelaunchDemoCheckout } from '@/components/payments/prelaunch-demo-checkout';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
@@ -247,7 +246,6 @@ function BookingPageContent() {
 
   return (
     <div className="space-y-6">
-      <PrelaunchDemoCheckout kind="booking" title="Cook / maid booking" />
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-teal-700">
@@ -559,7 +557,7 @@ function BookingPageContent() {
               <div className="space-y-3">
                 {selectedHelper.isDemo && (
                   <p role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                    This listing is DEMO only. No service is provided through it. Use the separate pre-launch demo checkout above to simulate a payment.
+                    This listing is demo-only and cannot be booked or charged. No cook, maid, or home-care service is provided.
                   </p>
                 )}
                 <p className="text-sm font-semibold text-slate-800">Approved payment options</p>

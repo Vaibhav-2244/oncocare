@@ -20,6 +20,8 @@ type PaymentRecord = {
   failure_reason: string | null;
   created_at: string;
   updated_at: string;
+  items: Array<{ description: string; quantity: number }>;
+  refunds: Array<{ id: string; amount_in_paise: number; status: string; provider_refund_id: string | null; created_at: string }>;
 };
 
 export default function PaymentHistoryPage() {
@@ -84,6 +86,9 @@ export default function PaymentHistoryPage() {
                     <p className="mt-1 text-xs text-slate-500">Order {payment.provider_order_id || 'being prepared'}</p>
                     {payment.provider_payment_id && <p className="mt-1 text-xs text-slate-500">Payment {payment.provider_payment_id}</p>}
                     {payment.provider_refund_id && <p className="mt-1 text-xs text-slate-500">Refund {payment.provider_refund_id}</p>}
+                    {payment.items.map((item, index) => (
+                      <p key={`${item.description}-${index}`} className="mt-1 text-xs text-slate-600">{item.description} × {item.quantity}</p>
+                    ))}
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold text-slate-900">{payment.currency} {(Number(payment.amount_in_paise) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
@@ -92,10 +97,15 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{payment.payment_mode.toUpperCase()} MODE</span>
-                  {payment.is_demo && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">DEMO — no real service or charitable contribution</span>}
+                  {payment.is_demo && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">Legacy pilot payment — no service fulfilment</span>}
                   {payment.payment_mode === 'test' && !payment.is_demo && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-800">Test transaction — no real money was charged</span>}
                 </div>
                 {payment.failure_reason && <p className="mt-3 text-sm text-rose-700">{payment.failure_reason}</p>}
+                {payment.refunds.map((refund) => (
+                  <p key={refund.id} className="mt-2 text-xs text-amber-700">
+                    Refund {refund.status} · ₹{(refund.amount_in_paise / 100).toLocaleString('en-IN')}{refund.provider_refund_id ? ` · ${refund.provider_refund_id}` : ''}
+                  </p>
+                ))}
                 <p className="mt-3 text-xs text-slate-500">Created {new Date(payment.created_at).toLocaleString()} · Updated {new Date(payment.updated_at).toLocaleString()}</p>
               </article>
             ))}

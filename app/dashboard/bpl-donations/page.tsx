@@ -32,7 +32,6 @@ import { PatientMiniCard } from '@/components/bpl-donations/patient-mini-card';
 import { PatientListCard } from '@/components/bpl-donations/patient-list-card';
 import { PatientProfileModal } from '@/components/bpl-donations/patient-profile-modal';
 import { CheckoutModal } from '@/components/bpl-donations/checkout-modal';
-import { PrelaunchDemoDonation } from '@/components/payments/prelaunch-demo-checkout';
 import { RegisterPatientModal } from '@/components/bpl-donations/register-patient-modal';
 import { useTranslations } from 'next-intl';
 
@@ -285,7 +284,6 @@ export default function BplDonationsPage() {
   return (
     <ProtectedRoute allowedRoles={PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES}>
       <DashboardLayout dashboardTitle="BPL Donations">
-        <PrelaunchDemoDonation />
         <div className="mx-6 mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
           Live campaign payments require operator approval and verification of BPL status, medical documents, and beneficiary account. Test Mode payments are simulations and do not create charitable contributions. Live funds are collected by the registered OncoCare+ merchant and disbursed separately; payment does not pay a beneficiary directly.
         </div>
