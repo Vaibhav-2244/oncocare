@@ -30,6 +30,8 @@ export const checkoutSchema = z.object({
   doctorName: z.string().max(120).optional(),
   patientPhone: z.string().max(30).optional(),
   reason: z.string().max(500).optional(),
+  demoDisclosureAccepted: z.boolean().optional(),
+  donationType: z.enum(['patient-campaign', 'general-contribution']).optional(),
 }).strict().superRefine((value, context) => {
   if (value.kind === 'medicine') {
     if (!value.productId || !value.pharmacyId || !value.quantity || !value.deliveryAddress) {
@@ -58,9 +60,14 @@ export const checkoutSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'Plan and appointment details are required.' });
   }
   if (value.kind === 'donation' && (!value.donationAmountInPaise
-    || value.bplPatientId === undefined
     || !value.donorName
     || !value.donorEmail)) {
-    context.addIssue({ code: z.ZodIssueCode.custom, message: 'A donation amount, verified campaign, and donor details are required.' });
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'A donation amount and donor details are required.' });
+  }
+  if (value.kind === 'donation') {
+    const type = value.donationType ?? (value.bplPatientId !== undefined ? 'patient-campaign' : 'general-contribution');
+    if (type === 'patient-campaign' && value.bplPatientId === undefined) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'A verified patient campaign is required.' });
+    }
   }
 });

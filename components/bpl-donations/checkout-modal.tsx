@@ -92,6 +92,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose }: Checkout
           <PaymentCheckoutButton
             payload={{
               kind: 'donation',
+              donationType: 'patient-campaign',
               bplPatientId: patientId,
               donationAmountInPaise: Math.round(amount * 100),
               donorName: donorName.trim(),

@@ -28,6 +28,8 @@ type CheckoutPayload = {
   patientName?: string;
   location?: string;
   reason?: string;
+  demoDisclosureAccepted?: boolean;
+  donationType?: 'patient-campaign' | 'general-contribution';
 };
 
 export function PaymentCheckoutButton({

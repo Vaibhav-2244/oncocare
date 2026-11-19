@@ -17,6 +17,7 @@ export function getPaymentFeatureFlags() {
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || null;
   const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET?.trim() || null;
   const livePaymentsEnabled = enabledFlag(process.env.LIVE_PAYMENTS_ENABLED);
+  const paidDemoCheckoutsEnabled = enabledFlag(process.env.PAID_DEMO_CHECKOUTS_ENABLED);
   const { mode, modeValid, inferred: modeInferred } = resolveRazorpayMode({
     configuredMode: process.env.RAZORPAY_MODE,
     livePaymentsEnabled,
@@ -38,6 +39,7 @@ export function getPaymentFeatureFlags() {
     keyModeValid,
     paymentsEnabled: enabledFlag(process.env.PAYMENTS_ENABLED),
     livePaymentsEnabled,
+    paidDemoCheckoutsEnabled,
     marketplaceTransfersEnabled: false,
     marketplaceTransfersRequested,
     patientDonationsEnabled: donationsEnabledByFlag,
@@ -211,6 +213,8 @@ export function serializePublicPaymentConfig() {
     modeInferred: config.modeInferred,
     keyModeValid: config.keyModeValid,
     paymentsEnabled: config.paymentsEnabled,
+    livePaymentsEnabled: config.livePaymentsEnabled,
+    paidDemoCheckoutsEnabled: config.paidDemoCheckoutsEnabled,
     marketplaceTransfersEnabled: config.marketplaceTransfersEnabled,
     marketplaceTransfersRequested: config.marketplaceTransfersRequested,
     patientDonationsEnabled: config.patientDonationsEnabled,

@@ -97,58 +97,81 @@ export async function POST(request: Request) {
 
   let stockProductId: string | null = null;
   let teleAppointmentDate: string | null = null;
+  let isDemoTransaction = false;
+  let liveDemoConsentAt: string | null = null;
 
   if (input.kind === 'donation') {
-    if (!input.bplPatientId || !input.donationAmountInPaise || !input.donorName || !input.donorEmail) {
-      return jsonError('Choose a verified BPL campaign and enter a donation amount and donor details.', 400);
+    if (!input.donationAmountInPaise || !input.donorName || !input.donorEmail) {
+      return jsonError('Enter a valid donation amount and donor details.', 400);
     }
-    if (!flags.patientDonationsEnabled) {
-      return jsonError('Patient donations are disabled by the payment operator. Enable PATIENT_DONATIONS_ENABLED after campaign and merchant approvals.', 403);
+    const donationType = input.donationType ?? (input.bplPatientId ? 'patient-campaign' : 'general-contribution');
+    if (donationType === 'patient-campaign') {
+      if (!input.bplPatientId) return jsonError('Choose a verified BPL campaign.', 400);
+      if (!flags.patientDonationsEnabled) {
+        return jsonError('Patient donations are disabled by the payment operator. Enable PATIENT_DONATIONS_ENABLED after campaign and merchant approvals.', 403);
+      }
+      const { data: patient, error: patientError } = await admin.from('bpl_patients')
+        .select('id, name, goal_amount, raised_amount, verified')
+        .eq('id', input.bplPatientId)
+        .eq('verified', true)
+        .maybeSingle();
+      if (patientError) return jsonError('Unable to verify the selected fundraising campaign.', 503);
+      if (!patient) return jsonError('The selected fundraising campaign is not verified or is no longer available.', 409);
+      const { data: verification, error: verificationError } = await admin.from('bpl_verification')
+        .select('bpl_status_verified, medical_documents_verified, beneficiary_account_verified')
+        .eq('patient_id', patient.id)
+        .maybeSingle();
+      if (verificationError) return jsonError('Unable to verify campaign approvals.', 503);
+      if (!verification?.bpl_status_verified || !verification.medical_documents_verified || !verification.beneficiary_account_verified) {
+        return jsonError('This campaign is not approved for payment: BPL status, medical documents, and beneficiary account must all be verified.', 409);
+      }
+      const remaining = Math.round((Number(patient.goal_amount) - Number(patient.raised_amount)) * 100);
+      if (!Number.isSafeInteger(remaining) || remaining < 100 || input.donationAmountInPaise > remaining) {
+        return jsonError('The donation amount exceeds the campaign’s remaining verified goal.', 409);
+      }
+      amountInPaise = input.donationAmountInPaise;
+      orderNotes = {
+        bplPatientId: patient.id,
+        donorName: input.donorName,
+        donorEmail: input.donorEmail,
+        donationPurpose: 'Verified BPL cancer-treatment campaign contribution',
+        donationType,
+      };
+      item = {
+        entityId: `bpl-patient:${patient.id}`,
+        description: `BPL treatment campaign donation: ${patient.name}`,
+        quantity: 1,
+        unitAmountInPaise: amountInPaise,
+        terms: { campaignId: patient.id },
+      };
+    } else {
+      if (input.donationAmountInPaise < 100 || input.donationAmountInPaise > 100000000) {
+        return jsonError('General contributions must be between ₹1 and ₹100,000.', 400);
+      }
+      amountInPaise = input.donationAmountInPaise;
+      orderNotes = {
+        donorName: input.donorName,
+        donorEmail: input.donorEmail,
+        donationPurpose: 'General OncoCare+ platform contribution',
+        donationType: 'general-contribution',
+      };
+      item = {
+        entityId: 'oncocare-general-contribution',
+        description: 'General OncoCare+ platform contribution',
+        quantity: 1,
+        unitAmountInPaise: amountInPaise,
+        terms: { disclosure: 'Funds are collected by OncoCare+ for general platform support, not for a specific patient.' },
+      };
     }
-    const { data: patient, error: patientError } = await admin.from('bpl_patients')
-      .select('id, name, goal_amount, raised_amount, verified')
-      .eq('id', input.bplPatientId)
-      .eq('verified', true)
-      .maybeSingle();
-    if (patientError) return jsonError('Unable to verify the selected fundraising campaign.', 503);
-    if (!patient) return jsonError('The selected fundraising campaign is not verified or is no longer available.', 409);
-    const { data: verification, error: verificationError } = await admin.from('bpl_verification')
-      .select('bpl_status_verified, medical_documents_verified, beneficiary_account_verified')
-      .eq('patient_id', patient.id)
-      .maybeSingle();
-    if (verificationError) return jsonError('Unable to verify campaign approvals.', 503);
-    if (!verification?.bpl_status_verified || !verification.medical_documents_verified || !verification.beneficiary_account_verified) {
-      return jsonError('This campaign is not approved for payment: BPL status, medical documents, and beneficiary account must all be verified.', 409);
-    }
-    const remaining = Math.round((Number(patient.goal_amount) - Number(patient.raised_amount)) * 100);
-    if (!Number.isSafeInteger(remaining) || remaining < 100 || input.donationAmountInPaise > remaining) {
-      return jsonError('The donation amount exceeds the campaign’s remaining verified goal.', 409);
-    }
-    amountInPaise = input.donationAmountInPaise;
-    orderNotes = {
-      bplPatientId: patient.id,
-      donorName: input.donorName,
-      donorEmail: input.donorEmail,
-      donationPurpose: 'Verified BPL cancer-treatment campaign contribution',
-      merchantDisclosure: 'Funds are collected to the registered OncoCare+ Razorpay merchant account and disbursed separately.',
-    };
-    item = {
-      entityId: `bpl-patient:${patient.id}`,
-      description: `BPL treatment campaign donation: ${patient.name}`,
-      quantity: 1,
-      unitAmountInPaise: amountInPaise,
-      terms: {
-        campaignId: patient.id,
-        processingFeeDisclosure: 'Funds are collected to the registered OncoCare+ Razorpay merchant account and disbursed separately.',
-      },
-    };
   } else if (input.kind === 'tele-oncology') {
-    if (!flags.teleOncologyCallProviderEnabled) {
-      return jsonError('Tele-oncology checkout is unavailable until a real consultation provider is configured.', 503);
-    }
     if (!input.plan || !input.appointmentDate || !input.appointmentTime || !input.doctorName) {
       return jsonError('Select a tele-oncology plan and provide the appointment details.', 400);
     }
+    if (!flags.paidDemoCheckoutsEnabled || input.demoDisclosureAccepted !== true) {
+      return jsonError('Paid-demo tele-oncology checkout requires operator enablement and explicit demo disclosure consent.', 403);
+    }
+    isDemoTransaction = true;
+    liveDemoConsentAt = new Date().toISOString();
     if (new Date(input.appointmentDate).getTime() <= Date.now()) return jsonError('Choose a future appointment time.', 400);
     const { data: price, error: priceError } = await admin.from('payment_offers')
       .select('id, amount_in_paise, duration_days, included_usage, terms')
@@ -212,14 +235,23 @@ export async function POST(request: Request) {
       return jsonError('Choose a valid booking time range.', 400);
     }
     const { data: caregiver, error: caregiverError } = await admin.from('caregiver_profiles')
-      .select('id, professional_title, is_available')
+      .select('id, professional_title, is_available, is_demo, verification_status')
       .eq('id', input.caregiverId)
       .eq('is_active', true)
-      .eq('verification_status', 'verified')
       .maybeSingle();
     if (caregiverError) return jsonError('Unable to validate the selected caregiver.', 500);
     if (!caregiver || !caregiver.is_available) {
-      return jsonError('The selected caregiver is not currently verified and available for booking.', 409);
+      return jsonError('The selected caregiver is not currently available for booking.', 409);
+    }
+    if (!caregiver.is_demo && caregiver.verification_status !== 'verified') {
+      return jsonError('The selected caregiver is not verified for real bookings.', 409);
+    }
+    if (caregiver.is_demo) {
+      if (!flags.paidDemoCheckoutsEnabled || input.demoDisclosureAccepted !== true) {
+        return jsonError('Paid-demo caregiver checkout requires operator enablement and explicit demo disclosure consent.', 403);
+      }
+      isDemoTransaction = true;
+      liveDemoConsentAt = new Date().toISOString();
     }
     const { data: service, error: serviceError } = await admin.from('caregiver_services')
       .select('id, caregiver_id, service_name, price, pricing_unit')
@@ -399,7 +431,13 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (helperError) return jsonError('Unable to validate the home-care provider.', 500);
     if (!helper) return jsonError('The selected home-care provider is not approved.', 409);
-    if (helper.is_demo) return jsonError('This home-care provider is marked as a demo profile and cannot be booked or charged. Choose a verified real provider.', 409);
+    if (helper.is_demo) {
+      if (!flags.paidDemoCheckoutsEnabled || input.demoDisclosureAccepted !== true) {
+        return jsonError('Paid-demo home-care checkout requires operator enablement and explicit demo disclosure consent.', 403);
+      }
+      isDemoTransaction = true;
+      liveDemoConsentAt = new Date().toISOString();
+    }
     const { data: offer, error: offerError } = await admin.from('payment_offers')
       .select('id, amount_in_paise, duration_days, included_usage, terms')
       .eq('kind', 'booking')
@@ -423,10 +461,18 @@ export async function POST(request: Request) {
     orderNotes = { helperId: helper.id, helperName: helper.name, service: helper.service, location: input.location, patientName: input.patientName, startDate: input.startDate, durationDays, offerType: input.offerType, offerId: offer.id };
   }
 
+  if (isDemoTransaction) {
+    orderNotes = {
+      ...orderNotes,
+      transactionType: 'paid-demo',
+      demoDisclosure: 'Demo booking: this listing uses demonstration data. No actual consultation, caregiver, or home-care service will be provided. This is a real payment to OncoCare+.',
+    };
+  }
+
   if (!amountInPaise || !Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) return jsonError('No valid server-approved amount is available.', 409);
 
   const existingResult = await admin.from('payment_orders')
-    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, payment_mode, checkout_state, expires_at, updated_at')
+    .select('id, provider_order_id, amount_in_paise, currency, kind, status, notes, payment_mode, is_demo, checkout_state, expires_at, updated_at')
     .eq('user_id', user.id)
     .eq('idempotency_key', input.idempotencyKey)
     .maybeSingle();
@@ -436,6 +482,7 @@ export async function POST(request: Request) {
     if (
       old.kind !== input.kind
       || old.payment_mode !== flags.mode
+      || Boolean(old.is_demo) !== isDemoTransaction
       || Number(old.amount_in_paise) !== amountInPaise
       || canonicalJson(old.notes) !== canonicalJson(orderNotes)
     ) return jsonError('Checkout mode or approved terms changed. Start a new checkout to review them.', 409, { restartCheckout: true });
@@ -528,7 +575,8 @@ export async function POST(request: Request) {
     amount_in_paise: amountInPaise,
     currency: 'INR',
     payment_mode: flags.mode,
-    is_demo: false,
+    is_demo: isDemoTransaction,
+    live_demo_consent_at: liveDemoConsentAt,
     notes: orderNotes,
     idempotency_key: input.idempotencyKey,
     expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),

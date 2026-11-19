@@ -54,6 +54,7 @@ type RuntimePaymentConfig = {
   mode?: 'test' | 'live';
   modeInferred?: boolean;
   livePaymentsEnabled?: boolean;
+  paidDemoCheckoutsEnabled?: boolean;
   configurationError?: string | null;
   paymentsEnabled: boolean;
   marketplaceTransfersEnabled: boolean;

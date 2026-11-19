@@ -32,6 +32,7 @@ import { PatientMiniCard } from '@/components/bpl-donations/patient-mini-card';
 import { PatientListCard } from '@/components/bpl-donations/patient-list-card';
 import { PatientProfileModal } from '@/components/bpl-donations/patient-profile-modal';
 import { CheckoutModal } from '@/components/bpl-donations/checkout-modal';
+import { GeneralContributionModal } from '@/components/bpl-donations/general-contribution-modal';
 import { RegisterPatientModal } from '@/components/bpl-donations/register-patient-modal';
 import { useTranslations } from 'next-intl';
 
@@ -58,6 +59,7 @@ export default function BplDonationsPage() {
   const [selectedPatient, setSelectedPatient] = useState<BplPatient | null>(null);
   const [donationCheckout, setDonationCheckout] = useState<{ patient: BplPatient; amount: number } | null>(null);
   const [showRegister, setShowRegister] = useState(false);
+  const [showGeneralContribution, setShowGeneralContribution] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -286,6 +288,7 @@ export default function BplDonationsPage() {
       <DashboardLayout dashboardTitle="BPL Donations">
         <div className="mx-6 mt-6 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
           Live campaign payments require operator approval and verification of BPL status, medical documents, and beneficiary account. Test Mode payments are simulations and do not create charitable contributions. Live funds are collected by the registered OncoCare+ merchant and disbursed separately; payment does not pay a beneficiary directly.
+          <button type="button" onClick={() => setShowGeneralContribution(true)} className="ml-3 font-semibold underline">Make a general OncoCare+ contribution</button>
         </div>
         {notice && (
           <div className="mx-6 mt-6 flex items-center justify-between rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800" role="status">
@@ -323,6 +326,15 @@ export default function BplDonationsPage() {
           onSubmit={handleRegisterPatient}
           onClose={() => setShowRegister(false)}
           error={error}
+        />
+      )}
+      {showGeneralContribution && (
+        <GeneralContributionModal
+          onClose={() => setShowGeneralContribution(false)}
+          onComplete={() => {
+            setShowGeneralContribution(false);
+            void refreshDonationsAfterPayment();
+          }}
         />
       )}
       </DashboardLayout>

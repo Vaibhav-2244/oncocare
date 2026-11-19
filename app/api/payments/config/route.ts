@@ -39,8 +39,7 @@ export async function GET() {
     && Number(monthly.duration_days) === 30
     && Number(oneTime.amount_in_paise) > 0
     && Number(monthly.amount_in_paise) > 0;
-  const callProviderEnabled = config.teleOncologyCallProviderEnabled;
-  const available = config.enabled && Boolean(valid) && callProviderEnabled;
+  const available = config.enabled && Boolean(valid);
   return NextResponse.json({
     ...config,
     teleOncology: {
@@ -49,8 +48,8 @@ export async function GET() {
         ? config.configurationError
         : !valid
           ? 'Tele-oncology pricing requires administrator configuration.'
-          : !callProviderEnabled
-            ? 'Tele-oncology checkout is unavailable until a real consultation provider is configured.'
+          : !config.paidDemoCheckoutsEnabled
+            ? 'Tele-oncology paid-demo checkout is disabled by the operator.'
             : null,
       oneTimeAmountInPaise: oneTime ? Number(oneTime.amount_in_paise) : null,
       monthlyAmountInPaise: monthly ? Number(monthly.amount_in_paise) : null,

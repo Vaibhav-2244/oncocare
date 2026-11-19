@@ -88,6 +88,7 @@ function BookingPageContent() {
   const [bookingConfirmation, setBookingConfirmation] = useState('');
   const [patientName, setPatientName] = useState(user?.profile?.full_name || '');
   const [careNotes, setCareNotes] = useState('');
+  const [demoDisclosureAccepted, setDemoDisclosureAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -556,16 +557,17 @@ function BookingPageContent() {
 
               <div className="space-y-3">
                 {selectedHelper.isDemo && (
-                  <p role="note" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                    This listing is demo-only and cannot be booked or charged. No cook, maid, or home-care service is provided.
-                  </p>
+                  <label className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <input type="checkbox" checked={demoDisclosureAccepted} onChange={(event) => setDemoDisclosureAccepted(event.target.checked)} className="mt-1 h-4 w-4" />
+                    <span><strong>Demo booking:</strong> This listing uses demonstration data. No actual cook, maid, or home-care service will be provided. My payment is a real payment to OncoCare+ for this disclosed demonstration transaction.</span>
+                  </label>
                 )}
                 <p className="text-sm font-semibold text-slate-800">Approved payment options</p>
                 {offersLoading ? <p className="text-sm text-slate-500">Loading configured prices…</p> : null}
                 {!offersLoading && bookingOffers.length === 0 && !selectedHelper.isDemo && (
                   <p className="text-sm text-slate-600">This provider has no approved daily or monthly payment offer configured.</p>
                 )}
-                {!selectedHelper.isDemo && bookingOffers.map((offer) => {
+                {bookingOffers.map((offer) => {
                   const days = offer.offer_type === 'daily' ? 1 : offer.duration_days;
                   if (!days) return null;
                   return (
@@ -583,9 +585,10 @@ function BookingPageContent() {
                           patientName: patientName.trim(),
                           location: selectedHelper.location,
                           reason: careNotes.trim(),
+                          demoDisclosureAccepted: selectedHelper.isDemo ? demoDisclosureAccepted : undefined,
                         }}
                         description={`${selectedHelper.service} home-care booking`}
-                        disabled={!patientName.trim() || !startDate || offersLoading}
+                        disabled={!patientName.trim() || !startDate || offersLoading || (selectedHelper.isDemo && !demoDisclosureAccepted)}
                         onPaymentComplete={() => void completeBooking()}
                       />
                     </div>

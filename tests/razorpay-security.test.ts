@@ -35,7 +35,7 @@ test('Razorpay mode detects Live credentials and never downgrades a Live request
     configuredMode: 'test',
     livePaymentsEnabled: true,
     keyId: 'rzp_live_example',
-  }), { mode: 'live', modeValid: true, inferred: true });
+  }), { mode: 'live', modeValid: false, inferred: false });
   assert.deepEqual(resolveRazorpayMode({
     configuredMode: undefined,
     livePaymentsEnabled: false,
@@ -45,7 +45,7 @@ test('Razorpay mode detects Live credentials and never downgrades a Live request
     configuredMode: undefined,
     livePaymentsEnabled: true,
     keyId: 'rzp_test_example',
-  }), { mode: 'live', modeValid: true, inferred: true });
+  }), { mode: 'live', modeValid: false, inferred: false });
 });
 
 test('Razorpay mode keeps Test defaults and rejects an invalid explicit mode', () => {
@@ -58,7 +58,7 @@ test('Razorpay mode keeps Test defaults and rejects an invalid explicit mode', (
     configuredMode: 'staging',
     livePaymentsEnabled: true,
     keyId: 'rzp_live_example',
-  }), { mode: 'live', modeValid: false, inferred: true });
+  }), { mode: 'live', modeValid: false, inferred: false });
 });
 
 test('checkout rejects client-supplied prices and unknown fields', () => {

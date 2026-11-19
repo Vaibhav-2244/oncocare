@@ -32,7 +32,8 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
   const [patientName, setPatientName] = useState("");
   const [phone, setPhone] = useState("");
   const [paymentPlan, setPaymentPlan] = useState<'one-time' | 'monthly'>('one-time');
-  const [checkoutConfig, setCheckoutConfig] = useState<{ enabled: boolean; keyId?: string | null; configurationError?: string | null; teleOncology?: { available: boolean; unavailableReason?: string | null; oneTimeAmountInPaise?: number | null; monthlyAmountInPaise?: number | null; monthlyIncludedCalls?: number | null } } | null>(null);
+  const [demoDisclosureAccepted, setDemoDisclosureAccepted] = useState(false);
+  const [checkoutConfig, setCheckoutConfig] = useState<{ enabled: boolean; keyId?: string | null; paidDemoCheckoutsEnabled?: boolean; configurationError?: string | null; teleOncology?: { available: boolean; unavailableReason?: string | null; oneTimeAmountInPaise?: number | null; monthlyAmountInPaise?: number | null; monthlyIncludedCalls?: number | null } } | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -150,6 +151,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           appointmentDate: appointmentDate.toISOString(),
           appointmentTime: time,
           reason: `Video Consultation with ${doctor.name} (${doctor.specialty})`,
+          demoDisclosureAccepted,
         }),
       });
 
@@ -244,14 +246,14 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-teal-50 text-teal-500">
             <CheckCircle className="h-8 w-8" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">{t('consultationBooked')}</h2>
+          <h2 className="text-2xl font-bold text-slate-900">Payment recorded - demo booking</h2>
           <p className="mt-2 text-slate-600">
-            {t('yourVideoConsultationWith')}{' '}<strong>{doctor.name}</strong> {t('hasBeenScheduled')}{' '}</p>
+            This payment records a disclosed demo transaction for <strong>{doctor.name}</strong>. No real consultation was scheduled or fulfilled.</p>
           <p className="mt-4 font-semibold text-slate-900">
             {formattedDate} {t('at')}{' '}{time}
           </p>
           <p className="mt-4 text-sm text-slate-500">
-            Payment confirms the appointment and entitlement; it does not start a video call.
+            No real provider entitlement or video consultation was created.
           </p>
           <Button onClick={onClose} className="mt-8 w-full bg-teal-600 hover:bg-teal-700 text-white">
             {t('done')}{' '}</Button>
@@ -395,9 +397,22 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
             )}
           </div>
 
+          <label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <input
+              type="checkbox"
+              checked={demoDisclosureAccepted}
+              onChange={(event) => setDemoDisclosureAccepted(event.target.checked)}
+              disabled={submitting}
+              className="mt-1 h-4 w-4"
+            />
+            <span>
+              <strong>Demo booking:</strong> This listing uses demonstration data. No actual consultation or medical service will be provided. My payment is a real payment to OncoCare+ for this disclosed demonstration transaction.
+            </span>
+          </label>
+
           <Button
             type="submit"
-            disabled={submitting || !checkoutConfig?.enabled || selectedAmount == null || !date || !time || !patientName.trim() || !phone.trim()}
+            disabled={submitting || !checkoutConfig?.enabled || !checkoutConfig?.paidDemoCheckoutsEnabled || !demoDisclosureAccepted || selectedAmount == null || !date || !time || !patientName.trim() || !phone.trim()}
             className="mt-6 w-full bg-teal-600 py-6 text-base font-semibold hover:bg-teal-700 text-white disabled:opacity-50"
           >
             {submitting ? t('booking') : t('confirmBooking')}

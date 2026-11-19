@@ -11,9 +11,15 @@ export function resolveRazorpayMode({
 }): { mode: RazorpayMode; modeValid: boolean; inferred: boolean } {
   const requestedMode = configuredMode?.trim().toLowerCase();
   if (livePaymentsEnabled) {
+    if (requestedMode && requestedMode !== 'live') {
+      return { mode: 'live', modeValid: false, inferred: false };
+    }
+    if (keyId && !keyId.startsWith('rzp_live_')) {
+      return { mode: 'live', modeValid: false, inferred: false };
+    }
     return {
       mode: 'live',
-      modeValid: !requestedMode || requestedMode === 'test' || requestedMode === 'live',
+      modeValid: requestedMode !== 'test' && (!keyId || keyId.startsWith('rzp_live_')),
       inferred: requestedMode !== 'live',
     };
   }

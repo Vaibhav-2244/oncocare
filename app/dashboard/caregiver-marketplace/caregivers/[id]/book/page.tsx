@@ -23,6 +23,7 @@ type Caregiver = {
   service_area: string | null;
   hourly_rate: number | null;
   is_available: boolean;
+  is_demo: boolean;
   services: Service[];
 };
 
@@ -59,6 +60,7 @@ export default function CaregiverBookingPage() {
   const [bookings, setBookings] = useState<CaregiverBookingStatus[]>([]);
   const [refundRequestId, setRefundRequestId] = useState<string | null>(null);
   const [bookingNotice, setBookingNotice] = useState('');
+  const [demoDisclosureAccepted, setDemoDisclosureAccepted] = useState(false);
 
   useEffect(() => {
     async function loadCaregiver() {
@@ -74,6 +76,7 @@ export default function CaregiverBookingPage() {
           service_area,
           hourly_rate,
           is_available,
+          is_demo,
           caregiver_services (
             id,
             service_name,
@@ -84,7 +87,6 @@ export default function CaregiverBookingPage() {
         `)
         .eq('id', caregiverId)
         .eq('is_active', true)
-        .eq('verification_status', 'verified')
         .eq('caregiver_services.is_active', true)
         .single();
 
@@ -107,6 +109,7 @@ export default function CaregiverBookingPage() {
         service_area: data.service_area,
         hourly_rate: data.hourly_rate,
         is_available: data.is_available,
+        is_demo: Boolean(data.is_demo),
         services: data.caregiver_services ?? [],
       });
       setLoading(false);
@@ -294,6 +297,13 @@ export default function CaregiverBookingPage() {
 
               {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
 
+              {caregiver?.is_demo && (
+                <label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                  <input type="checkbox" checked={demoDisclosureAccepted} onChange={(event) => setDemoDisclosureAccepted(event.target.checked)} className="mt-1 h-4 w-4" />
+                  <span><strong>Demo booking:</strong> This listing uses demonstration data. No actual caregiver service will be provided. My payment is a real payment to OncoCare+ for this disclosed demonstration transaction.</span>
+                </label>
+              )}
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => router.back()} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                   {t('cancel')}{' '}</button>
@@ -307,9 +317,10 @@ export default function CaregiverBookingPage() {
                     endTime,
                     location: location.trim(),
                     reason: [requirements.trim(), notes.trim()].filter(Boolean).join('\n'),
+                    demoDisclosureAccepted: caregiver?.is_demo ? demoDisclosureAccepted : undefined,
                   }}
                   description={`${caregiver?.professional_title ?? 'Caregiver'} - ${selectedService?.service_name ?? 'care service'}`}
-                  disabled={!caregiver?.is_available || !selectedService || selectedService.price === null || selectedService.price <= 0 || !bookingDate || !startTime || !endTime || !location.trim()}
+                  disabled={!caregiver?.is_available || !selectedService || selectedService.price === null || selectedService.price <= 0 || !bookingDate || !startTime || !endTime || !location.trim() || (Boolean(caregiver?.is_demo) && !demoDisclosureAccepted)}
                   onPaymentComplete={handlePaymentComplete}
                 />
               </div>
