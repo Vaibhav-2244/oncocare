@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const admin = createSupabaseAdminClient();
   const now = new Date().toISOString();
   const { data, error } = await admin.from('payment_offers')
-    .select('id, offer_type, amount_in_paise, duration_days, included_usage')
+    .select('id, offer_type, amount_in_paise, duration_days, included_usage, terms')
     .eq('kind', parsed.data.kind)
     .eq('entity_id', parsed.data.entityId)
     .eq('active', true)

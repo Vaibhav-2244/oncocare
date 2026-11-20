@@ -95,7 +95,42 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
     const checkoutIdempotencyKey = randomUUID();
     const providerOrderId = `rp_order_${randomUUID()}`;
     const providerPaymentId = `rp_payment_${randomUUID()}`;
-    await db.query('INSERT INTO auth.users (id) VALUES ($1), ($2)', [userId, doctorId]);
+    const offerAdminId = randomUUID();
+    const homecareProviderId = `test-homecare-${randomUUID()}`;
+    await db.query('INSERT INTO auth.users (id) VALUES ($1), ($2), ($3)', [userId, doctorId, offerAdminId]);
+    const { rows: adminRoles } = await db.query<{ id: string }>(
+      `SELECT id FROM public.roles WHERE name = 'admin' LIMIT 1`,
+    );
+    assert.equal(adminRoles.length, 1);
+    await db.query(
+      'INSERT INTO public.user_roles (user_id, role_id) VALUES ($1, $2)',
+      [offerAdminId, adminRoles[0].id],
+    );
+    await db.query(
+      `INSERT INTO public.cook_maid_helpers (id, name, service, location, experience, avatar, verified)
+       VALUES ($1, 'Test Cook', 'Cook', 'Bengaluru', '5 years', 'TC', true)`,
+      [homecareProviderId],
+    );
+    const upsertHomecareOffer = (actorId: string, type: string, amount: number, days: number, active: boolean) => db.query<{ id: string }>(
+      `SELECT (public.admin_upsert_payment_offer(
+        $1, 'booking', $2, $3, $4, $5, NULL, $6, NULL, NULL, $7::jsonb
+      )).id AS id`,
+      [actorId, homecareProviderId, type, amount, days, active, JSON.stringify({ description: `${type} approved offer` })],
+    );
+    await assert.rejects(upsertHomecareOffer(userId, 'daily', 70000, 1, true));
+    const { rows: createdDaily } = await upsertHomecareOffer(offerAdminId, 'daily', 70000, 1, true);
+    const { rows: updatedDaily } = await upsertHomecareOffer(offerAdminId, 'daily', 80000, 1, false);
+    assert.equal(updatedDaily[0].id, createdDaily[0].id);
+    await upsertHomecareOffer(offerAdminId, 'monthly', 1500000, 30, true);
+    const { rows: providerOffers } = await db.query<{ offer_type: string; amount_in_paise: number; duration_days: number; active: boolean }>(
+      `SELECT offer_type, amount_in_paise, duration_days, active
+       FROM public.payment_offers WHERE kind = 'booking' AND entity_id = $1 ORDER BY offer_type`,
+      [homecareProviderId],
+    );
+    assert.deepEqual(providerOffers, [
+      { offer_type: 'daily', amount_in_paise: 80000, duration_days: 1, active: false },
+      { offer_type: 'monthly', amount_in_paise: 1500000, duration_days: 30, active: true },
+    ]);
 
     await db.exec("SET request.jwt.claim.role = 'authenticated'");
     await assert.rejects(db.query(

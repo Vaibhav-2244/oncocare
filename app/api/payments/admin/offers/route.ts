@@ -29,7 +29,11 @@ export async function GET(request: Request) {
     .order('kind')
     .order('entity_id');
   if (error) return NextResponse.json({ error: 'Unable to load payment offers.' }, { status: 500 });
-  return NextResponse.json({ offers: data ?? [] });
+  const { data: providers, error: providerError } = await auth.admin.from('cook_maid_helpers')
+    .select('id, name, service, verified, is_demo')
+    .order('name');
+  if (providerError) return NextResponse.json({ error: 'Unable to load Cook/Maid providers.' }, { status: 500 });
+  return NextResponse.json({ offers: data ?? [], providers: providers ?? [] });
 }
 
 export async function PUT(request: Request) {
@@ -62,6 +66,26 @@ export async function PUT(request: Request) {
   }
   if (offer.kind === 'booking' && offer.offerType === 'daily' && offer.durationDays !== null && offer.durationDays !== 1) {
     return NextResponse.json({ error: 'Daily home-care offers must cover exactly one day.' }, { status: 400 });
+  }
+  if (offer.kind === 'booking' && !['daily', 'monthly'].includes(offer.offerType)) {
+    return NextResponse.json({ error: 'Cook/Maid offers must be daily or monthly one-time payments.' }, { status: 400 });
+  }
+  if (offer.kind === 'booking' && (offer.includedUsage !== null || offer.durationDays === undefined)) {
+    return NextResponse.json({ error: 'Cook/Maid offers require a service duration and do not support consultation quotas.' }, { status: 400 });
+  }
+  if (offer.kind === 'booking') {
+    const description = offer.terms.description;
+    if (description !== undefined && (typeof description !== 'string' || description.length > 240)) {
+      return NextResponse.json({ error: 'Cook/Maid offer description must be text of 240 characters or fewer.' }, { status: 400 });
+    }
+    const { data: provider, error: providerError } = await auth.admin.from('cook_maid_helpers')
+      .select('id, verified')
+      .eq('id', offer.entityId)
+      .maybeSingle();
+    if (providerError) return NextResponse.json({ error: 'Unable to validate the selected Cook/Maid provider.' }, { status: 500 });
+    if (!provider || provider.verified !== true) {
+      return NextResponse.json({ error: 'Select an existing, verified Cook/Maid provider before saving an offer.' }, { status: 400 });
+    }
   }
   if (offer.validFrom && offer.validUntil && offer.validUntil <= offer.validFrom) {
     return NextResponse.json({ error: 'Offer end time must be after its start time.' }, { status: 400 });

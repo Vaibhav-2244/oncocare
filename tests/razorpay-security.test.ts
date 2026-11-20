@@ -252,10 +252,10 @@ test('home-care offers expose only valid daily and one-time monthly prices', () 
   assert.equal(result.unavailableReason, null);
   assert.match(validateHomecareOffers([]).unavailableReason ?? '', /administrator to add and activate/);
   assert.deepEqual(resolveHomecareOffer(
-    { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null },
+    { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null, terms: { description: 'One day approved service' } },
     'daily-id',
     'daily',
-  ), { id: 'daily-id', offer_type: 'daily', amount_in_paise: 70000, duration_days: 1 });
+  ), { id: 'daily-id', offer_type: 'daily', amount_in_paise: 70000, duration_days: 1, description: 'One day approved service' });
   assert.equal(resolveHomecareOffer(
     { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null },
     'monthly-id',

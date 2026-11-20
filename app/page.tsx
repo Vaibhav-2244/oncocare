@@ -15,7 +15,7 @@ import { CTA } from '@/components/sections/cta';
 import { Footer } from '@/components/sections/footer';
 
 export default function Home() {
-  return (
+  return (  
     <>
       <Navbar />
       <main>

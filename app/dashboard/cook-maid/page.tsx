@@ -36,6 +36,7 @@ type BookingOffer = {
   offer_type: 'daily' | 'monthly';
   amount_in_paise: number;
   duration_days: number;
+  description?: string;
 };
 
 type Booking = {
@@ -602,6 +603,7 @@ function BookingPageContent() {
                         <p className="mt-1 text-xs text-slate-600">
                           {offer.offer_type === 'daily' ? 'Payment for one day of the selected service.' : `One-time payment for ${days} days of the selected service.`}
                         </p>
+                        {offer.description && <p className="mt-1 text-xs text-slate-600">{offer.description}</p>}
                       </div>
                     </label>
                   );

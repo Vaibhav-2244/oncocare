@@ -3,6 +3,7 @@ export type HomecareOfferRow = {
   offer_type: string;
   amount_in_paise: number | string;
   duration_days: number | null;
+  terms?: Record<string, unknown> | null;
 };
 
 export type HomecareOffer = {
@@ -10,6 +11,7 @@ export type HomecareOffer = {
   offer_type: 'daily' | 'monthly';
   amount_in_paise: number;
   duration_days: number;
+  description?: string;
 };
 
 export function resolveHomecareOffer(
@@ -46,6 +48,7 @@ export function validateHomecareOffers(rows: HomecareOfferRow[]) {
       offer_type: row.offer_type,
       amount_in_paise: amount,
       duration_days: duration,
+      ...(typeof row.terms?.description === 'string' ? { description: row.terms.description } : {}),
     });
   }
 
