@@ -11,6 +11,7 @@ import {
   verifyRawBodySignature,
 } from '../lib/payments/security';
 import { resolveRazorpayMode } from '../lib/payments/razorpay-mode';
+import { normalizePaymentError } from '../lib/payments/error-message';
 
 test('Razorpay mode honors explicit Test and Live configuration', () => {
   assert.deepEqual(resolveRazorpayMode({
@@ -82,6 +83,22 @@ test('checkout accepts a valid price-free tele-oncology request', () => {
     doctorName: 'Dr Example',
   });
 
+  test('tele-oncology checkout payload uses a string ID and explicit paid-demo consent', () => {
+    const request = {
+      kind: 'tele-oncology',
+      idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+      plan: 'one-time',
+      appointmentDate: '2026-10-29T10:00:00.000Z',
+      appointmentTime: '10:00 AM',
+      doctorId: '1',
+      doctorName: 'Demo Doctor',
+      demoDisclosureAccepted: true,
+    };
+    assert.equal(checkoutSchema.safeParse(request).success, true);
+    assert.equal(checkoutSchema.safeParse({ ...request, doctorId: 1 }).success, false);
+    assert.equal(checkoutSchema.safeParse({ ...request, demoDisclosureAccepted: false }).success, true);
+  });
+
   assert.equal(parsed.success, true);
 });
 
@@ -124,6 +141,34 @@ test('caregiver checkout accepts service details but never a browser-supplied am
   assert.equal(checkoutSchema.safeParse(caregiverRequest).success, true);
   assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, amountInPaise: 1 }).success, false);
   assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, endTime: '09:00' }).success, false);
+});
+
+test('caregiver form payload fits server validation and rejects oversized requirements', () => {
+  const caregiverRequest = {
+    kind: 'caregiver',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    caregiverId: '4ba90ded-9954-48b4-9531-370a1327c819',
+    serviceId: '8174f754-9f45-43b7-bc58-8f0d7b4a1ef4',
+    bookingDate: '2026-10-31',
+    startTime: '10:00',
+    endTime: '11:00',
+    location: 'Bengaluru',
+    reason: `${'a'.repeat(249)}\n${'b'.repeat(249)}`,
+    demoDisclosureAccepted: true,
+  };
+  assert.equal(checkoutSchema.safeParse(caregiverRequest).success, true);
+  assert.equal(checkoutSchema.safeParse({ ...caregiverRequest, reason: `${'a'.repeat(500)}x` }).success, false);
+});
+
+test('payment error normalization extracts useful validation messages and redacts keys', () => {
+  assert.equal(normalizePaymentError(new Error('Checkout failed')), 'Checkout failed');
+  assert.equal(normalizePaymentError({ error: { message: 'Payment rejected' } }), 'Payment rejected');
+  assert.equal(normalizePaymentError({
+    fieldErrors: { caregiverId: ['Invalid uuid'] },
+    formErrors: [],
+  }), 'caregiverId: Invalid uuid');
+  assert.equal(normalizePaymentError('Invalid key rzp_live_example123'), 'Invalid key [redacted]');
+  assert.equal(normalizePaymentError({ code: 'unknown' }), 'Payment could not be completed. Please try again.');
 });
 
 test('BPL donation checkout requires a verified campaign and donor data', () => {

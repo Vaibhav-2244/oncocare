@@ -7,6 +7,7 @@ import { doctorAvailability } from "@/lib/data/tele-oncology";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase-client";
 import { loadRazorpayCheckout } from "@/lib/razorpay-checkout";
+import { normalizePaymentError } from "@/lib/payments/error-message";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from 'next-intl';
 
@@ -61,6 +62,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
     setTime("");
     setPatientName("");
     setPhone("");
+    setDemoDisclosureAccepted(false);
     setError("");
     setBooked(false);
     paymentFailed.current = false;
@@ -144,7 +146,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
           kind: 'tele-oncology',
           plan: paymentPlan,
           idempotencyKey: idempotencyKey.current ?? (idempotencyKey.current = crypto.randomUUID()),
-          doctorId: doctor.id,
+          doctorId: String(doctor.id),
           doctorName: doctor.name,
           patientName: patientName.trim(),
           patientPhone: phone.trim(),
@@ -157,7 +159,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
 
       const serverOrderData = await serverOrderResponse.json();
       if (!serverOrderResponse.ok) {
-        throw new Error(serverOrderData.error || 'Failed to create a Razorpay order.');
+        throw new Error(normalizePaymentError(serverOrderData.error, 'Failed to create a Razorpay order.'));
       }
 
       await loadRazorpayCheckout();
@@ -194,7 +196,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
 
           const verifyPayload = await verifyResponse?.json().catch(() => ({}));
           if (!verifyResponse?.ok || verifyPayload?.status !== 'paid') {
-            setError(verifyPayload?.error || 'Payment confirmation is pending. Check payment status before retrying.');
+            setError(normalizePaymentError(verifyPayload?.error, 'Payment confirmation is pending. Check payment status before retrying.'));
             requestInFlight.current = false;
             setSubmitting(false);
             return;
@@ -224,7 +226,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
       checkoutOpened = true;
       paymentHandler.open();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to start the payment flow.');
+      setError(normalizePaymentError(err, 'Failed to start the payment flow.'));
     } finally {
       if (!checkoutOpened) {
         requestInFlight.current = false;
@@ -317,7 +319,7 @@ export function BookingModal({ doctor, onClose }: BookingModalProps) {
 
         {!checkoutConfig?.teleOncology?.available && (
           <div className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-800" role="status">
-            {checkoutConfig?.teleOncology?.unavailableReason || checkoutConfig?.configurationError || 'Tele-oncology booking is unavailable until a real consultation provider is configured.'}
+            {checkoutConfig?.teleOncology?.unavailableReason || checkoutConfig?.configurationError || 'Tele-oncology demo checkout is unavailable until payment configuration and approved pricing are available.'}
           </div>
         )}
 

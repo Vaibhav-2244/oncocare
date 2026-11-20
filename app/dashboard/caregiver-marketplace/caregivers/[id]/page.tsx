@@ -44,9 +44,10 @@ export default async function CaregiverProfilePage({ params }: { params: Promise
                       <h2 className="text-3xl font-bold text-slate-900">{caregiver.professional_title}</h2>
                       <p className="mt-2 text-slate-500">{caregiver.years_of_experience} {t('yearsOfExperience')}</p>
                     </div>
-                    <div className="inline-flex h-fit items-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
-                      <span>✓</span>
-                      {t('verifiedCaregiver')}{' '}</div>
+                    <div className={`inline-flex h-fit items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${caregiver.is_demo ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-700'}`}>
+                      <span>{caregiver.is_demo ? '!' : '✓'}</span>
+                      {caregiver.is_demo ? 'DEMO LISTING · NOT A REAL PROVIDER' : t('verifiedCaregiver')}
+                    </div>
                   </div>
 
                   {caregiver.service_area && <p className="mt-4 text-sm text-slate-600">📍 {caregiver.service_area}</p>}

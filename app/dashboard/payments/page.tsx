@@ -97,7 +97,7 @@ export default function PaymentHistoryPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs">
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-700">{payment.payment_mode.toUpperCase()} MODE</span>
-                  {payment.is_demo && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">Legacy pilot payment — no service fulfilment</span>}
+                  {payment.is_demo && <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-900">Paid demo transaction — no service fulfilment</span>}
                   {payment.payment_mode === 'test' && !payment.is_demo && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-800">Test transaction — no real money was charged</span>}
                 </div>
                 {payment.failure_reason && <p className="mt-3 text-sm text-rose-700">{payment.failure_reason}</p>}

@@ -82,7 +82,15 @@ export async function POST(request: Request) {
     return jsonError('Invalid request body.', 400);
   }
   const parsed = checkoutSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => ({
+      field: issue.path.join('.') || 'request',
+      message: issue.message,
+      code: issue.code,
+    }));
+    console.warn('Invalid payment checkout request', issues.map(({ field, code }) => ({ field, code })));
+    return jsonError(issues.map(({ field, message }) => `${field}: ${message}`).join(' '), 400);
+  }
   const input = parsed.data;
   let amountInPaise: number | null = null;
   let orderNotes: Record<string, unknown> = {};
@@ -96,7 +104,6 @@ export async function POST(request: Request) {
   } | null = null;
 
   let stockProductId: string | null = null;
-  let teleAppointmentDate: string | null = null;
   let isDemoTransaction = false;
   let liveDemoConsentAt: string | null = null;
 
@@ -206,7 +213,6 @@ export async function POST(request: Request) {
       reason: input.reason ?? `Tele-oncology consultation with ${input.doctorName}`,
       appointmentNotes: `Patient: ${input.patientName ?? ''}; phone: ${input.patientPhone ?? ''}; plan: ${input.plan}`,
     };
-    teleAppointmentDate = input.appointmentDate;
     item = {
       entityId: `tele-oncology:${input.plan}`,
       description: input.plan === 'monthly' ? 'Monthly tele-oncology plan' : 'One-time tele-oncology consultation',
@@ -703,7 +709,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (input.kind === 'caregiver') {
+  if (input.kind === 'caregiver' && !isDemoTransaction) {
     const { error: caregiverBookingError } = await admin.from('caregiver_payment_bookings').insert({
       payment_order_id: order.id,
       patient_id: user.id,
@@ -729,24 +735,6 @@ export async function POST(request: Request) {
         failError ? 503 : 409,
         { restartCheckout: !failError },
       );
-    }
-  }
-
-  if (input.kind === 'tele-oncology' && teleAppointmentDate) {
-    const { error: appointmentError } = await admin.rpc('create_payment_tele_appointment', {
-      p_order_id: order.id,
-      p_user_id: user.id,
-      p_doctor_id: input.doctorId ?? '',
-      p_doctor_name: input.doctorName ?? 'Tele-oncology provider',
-      p_appointment_date: teleAppointmentDate,
-      p_reason: String(orderNotes.reason),
-      p_notes: String(orderNotes.appointmentNotes),
-    });
-    if (appointmentError) {
-      const { error: failError } = await admin.from('payment_orders').update({
-        status: 'failed', checkout_state: 'failed', failure_reason: 'Consultation slot reservation failed', updated_at: new Date().toISOString(),
-      }).eq('id', order.id);
-      return jsonError(failError ? 'Consultation slot setup failed and requires support review.' : 'The selected consultation slot could not be reserved. Choose another slot.', failError ? 503 : 409, { restartCheckout: !failError });
     }
   }
 

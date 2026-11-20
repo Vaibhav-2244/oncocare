@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
 import { PaymentCheckoutButton } from "@/components/payments/checkout-button";
+import { normalizePaymentError } from "@/lib/payments/error-message";
 import { useTranslations } from 'next-intl';
 
 type InsuranceProvider = {
@@ -59,10 +60,10 @@ export default function InsurancePlanDetailsPage() {
         cache: 'no-store',
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to load insurance application status.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Unable to load insurance application status.'));
       setApplications((payload.applications ?? []).filter((application: InsuranceApplication) => application.plan_id === planId));
     } catch (applicationLoadError) {
-      setApplicationError(applicationLoadError instanceof Error ? applicationLoadError.message : 'Unable to load insurance application status.');
+      setApplicationError(normalizePaymentError(applicationLoadError, 'Unable to load insurance application status.'));
     } finally {
       setApplicationsLoading(false);
     }

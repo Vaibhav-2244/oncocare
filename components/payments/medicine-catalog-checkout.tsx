@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
+import { normalizePaymentError } from '@/lib/payments/error-message';
 
 type CatalogProduct = {
   id: string;
@@ -59,11 +60,11 @@ export function MedicineCatalogCheckout() {
         cache: 'no-store',
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to load your medicine orders.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Unable to load your medicine orders.'));
       setPatientOrders(payload.orders ?? []);
       setOrderError('');
     } catch (caught) {
-      setOrderError(caught instanceof Error ? caught.message : 'Unable to load your medicine orders.');
+      setOrderError(normalizePaymentError(caught, 'Unable to load your medicine orders.'));
     }
   }, []);
 
@@ -76,7 +77,7 @@ export function MedicineCatalogCheckout() {
           supabase.auth.getUser(),
         ]);
         const catalog = await catalogResponse.json();
-        if (!catalogResponse.ok) throw new Error(catalog.error || 'Unable to load medicine listings.');
+        if (!catalogResponse.ok) throw new Error(normalizePaymentError(catalog.error, 'Unable to load medicine listings.'));
         if (!active) return;
         setProducts(catalog.products ?? []);
 
@@ -89,7 +90,7 @@ export function MedicineCatalogCheckout() {
           if (active) setPrescriptions(data ?? []);
         }
       } catch (caught) {
-        if (active) setError(caught instanceof Error ? caught.message : 'Unable to load medicine listings.');
+        if (active) setError(normalizePaymentError(caught, 'Unable to load medicine listings.'));
       } finally {
         if (active) setLoading(false);
       }
@@ -117,13 +118,13 @@ export function MedicineCatalogCheckout() {
         body: JSON.stringify({ paymentOrderId: order.payment_order_id }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to request cancellation.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Unable to request cancellation.'));
       setOrderNotice('Cancellation and full-refund request submitted for administrator review.');
       setPatientOrders((current) => current.map((item) => item.payment_order_id === order.payment_order_id
         ? { ...item, status: 'cancellation_requested', refunds: [{ status: 'requested', amount_in_paise: item.amount_in_paise }] }
         : item));
     } catch (caught) {
-      setOrderError(caught instanceof Error ? caught.message : 'Unable to request cancellation.');
+      setOrderError(normalizePaymentError(caught, 'Unable to request cancellation.'));
     } finally {
       setCancelingOrder(null);
     }

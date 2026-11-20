@@ -24,6 +24,7 @@ export type MarketplaceCaregiver = {
   hourly_rate: number | null;
   service_area: string | null;
   verification_status: string;
+  is_demo: boolean;
   is_active: boolean;
   is_available: boolean;
   rating: number;
@@ -42,6 +43,7 @@ type CaregiverProfileRow = {
   hourly_rate: number | string | null;
   service_area: string | null;
   verification_status: string;
+  is_demo: boolean;
   is_active: boolean;
   is_available: boolean;
   rating: number | string;
@@ -84,6 +86,7 @@ export async function getMarketplaceCaregivers(): Promise<{
         hourly_rate,
         service_area,
         verification_status,
+        is_demo,
         is_active,
         is_available,
         rating,
@@ -144,6 +147,7 @@ export async function getMarketplaceCaregivers(): Promise<{
       hourly_rate: profile.hourly_rate === null ? null : Number(profile.hourly_rate),
       service_area: profile.service_area,
       verification_status: profile.verification_status,
+      is_demo: profile.is_demo,
       is_active: profile.is_active,
       is_available: profile.is_available,
       rating: Number(profile.rating),
@@ -201,6 +205,7 @@ export async function getMarketplaceCaregiverById(caregiverId: string): Promise<
         hourly_rate,
         service_area,
         verification_status,
+        is_demo,
         is_active,
         is_available,
         rating,
@@ -262,6 +267,7 @@ export async function getMarketplaceCaregiverById(caregiverId: string): Promise<
       hourly_rate: profileRow.hourly_rate === null ? null : Number(profileRow.hourly_rate),
       service_area: profileRow.service_area,
       verification_status: profileRow.verification_status,
+      is_demo: profileRow.is_demo,
       is_active: profileRow.is_active,
       is_available: profileRow.is_available,
       rating: Number(profileRow.rating),

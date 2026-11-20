@@ -258,7 +258,11 @@ export default function CaregiverMarketplaceList({ caregivers, error }: { caregi
                       </button>
                     </div>
 
-                    {caregiver.verification_status === 'verified' && (
+                    {caregiver.is_demo ? (
+                      <div className="mt-4 inline-flex rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-800">
+                        DEMO LISTING · NOT A REAL PROVIDER
+                      </div>
+                    ) : caregiver.verification_status === 'verified' && (
                       <div className="mt-4 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-semibold text-emerald-700">
                         {t('verifiedCaregiver')}{' '}</div>
                     )}

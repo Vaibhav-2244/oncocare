@@ -7,6 +7,7 @@ import { ADMIN_ROLES, DashboardLayout } from '@/components/auth/dashboard-layout
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
+import { normalizePaymentError } from '@/lib/payments/error-message';
 
 type PaymentOffer = {
   id: string;
@@ -154,11 +155,11 @@ function PaymentConfigurationContent() {
     const configPayload = await configResponse.json().catch(() => null);
     if (configPayload) setRuntimeConfig(configPayload);
     if (!offerResponse.ok || !commissionResponse.ok || !reconciliationResponse.ok || !refundResponse.ok || !transactionResponse.ok) {
-      setError(offerPayload.error || commissionPayload.error || reconciliationPayload.error || refundPayload.error || transactionPayload.error || 'Unable to load payment configuration.');
+      setError(normalizePaymentError(offerPayload.error ?? commissionPayload.error ?? reconciliationPayload.error ?? refundPayload.error ?? transactionPayload.error, 'Unable to load payment configuration.'));
       return;
     }
     if (!insuranceResponse.ok) {
-      setError(insurancePayload.error || 'Unable to load insurance applications.');
+      setError(normalizePaymentError(insurancePayload.error, 'Unable to load insurance applications.'));
       return;
     }
     setOffers(offerPayload.offers ?? []);
@@ -205,11 +206,11 @@ function PaymentConfigurationContent() {
         body: JSON.stringify({ orderId }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Payment reconciliation failed.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Payment reconciliation failed.'));
       setNotice(`Reconciliation completed: ${payload.status}.`);
       await load();
     } catch (reconcileError) {
-      setError(reconcileError instanceof Error ? reconcileError.message : 'Payment reconciliation failed.');
+      setError(normalizePaymentError(reconcileError, 'Payment reconciliation failed.'));
     } finally {
       setSaving(false);
     }
@@ -227,11 +228,11 @@ function PaymentConfigurationContent() {
         body: JSON.stringify({ refundId }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Refund processing failed.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Refund processing failed.'));
       setNotice(`Refund status: ${payload.refund.status}.`);
       await load();
     } catch (refundError) {
-      setError(refundError instanceof Error ? refundError.message : 'Refund processing failed.');
+      setError(normalizePaymentError(refundError, 'Refund processing failed.'));
     } finally {
       setSaving(false);
     }
@@ -249,11 +250,11 @@ function PaymentConfigurationContent() {
         body: JSON.stringify({ providerEventId }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Webhook retry failed.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Webhook retry failed.'));
       setNotice('Stored webhook event was processed successfully.');
       await load();
     } catch (retryError) {
-      setError(retryError instanceof Error ? retryError.message : 'Webhook retry failed.');
+      setError(normalizePaymentError(retryError, 'Webhook retry failed.'));
     } finally {
       setSaving(false);
     }
@@ -276,13 +277,13 @@ function PaymentConfigurationContent() {
         body: JSON.stringify({ applicationId, status, reviewNotes: notes || null }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Unable to review insurance application.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Unable to review insurance application.'));
       setNotice(status === 'declined'
         ? 'Insurance application declined. This does not represent policy cancellation or issuance.'
         : 'Insurance application moved to insurer review. No policy was issued.');
       await load();
     } catch (reviewError) {
-      setError(reviewError instanceof Error ? reviewError.message : 'Unable to review insurance application.');
+      setError(normalizePaymentError(reviewError, 'Unable to review insurance application.'));
     } finally {
       setSaving(false);
     }
@@ -318,11 +319,11 @@ function PaymentConfigurationContent() {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Could not save this offer.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Could not save this offer.'));
       setNotice('Offer saved and audited.');
       await load();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save this offer.');
+      setError(normalizePaymentError(saveError, 'Could not save this offer.'));
     } finally {
       setSaving(false);
     }
@@ -345,11 +346,11 @@ function PaymentConfigurationContent() {
         body: JSON.stringify({ policyVersion: policyVersion.trim(), basisPoints: Number(basisPoints), active: true }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || 'Could not save the commission policy.');
+      if (!response.ok) throw new Error(normalizePaymentError(payload.error, 'Could not save the commission policy.'));
       setNotice('Commission policy saved and audited.');
       await load();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Could not save the commission policy.');
+      setError(normalizePaymentError(saveError, 'Could not save the commission policy.'));
     } finally {
       setSaving(false);
     }
@@ -426,7 +427,7 @@ function PaymentConfigurationContent() {
             <article key={transaction.id} className="space-y-1 px-5 py-3 text-sm">
               <p className="font-semibold text-slate-900">
                 {transaction.kind} · {transaction.status === 'paid' ? 'SUCCESS' : transaction.status} · ₹{(Number(transaction.amount_in_paise) / 100).toLocaleString('en-IN')}
-                {' · '}{transaction.payment_mode.toUpperCase()}{transaction.is_demo ? ' · LEGACY PILOT' : ''}
+                {' · '}{transaction.payment_mode.toUpperCase()}{transaction.is_demo ? ' · PAID DEMO' : ''}
               </p>
               <p className="break-all text-xs text-slate-600">Order {transaction.id} · patient {transaction.user_id}</p>
               <p className="break-all text-xs text-slate-500">Razorpay order {transaction.provider_order_id ?? '—'} · payment {transaction.provider_payment_id ?? '—'}</p>

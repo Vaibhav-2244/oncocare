@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase-client';
 import { getPublicPaymentAvailability, loadRazorpayCheckout } from '@/lib/razorpay-checkout';
+import { normalizePaymentError } from '@/lib/payments/error-message';
 
 type CheckoutPayload = {
   kind: 'medicine' | 'insurance' | 'booking' | 'caregiver' | 'tele-oncology' | 'donation';
@@ -85,9 +86,10 @@ export function PaymentCheckoutButton({
       const order = await createResponse.json().catch(() => ({}));
       if (!createResponse.ok) {
         if (order.restartCheckout) idempotencyKey.current = null;
-        throw new Error(typeof order.error === 'string'
-          ? order.error
-          : `Unable to start checkout (server returned ${createResponse.status}). Check the payment status and try again.`);
+        throw new Error(normalizePaymentError(
+          order.error,
+          `Unable to start checkout (server returned ${createResponse.status}). Check the payment status and try again.`,
+        ));
       }
       if (!Number.isSafeInteger(order.amount) || order.amount <= 0
         || order.currency !== 'INR' || typeof order.orderId !== 'string'
@@ -119,7 +121,7 @@ export function PaymentCheckoutButton({
           });
           const result = await response.json().catch(() => ({}));
           if (!response.ok || result.status !== 'paid') {
-            setStatus(typeof result.error === 'string' ? result.error : 'Payment confirmation is pending.');
+            setStatus(normalizePaymentError(result.error, 'Payment confirmation is pending.'));
             return;
           }
           setStatus(successMessage());
@@ -186,7 +188,7 @@ export function PaymentCheckoutButton({
       });
       checkout.open();
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Checkout failed.');
+      setStatus(normalizePaymentError(error, 'Checkout failed.'));
       inFlight.current = false;
       setBusy(false);
     }

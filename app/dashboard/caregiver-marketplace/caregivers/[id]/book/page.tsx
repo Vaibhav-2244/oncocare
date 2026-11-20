@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_CAREGIVER_ADVISOR_ADMIN_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
+import { normalizePaymentError } from '@/lib/payments/error-message';
 import { useTranslations } from 'next-intl';
 
 type Service = {
@@ -66,6 +67,7 @@ export default function CaregiverBookingPage() {
     async function loadCaregiver() {
       setLoading(true);
       setError('');
+      setDemoDisclosureAccepted(false);
 
       const { data, error: loadError } = await supabase
         .from('caregiver_profiles')
@@ -130,10 +132,10 @@ export default function CaregiverBookingPage() {
         cache: 'no-store',
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Unable to load caregiver booking status.');
+      if (!response.ok) throw new Error(normalizePaymentError(result.error, 'Unable to load caregiver booking status.'));
       setBookings((result.bookings ?? []).filter((booking: CaregiverBookingStatus) => booking.caregiver_id === caregiverId));
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Unable to load caregiver booking status.');
+      setError(normalizePaymentError(loadError, 'Unable to load caregiver booking status.'));
     }
   }, [caregiverId]);
 
@@ -145,6 +147,21 @@ export default function CaregiverBookingPage() {
     () => caregiver?.services.find((service) => service.id === serviceId) ?? null,
     [caregiver, serviceId],
   );
+  const startMinutes = startTime ? Number(startTime.slice(0, 2)) * 60 + Number(startTime.slice(3, 5)) : null;
+  const endMinutes = endTime ? Number(endTime.slice(0, 2)) * 60 + Number(endTime.slice(3, 5)) : null;
+  const durationMinutes = startMinutes !== null && endMinutes !== null ? endMinutes - startMinutes : null;
+  const isHourlyService = ['hour', 'hourly', 'per hour', 'per_hour'].includes(
+    selectedService?.pricing_unit.trim().toLowerCase() ?? '',
+  );
+  const bookingTimeError = durationMinutes === null
+    ? ''
+    : durationMinutes <= 0
+      ? 'End time must be after start time.'
+      : isHourlyService && durationMinutes % 60 !== 0
+        ? 'Hourly caregiver bookings must use whole hours.'
+        : isHourlyService && durationMinutes > 12 * 60
+          ? 'Hourly caregiver bookings cannot exceed 12 hours.'
+          : '';
 
   const handlePaymentComplete = () => {
     setSuccess(true);
@@ -170,11 +187,11 @@ export default function CaregiverBookingPage() {
         }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Unable to request cancellation and refund.');
+      if (!response.ok) throw new Error(normalizePaymentError(result.error, 'Unable to request cancellation and refund.'));
       setBookingNotice('Cancellation and refund request submitted for review. The booking remains active until the refund is approved and processed.');
       await loadBookings();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Unable to request cancellation and refund.');
+      setError(normalizePaymentError(requestError, 'Unable to request cancellation and refund.'));
     } finally {
       setRefundRequestId(null);
     }
@@ -202,8 +219,12 @@ export default function CaregiverBookingPage() {
           <main className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
             <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-3xl text-emerald-600">✓</div>
-              <h1 className="mt-5 text-2xl font-bold text-slate-900">{t('bookingRequestSent')}</h1>
-              <p className="mt-3 leading-7 text-slate-600">{t('paymentConfirmedAwaitingCaregiverConfirmation')}</p>
+              <h1 className="mt-5 text-2xl font-bold text-slate-900">{caregiver?.is_demo ? 'Payment recorded - demo booking' : t('bookingRequestSent')}</h1>
+              <p className="mt-3 leading-7 text-slate-600">
+                {caregiver?.is_demo
+                  ? 'This was a disclosed paid-demo transaction. No caregiver service was booked or will be provided.'
+                  : t('paymentConfirmedAwaitingCaregiverConfirmation')}
+              </p>
               <div className="mt-6 rounded-xl bg-slate-50 p-5 text-left">
                 <h2 className="font-semibold text-slate-900">{t('requestDetails')}</h2>
                 {caregiver && <p className="mt-3 text-sm text-slate-600">{t('caregiver')}{' '}<span className="font-semibold text-slate-900">{caregiver.professional_title}</span></p>}
@@ -287,15 +308,16 @@ export default function CaregiverBookingPage() {
 
               <div>
                 <label htmlFor="requirements" className="mb-2 block text-sm font-semibold text-slate-700">{t('careRequirements')}</label>
-                <textarea id="requirements" rows={4} value={requirements} onChange={(event) => setRequirements(event.target.value)} placeholder={t('describeThePatientSNeedsMobilitySupportMedicationRemindersOrAnySpecificCareNeeds')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                <textarea id="requirements" rows={4} maxLength={249} value={requirements} onChange={(event) => setRequirements(event.target.value)} placeholder={t('describeThePatientSNeedsMobilitySupportMedicationRemindersOrAnySpecificCareNeeds')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
               </div>
 
               <div>
                 <label htmlFor="notes" className="mb-2 block text-sm font-semibold text-slate-700">{t('additionalNotes')}</label>
-                <textarea id="notes" rows={3} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t('anythingElseTheCaregiverShouldKnow')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                <textarea id="notes" rows={3} maxLength={249} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t('anythingElseTheCaregiverShouldKnow')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm text-slate-800 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
               </div>
 
               {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>}
+              {bookingTimeError && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{bookingTimeError}</p>}
 
               {caregiver?.is_demo && (
                 <label className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -320,7 +342,7 @@ export default function CaregiverBookingPage() {
                     demoDisclosureAccepted: caregiver?.is_demo ? demoDisclosureAccepted : undefined,
                   }}
                   description={`${caregiver?.professional_title ?? 'Caregiver'} - ${selectedService?.service_name ?? 'care service'}`}
-                  disabled={!caregiver?.is_available || !selectedService || selectedService.price === null || selectedService.price <= 0 || !bookingDate || !startTime || !endTime || !location.trim() || (Boolean(caregiver?.is_demo) && !demoDisclosureAccepted)}
+                  disabled={!caregiver?.is_available || !selectedService || selectedService.price === null || selectedService.price <= 0 || !bookingDate || !startTime || !endTime || !location.trim() || Boolean(bookingTimeError) || (Boolean(caregiver?.is_demo) && !demoDisclosureAccepted)}
                   onPaymentComplete={handlePaymentComplete}
                 />
               </div>
