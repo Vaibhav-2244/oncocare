@@ -376,6 +376,11 @@ function PaymentConfigurationContent() {
             <p className="mt-1 text-sm text-slate-600">
               Real Live checkout: {runtimeConfig.mode === 'live' && runtimeConfig.livePaymentsEnabled ? 'enabled' : 'disabled'} · campaign donations: {runtimeConfig.patientDonationsEnabled ? 'enabled (verified campaigns only)' : 'disabled by PATIENT_DONATIONS_ENABLED'}
             </p>
+            {!runtimeConfig.patientDonationsEnabled && (
+              <p className="mt-1 text-sm text-amber-800">
+                Patient campaigns also require a verified campaign, BPL status, medical documents, and beneficiary account. This setting is controlled by the server environment; no merchant-approval record or admin toggle exists in this application.
+              </p>
+            )}
             <p className="mt-2 text-sm text-slate-600">
               Payment flag: {runtimeConfig.paymentsEnabled ? 'enabled' : 'disabled'} · Razorpay key ID: {runtimeConfig.configuration?.razorpayKeyIdConfigured ? 'configured' : 'missing'} · API secret: {runtimeConfig.configuration?.razorpayKeySecretConfigured ? 'configured' : 'missing'} · webhook secret: {runtimeConfig.configuration?.razorpayWebhookSecretConfigured ? 'configured' : 'missing'}
             </p>

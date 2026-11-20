@@ -202,9 +202,9 @@ export function PatientProfileModal({ patient, onClose, onDonate }: PatientProfi
               <div className="mt-6 flex gap-3 rounded-lg bg-white p-4">
                 <ShieldCheck size={20} className="flex-shrink-0 text-teal-600" />
                 <div>
-                <p className="font-medium text-slate-900">Verified campaign; merchant-collected</p>
+                <p className="font-medium text-slate-900">Campaign approval required before payment</p>
                 <p className="mt-1 text-xs text-slate-600">
-                  Payments are collected by the registered OncoCare+ merchant. Campaign funds are disbursed separately after review, not transferred directly by this checkout.
+                  Patient donations remain subject to campaign, BPL, medical-document, beneficiary-account, and operator approval. If enabled, payments are collected by the registered OncoCare+ merchant and disbursed separately after review.
                 </p>
                 </div>
               </div>

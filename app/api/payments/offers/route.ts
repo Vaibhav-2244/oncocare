@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createSupabaseAdminClient } from '@/lib/supabase/admin';
+import { validateHomecareOffers, type HomecareOfferRow } from '@/lib/payments/homecare-offers';
 
 const querySchema = z.object({
   kind: z.enum(['insurance', 'booking', 'medicine']),
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const admin = createSupabaseAdminClient();
   const now = new Date().toISOString();
   const { data, error } = await admin.from('payment_offers')
-    .select('offer_type, amount_in_paise, duration_days, included_usage')
+    .select('id, offer_type, amount_in_paise, duration_days, included_usage')
     .eq('kind', parsed.data.kind)
     .eq('entity_id', parsed.data.entityId)
     .eq('active', true)
@@ -21,5 +22,9 @@ export async function GET(request: Request) {
     .or(`valid_until.is.null,valid_until.gt.${now}`)
     .order('amount_in_paise');
   if (error) return NextResponse.json({ error: 'Unable to load current approved pricing.' }, { status: 503 });
+  if (parsed.data.kind === 'booking') {
+    const result = validateHomecareOffers((data ?? []) as HomecareOfferRow[]);
+    return NextResponse.json({ offers: result.offers, unavailableReason: result.unavailableReason });
+  }
   return NextResponse.json({ offers: data ?? [] });
 }

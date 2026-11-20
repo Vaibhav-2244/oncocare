@@ -16,6 +16,7 @@ export const checkoutSchema = z.object({
   insurancePlanId: z.string().uuid().optional(),
   offerType: z.enum(['one-time', 'subscription', 'daily', 'monthly']).optional(),
   helperId: z.string().min(1).max(100).optional(),
+  offerId: z.string().uuid().optional(),
   caregiverId: z.string().uuid().optional(),
   serviceId: z.string().uuid().optional(),
   bookingDate: z.string().date().optional(),
@@ -44,8 +45,11 @@ export const checkoutSchema = z.object({
   if (value.kind === 'insurance' && (!value.insurancePlanId || value.offerType !== 'one-time')) {
     context.addIssue({ code: z.ZodIssueCode.custom, message: 'An insurance plan and supported one-time offer are required.' });
   }
-  if (value.kind === 'booking' && (!value.helperId || !value.offerType || !value.startDate || !value.patientName || !value.location)) {
-    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Provider, offer, start date, patient name, and location are required.' });
+  if (value.kind === 'booking' && (
+    !value.helperId || !value.offerId || !['daily', 'monthly'].includes(value.offerType ?? '')
+    || !value.startDate || !value.patientName || !value.location
+  )) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: 'Provider, approved offer ID, daily or monthly offer type, start date, patient name, and location are required.' });
   }
   if (value.kind === 'caregiver' && (
     !value.caregiverId || !value.serviceId || !value.bookingDate
@@ -68,6 +72,9 @@ export const checkoutSchema = z.object({
     const type = value.donationType ?? (value.bplPatientId !== undefined ? 'patient-campaign' : 'general-contribution');
     if (type === 'patient-campaign' && value.bplPatientId === undefined) {
       context.addIssue({ code: z.ZodIssueCode.custom, message: 'A verified patient campaign is required.' });
+    }
+    if (type === 'general-contribution' && value.bplPatientId !== undefined) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: 'General contributions cannot include a patient campaign.' });
     }
   }
 });

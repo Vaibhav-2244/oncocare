@@ -12,6 +12,12 @@ import {
 } from '../lib/payments/security';
 import { resolveRazorpayMode } from '../lib/payments/razorpay-mode';
 import { normalizePaymentError } from '../lib/payments/error-message';
+import {
+  homecareDemoCheckoutBlockReason,
+  patientDonationBlockReason,
+  resolveHomecareOffer,
+  validateHomecareOffers,
+} from '../lib/payments/homecare-offers';
 
 test('Razorpay mode honors explicit Test and Live configuration', () => {
   assert.deepEqual(resolveRazorpayMode({
@@ -83,23 +89,23 @@ test('checkout accepts a valid price-free tele-oncology request', () => {
     doctorName: 'Dr Example',
   });
 
-  test('tele-oncology checkout payload uses a string ID and explicit paid-demo consent', () => {
-    const request = {
-      kind: 'tele-oncology',
-      idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
-      plan: 'one-time',
-      appointmentDate: '2026-10-29T10:00:00.000Z',
-      appointmentTime: '10:00 AM',
-      doctorId: '1',
-      doctorName: 'Demo Doctor',
-      demoDisclosureAccepted: true,
-    };
-    assert.equal(checkoutSchema.safeParse(request).success, true);
-    assert.equal(checkoutSchema.safeParse({ ...request, doctorId: 1 }).success, false);
-    assert.equal(checkoutSchema.safeParse({ ...request, demoDisclosureAccepted: false }).success, true);
-  });
-
   assert.equal(parsed.success, true);
+});
+
+test('tele-oncology checkout payload uses a string ID and explicit paid-demo consent', () => {
+  const request = {
+    kind: 'tele-oncology',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    plan: 'one-time',
+    appointmentDate: '2026-10-29T10:00:00.000Z',
+    appointmentTime: '10:00 AM',
+    doctorId: '1',
+    doctorName: 'Demo Doctor',
+    demoDisclosureAccepted: true,
+  };
+  assert.equal(checkoutSchema.safeParse(request).success, true);
+  assert.equal(checkoutSchema.safeParse({ ...request, doctorId: 1 }).success, false);
+  assert.equal(checkoutSchema.safeParse({ ...request, demoDisclosureAccepted: false }).success, true);
 });
 
 test('medicine checkout requires delivery details and rejects subscription fulfillment', () => {
@@ -200,6 +206,104 @@ test('BPL donation checkout requires a verified campaign and donor data', () => 
     donorName: 'Example Donor',
     donorEmail: 'not-an-email',
   }).success, false);
+});
+
+test('general contributions remain separate from patient-campaign approval gates', () => {
+  const generalContribution = {
+    kind: 'donation',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    donationType: 'general-contribution',
+    donationAmountInPaise: 10000,
+    donorName: 'Example Donor',
+    donorEmail: 'donor@example.com',
+  };
+  assert.equal(checkoutSchema.safeParse(generalContribution).success, true);
+  assert.equal(checkoutSchema.safeParse({ ...generalContribution, bplPatientId: 42 }).success, false);
+  assert.match(patientDonationBlockReason({
+    donationsEnabled: false,
+    campaignExists: true,
+    campaignVerified: true,
+    bplStatusVerified: true,
+    medicalDocumentsVerified: true,
+    beneficiaryAccountVerified: true,
+  }) ?? '', /PATIENT_DONATIONS_ENABLED is false/);
+  assert.equal(patientDonationBlockReason({
+    donationsEnabled: false,
+    campaignExists: true,
+    campaignVerified: true,
+    bplStatusVerified: false,
+    medicalDocumentsVerified: true,
+    beneficiaryAccountVerified: true,
+  }), 'Patient donations require completed BPL status verification. Patient-specific donations are disabled because PATIENT_DONATIONS_ENABLED is false. Enable it only after operator and merchant approvals; campaign verification is still required.');
+});
+
+test('home-care offers expose only valid daily and one-time monthly prices', () => {
+  const result = validateHomecareOffers([
+    { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null },
+    { id: 'monthly-id', offer_type: 'monthly', amount_in_paise: 1500000, duration_days: 30 },
+    { id: 'invalid-monthly', offer_type: 'monthly', amount_in_paise: 1500000, duration_days: null },
+    { id: 'invalid-daily', offer_type: 'daily', amount_in_paise: 70000, duration_days: 30 },
+    { id: 'invalid-amount', offer_type: 'daily', amount_in_paise: 0, duration_days: 1 },
+  ]);
+  assert.deepEqual(result.offers, [
+    { id: 'daily-id', offer_type: 'daily', amount_in_paise: 70000, duration_days: 1 },
+    { id: 'monthly-id', offer_type: 'monthly', amount_in_paise: 1500000, duration_days: 30 },
+  ]);
+  assert.equal(result.unavailableReason, null);
+  assert.match(validateHomecareOffers([]).unavailableReason ?? '', /administrator to add and activate/);
+  assert.deepEqual(resolveHomecareOffer(
+    { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null },
+    'daily-id',
+    'daily',
+  ), { id: 'daily-id', offer_type: 'daily', amount_in_paise: 70000, duration_days: 1 });
+  assert.equal(resolveHomecareOffer(
+    { id: 'daily-id', offer_type: 'daily', amount_in_paise: '70000', duration_days: null },
+    'monthly-id',
+    'daily',
+  ), null);
+});
+
+test('paid-demo home-care checkout requires operator enablement and consent', () => {
+  assert.match(homecareDemoCheckoutBlockReason({
+    isDemo: true,
+    paidDemoCheckoutsEnabled: true,
+    consentAccepted: false,
+  }) ?? '', /explicit demo disclosure consent/);
+  assert.match(homecareDemoCheckoutBlockReason({
+    isDemo: true,
+    paidDemoCheckoutsEnabled: false,
+    consentAccepted: true,
+  }) ?? '', /operator enablement/);
+  assert.equal(homecareDemoCheckoutBlockReason({
+    isDemo: false,
+    paidDemoCheckoutsEnabled: false,
+    consentAccepted: false,
+  }), null);
+});
+
+test('home-care checkout requires a selected server offer ID and excludes client prices', () => {
+  const base = {
+    kind: 'booking',
+    idempotencyKey: '74d084fe-7c5e-42b4-9f18-936e2490c14b',
+    helperId: 'demo-helper',
+    offerType: 'daily',
+    startDate: '2026-10-31',
+    patientName: 'Example Patient',
+    location: 'Bengaluru',
+    demoDisclosureAccepted: true,
+  };
+  assert.equal(checkoutSchema.safeParse({ ...base, offerId: '4ba90ded-9954-48b4-9531-370a1327c819' }).success, true);
+  assert.equal(checkoutSchema.safeParse(base).success, false);
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    offerId: '4ba90ded-9954-48b4-9531-370a1327c819',
+    amountInPaise: 1,
+  }).success, false);
+  assert.equal(checkoutSchema.safeParse({
+    ...base,
+    offerId: '4ba90ded-9954-48b4-9531-370a1327c819',
+    demoDisclosureAccepted: false,
+  }).success, true);
 });
 
 test('webhook schema accepts every configured Razorpay event and rejects mismatched payload shapes', () => {

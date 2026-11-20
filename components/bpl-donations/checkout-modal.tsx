@@ -44,6 +44,7 @@ export function CheckoutModal({ patient, amount, onComplete, onClose }: Checkout
                 <ShieldCheck size={16} className="text-teal-600" />
               </div>
               <p className="text-sm text-slate-600">{patient.cancer_type} • {patient.location}</p>
+              <p className="mt-1 text-sm text-slate-700">Campaign purpose: {patient.treatment}</p>
             </div>
           </div>
         </div>

@@ -60,6 +60,9 @@ export async function PUT(request: Request) {
   if (offer.kind === 'booking' && offer.offerType === 'monthly' && !offer.durationDays) {
     return NextResponse.json({ error: 'Monthly home-care bookings require an explicitly configured service duration.' }, { status: 400 });
   }
+  if (offer.kind === 'booking' && offer.offerType === 'daily' && offer.durationDays !== null && offer.durationDays !== 1) {
+    return NextResponse.json({ error: 'Daily home-care offers must cover exactly one day.' }, { status: 400 });
+  }
   if (offer.validFrom && offer.validUntil && offer.validUntil <= offer.validFrom) {
     return NextResponse.json({ error: 'Offer end time must be after its start time.' }, { status: 400 });
   }

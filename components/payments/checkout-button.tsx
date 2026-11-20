@@ -20,6 +20,7 @@ type CheckoutPayload = {
   insurancePlanId?: string;
   offerType?: 'one-time' | 'subscription' | 'daily' | 'monthly';
   helperId?: string;
+  offerId?: string;
   caregiverId?: string;
   serviceId?: string;
   startDate?: string;
@@ -36,11 +37,13 @@ type CheckoutPayload = {
 export function PaymentCheckoutButton({
   payload,
   description,
+  buttonLabel = 'Pay securely',
   disabled = false,
   onPaymentComplete,
 }: {
   payload: CheckoutPayload;
   description: string;
+  buttonLabel?: string;
   disabled?: boolean;
   onPaymentComplete?: () => void;
 }) {
@@ -98,6 +101,20 @@ export function PaymentCheckoutButton({
       }
 
       const successMessage = () => {
+        if (order.isDemo === true) {
+          const noFulfilment = payload.kind === 'booking'
+            ? 'No cook, maid, or home-care service will be provided.'
+            : payload.kind === 'caregiver'
+              ? 'No caregiver service will be provided.'
+              : payload.kind === 'tele-oncology'
+                ? 'No consultation or medical service will be provided.'
+                : payload.kind === 'medicine'
+                  ? 'No medicine or pharmacy fulfilment will be provided.'
+                  : payload.kind === 'insurance'
+                    ? 'No insurance coverage or policy will be provided.'
+                    : 'No service or product fulfilment will be provided.';
+          return `Payment verified for the disclosed demonstration transaction. ${noFulfilment}`;
+        }
         if (order.paymentMode === 'test') {
           return 'Test Mode payment confirmed. No real money was charged; service fulfilment is separate.';
         }
@@ -198,7 +215,7 @@ export function PaymentCheckoutButton({
     <div>
       <button type="button" onClick={() => void start()} disabled={disabled || busy || paymentAvailability?.available !== true} className="inline-flex items-center gap-2 rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50">
         {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-        {busy ? 'Waiting for payment' : paymentAvailability === null ? 'Checking payment availability' : paymentAvailability.available ? 'Pay securely' : 'Payment unavailable'}
+        {busy ? 'Waiting for payment' : paymentAvailability === null ? 'Checking payment availability' : paymentAvailability.available ? buttonLabel : 'Payment unavailable'}
       </button>
       {paymentAvailability && !paymentAvailability.available && (
         <p role="status" className="mt-2 text-xs text-amber-800">{paymentAvailability.message}</p>

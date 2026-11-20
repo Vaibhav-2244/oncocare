@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { authenticatePaymentRequest } from '@/lib/payments/auth';
 import { checkoutSchema } from '@/lib/payments/checkout-schema';
+import {
+  homecareDemoCheckoutBlockReason,
+  patientDonationBlockReason,
+  resolveHomecareOffer,
+} from '@/lib/payments/homecare-offers';
 import { rupeesToPaise } from '@/lib/payments/security';
 import {
   createRazorpayOrder,
@@ -114,23 +119,27 @@ export async function POST(request: Request) {
     const donationType = input.donationType ?? (input.bplPatientId ? 'patient-campaign' : 'general-contribution');
     if (donationType === 'patient-campaign') {
       if (!input.bplPatientId) return jsonError('Choose a verified BPL campaign.', 400);
-      if (!flags.patientDonationsEnabled) {
-        return jsonError('Patient donations are disabled by the payment operator. Enable PATIENT_DONATIONS_ENABLED after campaign and merchant approvals.', 403);
-      }
       const { data: patient, error: patientError } = await admin.from('bpl_patients')
-        .select('id, name, goal_amount, raised_amount, verified')
+        .select('id, name, cancer_type, treatment, goal_amount, raised_amount, verified')
         .eq('id', input.bplPatientId)
-        .eq('verified', true)
         .maybeSingle();
       if (patientError) return jsonError('Unable to verify the selected fundraising campaign.', 503);
-      if (!patient) return jsonError('The selected fundraising campaign is not verified or is no longer available.', 409);
+      if (!patient) return jsonError('The selected patient campaign was not found.', 409);
       const { data: verification, error: verificationError } = await admin.from('bpl_verification')
         .select('bpl_status_verified, medical_documents_verified, beneficiary_account_verified')
         .eq('patient_id', patient.id)
         .maybeSingle();
       if (verificationError) return jsonError('Unable to verify campaign approvals.', 503);
-      if (!verification?.bpl_status_verified || !verification.medical_documents_verified || !verification.beneficiary_account_verified) {
-        return jsonError('This campaign is not approved for payment: BPL status, medical documents, and beneficiary account must all be verified.', 409);
+      const donationBlockReason = patientDonationBlockReason({
+        donationsEnabled: flags.patientDonationsEnabled,
+        campaignExists: true,
+        campaignVerified: Boolean(patient.verified),
+        bplStatusVerified: Boolean(verification?.bpl_status_verified),
+        medicalDocumentsVerified: Boolean(verification?.medical_documents_verified),
+        beneficiaryAccountVerified: Boolean(verification?.beneficiary_account_verified),
+      });
+      if (donationBlockReason) {
+        return jsonError(donationBlockReason, flags.patientDonationsEnabled ? 409 : 403);
       }
       const remaining = Math.round((Number(patient.goal_amount) - Number(patient.raised_amount)) * 100);
       if (!Number.isSafeInteger(remaining) || remaining < 100 || input.donationAmountInPaise > remaining) {
@@ -141,12 +150,12 @@ export async function POST(request: Request) {
         bplPatientId: patient.id,
         donorName: input.donorName,
         donorEmail: input.donorEmail,
-        donationPurpose: 'Verified BPL cancer-treatment campaign contribution',
+        donationPurpose: `Verified BPL ${patient.treatment} campaign contribution for ${patient.name}`,
         donationType,
       };
       item = {
         entityId: `bpl-patient:${patient.id}`,
-        description: `BPL treatment campaign donation: ${patient.name}`,
+        description: `BPL ${patient.cancer_type} ${patient.treatment} campaign donation: ${patient.name}`,
         quantity: 1,
         unitAmountInPaise: amountInPaise,
         terms: { campaignId: patient.id },
@@ -412,7 +421,7 @@ export async function POST(request: Request) {
     if (planError) return jsonError('Unable to validate insurance plan.', 500);
     if (!plan) return jsonError('The selected insurance plan is not active.', 409);
     const { data: offer, error: offerError } = await admin.from('payment_offers')
-      .select('id, amount_in_paise, duration_days, included_usage, terms')
+      .select('id, offer_type, amount_in_paise, duration_days, included_usage, terms')
       .eq('kind', 'insurance')
       .eq('entity_id', plan.id)
       .eq('offer_type', input.offerType)
@@ -426,8 +435,8 @@ export async function POST(request: Request) {
     item = { entityId: plan.id, description: plan.name, quantity: 1, unitAmountInPaise: amountInPaise, terms: { offerId: offer.id, durationDays: offer.duration_days, includedUsage: offer.included_usage, ...offer.terms } };
     orderNotes = { insurancePlanId: plan.id, offerId: offer.id, offerType: input.offerType };
   } else if (input.kind === 'booking') {
-    if (!input.helperId || !input.offerType || !input.startDate || !input.patientName || !input.location) {
-      return jsonError('A provider, approved booking option, start date, patient name, and location are required.', 400);
+    if (!input.helperId || !input.offerId || !input.offerType || !input.startDate || !input.patientName || !input.location) {
+      return jsonError('A provider, selected approved offer, start date, patient name, and location are required.', 400);
     }
     if (!['daily', 'monthly'].includes(input.offerType)) return jsonError('Unsupported home-care offer.', 400);
     const { data: helper, error: helperError } = await admin.from('cook_maid_helpers')
@@ -438,14 +447,18 @@ export async function POST(request: Request) {
     if (helperError) return jsonError('Unable to validate the home-care provider.', 500);
     if (!helper) return jsonError('The selected home-care provider is not approved.', 409);
     if (helper.is_demo) {
-      if (!flags.paidDemoCheckoutsEnabled || input.demoDisclosureAccepted !== true) {
-        return jsonError('Paid-demo home-care checkout requires operator enablement and explicit demo disclosure consent.', 403);
-      }
+      const demoBlockReason = homecareDemoCheckoutBlockReason({
+        isDemo: true,
+        paidDemoCheckoutsEnabled: flags.paidDemoCheckoutsEnabled,
+        consentAccepted: input.demoDisclosureAccepted === true,
+      });
+      if (demoBlockReason) return jsonError(demoBlockReason, 403);
       isDemoTransaction = true;
       liveDemoConsentAt = new Date().toISOString();
     }
     const { data: offer, error: offerError } = await admin.from('payment_offers')
-      .select('id, amount_in_paise, duration_days, included_usage, terms')
+      .select('id, offer_type, amount_in_paise, duration_days, included_usage, terms')
+      .eq('id', input.offerId)
       .eq('kind', 'booking')
       .eq('entity_id', helper.id)
       .eq('offer_type', input.offerType)
@@ -454,17 +467,18 @@ export async function POST(request: Request) {
       .or(`valid_until.is.null,valid_until.gt.${new Date().toISOString()}`)
       .maybeSingle();
     if (offerError) return jsonError('Unable to load approved home-care pricing.', 500);
-    if (!offer || (input.offerType === 'monthly' && !offer.duration_days)) {
-      return jsonError('Approved pricing and booking duration are required for this booking option.', 409);
+    const approvedOffer = resolveHomecareOffer(offer, input.offerId, input.offerType);
+    if (!approvedOffer) {
+      return jsonError('The selected approved home-care offer is no longer valid. Reload the offers and select an active option.', 409);
     }
     const start = new Date(`${input.startDate}T00:00:00.000Z`);
-    const durationDays = input.offerType === 'daily' ? 1 : offer.duration_days;
+    const durationDays = approvedOffer.duration_days;
     if (start.getTime() < new Date(new Date().toISOString().slice(0, 10)).getTime()) return jsonError('Choose a current or future booking date.', 400);
-    const total = Number(offer.amount_in_paise);
+    const total = approvedOffer.amount_in_paise;
     if (!Number.isSafeInteger(total) || total <= 0) return jsonError('Home-care pricing must be configured as a positive amount.', 409);
     amountInPaise = total;
-    item = { entityId: helper.id, description: `${helper.service} service - ${input.offerType}`, quantity: 1, unitAmountInPaise: total, terms: { offerId: offer.id, durationDays } };
-    orderNotes = { helperId: helper.id, helperName: helper.name, service: helper.service, location: input.location, patientName: input.patientName, startDate: input.startDate, durationDays, offerType: input.offerType, offerId: offer.id };
+    item = { entityId: helper.id, description: `${helper.service} service - ${input.offerType}`, quantity: 1, unitAmountInPaise: total, terms: { offerId: approvedOffer.id, durationDays } };
+    orderNotes = { helperId: helper.id, helperName: helper.name, service: helper.service, location: input.location, patientName: input.patientName, startDate: input.startDate, durationDays, offerType: input.offerType, offerId: approvedOffer.id };
   }
 
   if (isDemoTransaction) {
@@ -535,6 +549,7 @@ export async function POST(request: Request) {
         key: flags.keyId,
         name: 'OncoCare+',
         paymentMode: flags.mode,
+        isDemo: Boolean(old.is_demo),
       });
     }
     if (old.checkout_state === 'initializing') {
@@ -567,6 +582,7 @@ export async function POST(request: Request) {
         key: flags.keyId,
         name: 'OncoCare+',
         paymentMode: flags.mode,
+        isDemo: Boolean(old.is_demo),
       });
     } catch {
       return jsonError('Payment recovery is temporarily unavailable. Retry with the same checkout reference.', 503);
@@ -641,7 +657,7 @@ export async function POST(request: Request) {
     const { error: donationError } = await admin.from('payment_donations').insert({
       order_id: order.id,
       case_id: null,
-      bpl_patient_id: input.bplPatientId,
+      bpl_patient_id: typeof orderNotes.bplPatientId === 'number' ? orderNotes.bplPatientId : null,
       donor_name: input.donorName,
       donor_email: input.donorEmail,
       payment_method: 'razorpay',
@@ -688,7 +704,7 @@ export async function POST(request: Request) {
     }
   }
 
-  if (input.kind === 'booking') {
+  if (input.kind === 'booking' && !isDemoTransaction) {
     const durationDays = Number(orderNotes.durationDays);
     const { error: bookingError } = await admin.rpc('create_payment_homecare_booking', {
       p_order_id: order.id,
@@ -767,6 +783,7 @@ export async function POST(request: Request) {
       name: 'OncoCare+',
       paymentMode: flags.mode,
       receipt: order.id,
+      isDemo: isDemoTransaction,
     });
   } catch {
     console.error('Razorpay order creation or linking is uncertain; retry the same checkout after the recovery window.');

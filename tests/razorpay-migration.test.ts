@@ -92,6 +92,7 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
     const userId = randomUUID();
     const doctorId = randomUUID();
     const orderId = randomUUID();
+    const checkoutIdempotencyKey = randomUUID();
     const providerOrderId = `rp_order_${randomUUID()}`;
     const providerPaymentId = `rp_payment_${randomUUID()}`;
     await db.query('INSERT INTO auth.users (id) VALUES ($1), ($2)', [userId, doctorId]);
@@ -119,10 +120,15 @@ test('payment migrations enforce paid tele-oncology access and idempotent quota 
       appointmentDate: new Date(Date.now() - 60_000).toISOString(),
     };
     await db.query(
-      `INSERT INTO public.payment_orders (id, user_id, kind, amount_in_paise, provider_order_id, notes)
-       VALUES ($1, $2, 'tele-oncology', $3, $4, $5::jsonb)`,
-      [orderId, userId, offer.amount_in_paise, providerOrderId, JSON.stringify(notes)],
+      `INSERT INTO public.payment_orders (id, user_id, kind, amount_in_paise, provider_order_id, notes, idempotency_key)
+       VALUES ($1, $2, 'tele-oncology', $3, $4, $5::jsonb, $6)`,
+      [orderId, userId, offer.amount_in_paise, providerOrderId, JSON.stringify(notes), checkoutIdempotencyKey],
     );
+    await assert.rejects(db.query(
+      `INSERT INTO public.payment_orders (id, user_id, kind, amount_in_paise, idempotency_key)
+       VALUES ($1, $2, 'tele-oncology', $3, $4)`,
+      [randomUUID(), userId, offer.amount_in_paise, checkoutIdempotencyKey],
+    ));
 
     await db.exec("SET request.jwt.claim.role = 'service_role'");
     const { rows: currentRole } = await db.query<{ role: string }>('SELECT auth.role() AS role');

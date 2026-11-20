@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChefHat, MapPin, ShieldCheck, Search, Star, CalendarRange, Bell, ChevronRight, X, Sparkles } from 'lucide-react';
+import { ChefHat, MapPin, ShieldCheck, Search, Star, CalendarRange, Bell, ChevronRight, X, Sparkles, Loader2 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { DashboardLayout, PATIENT_ROLES, commonNavItems } from '@/components/auth/dashboard-layout';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase-client';
 import { PaymentCheckoutButton } from '@/components/payments/checkout-button';
+import { normalizePaymentError } from '@/lib/payments/error-message';
 import { cn } from '@/lib/utils';
 import { useTranslations } from 'next-intl';
 
@@ -31,10 +32,10 @@ type HelperProfile = {
 type BookingStatus = 'payment_pending' | 'confirmed' | 'cancelled';
 
 type BookingOffer = {
+  id: string;
   offer_type: 'daily' | 'monthly';
   amount_in_paise: number;
-  duration_days: number | null;
-  included_usage: number | null;
+  duration_days: number;
 };
 
 type Booking = {
@@ -81,6 +82,8 @@ function BookingPageContent() {
   const [startDate, setStartDate] = useState(todayString());
   const [selectedHelper, setSelectedHelper] = useState<HelperProfile | null>(null);
   const [bookingOffers, setBookingOffers] = useState<BookingOffer[]>([]);
+  const [selectedOfferId, setSelectedOfferId] = useState('');
+  const [offersUnavailableReason, setOffersUnavailableReason] = useState<string | null>(null);
   const [offersLoading, setOffersLoading] = useState(false);
   const [showDetails, setShowDetails] = useState<HelperProfile | null>(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
@@ -165,15 +168,20 @@ function BookingPageContent() {
     setSelectedHelper(helper);
     setBookingError(null);
     setBookingOffers([]);
+    setSelectedOfferId('');
+    setOffersUnavailableReason(null);
+    setDemoDisclosureAccepted(false);
     setOffersLoading(true);
     setShowBookingModal(true);
     try {
       const response = await fetch(`/api/payments/offers?kind=booking&entityId=${encodeURIComponent(helper.id)}`, { cache: 'no-store' });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Unable to load approved booking prices.');
+      if (!response.ok) throw new Error(normalizePaymentError(result.error, 'Unable to load approved booking prices.'));
       setBookingOffers(result.offers ?? []);
+      setSelectedOfferId(result.offers?.[0]?.id ?? '');
+      setOffersUnavailableReason(result.unavailableReason ?? null);
     } catch (error) {
-      setBookingError(error instanceof Error ? error.message : 'Unable to load approved booking prices.');
+      setBookingError(normalizePaymentError(error, 'Unable to load approved booking prices.'));
     } finally {
       setOffersLoading(false);
     }
@@ -192,6 +200,15 @@ function BookingPageContent() {
       return;
     }
     if (data) setBookings(data as Booking[]);
+  };
+
+  const handleBookingPaymentComplete = async () => {
+    if (selectedHelper?.isDemo) {
+      setBookingConfirmation('Payment verified for the disclosed demonstration transaction. No cook, maid, or home-care service will be provided.');
+      setShowBookingModal(false);
+      return;
+    }
+    await completeBooking();
   };
 
   const cancelBooking = async (bookingId: string) => {
@@ -550,7 +567,7 @@ function BookingPageContent() {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-slate-700">{t('careAndDietaryInstructions')}</span>
-                <textarea value={careNotes} onChange={(e) => setCareNotes(e.target.value)} rows={4} placeholder={t('optionalNotesForDietaryRestrictionsCleanlinessNeedsOrDailyCareInstructions')} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
+                <textarea value={careNotes} onChange={(e) => setCareNotes(e.target.value)} maxLength={500} rows={4} placeholder={t('optionalNotesForDietaryRestrictionsCleanlinessNeedsOrDailyCareInstructions')} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-teal-300 focus:bg-white" />
               </label>
 
               {bookingError && <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{bookingError}</div>}
@@ -563,37 +580,75 @@ function BookingPageContent() {
                   </label>
                 )}
                 <p className="text-sm font-semibold text-slate-800">Approved payment options</p>
-                {offersLoading ? <p className="text-sm text-slate-500">Loading configured prices…</p> : null}
-                {!offersLoading && bookingOffers.length === 0 && !selectedHelper.isDemo && (
-                  <p className="text-sm text-slate-600">This provider has no approved daily or monthly payment offer configured.</p>
+                {offersLoading && (
+                  <p role="status" className="flex items-center gap-2 text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading server-approved prices…
+                  </p>
+                )}
+                {!offersLoading && bookingOffers.length === 0 && (
+                  <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    {offersUnavailableReason || 'No valid payment offer is available for this provider. Ask an administrator to configure and activate an approved offer.'}
+                  </p>
                 )}
                 {bookingOffers.map((offer) => {
-                  const days = offer.offer_type === 'daily' ? 1 : offer.duration_days;
-                  if (!days) return null;
+                  const days = offer.duration_days;
+                  const selected = selectedOfferId === offer.id;
                   return (
-                    <div key={offer.offer_type} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                    <label key={offer.id} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${selected ? 'border-teal-500 bg-teal-50' : 'border-slate-200'}`}>
+                      <input type="radio" name="homecare-offer" value={offer.id} checked={selected} onChange={() => setSelectedOfferId(offer.id)} className="mt-1" />
                       <div>
                         <p className="font-semibold capitalize">{offer.offer_type} service · one-time payment</p>
-                        <p className="text-xs text-slate-500">{days} days · not recurring · ₹{(Number(offer.amount_in_paise) / 100).toLocaleString('en-IN')}</p>
+                        <p className="text-xs text-slate-600">{days} {days === 1 ? 'day' : 'days'} covered · no recurring billing · ₹{(offer.amount_in_paise / 100).toLocaleString('en-IN')}</p>
+                        <p className="mt-1 text-xs text-slate-600">
+                          {offer.offer_type === 'daily' ? 'Payment for one day of the selected service.' : `One-time payment for ${days} days of the selected service.`}
+                        </p>
                       </div>
-                      <PaymentCheckoutButton
-                        payload={{
-                          kind: 'booking',
-                          helperId: selectedHelper.id,
-                          offerType: offer.offer_type,
-                          startDate,
-                          patientName: patientName.trim(),
-                          location: selectedHelper.location,
-                          reason: careNotes.trim(),
-                          demoDisclosureAccepted: selectedHelper.isDemo ? demoDisclosureAccepted : undefined,
-                        }}
-                        description={`${selectedHelper.service} home-care booking`}
-                        disabled={!patientName.trim() || !startDate || offersLoading || (selectedHelper.isDemo && !demoDisclosureAccepted)}
-                        onPaymentComplete={() => void completeBooking()}
-                      />
-                    </div>
+                    </label>
                   );
                 })}
+                {selectedOfferId && bookingOffers.some((offer) => offer.id === selectedOfferId) && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4" aria-label="Order summary">
+                    {(() => {
+                      const offer = bookingOffers.find((entry) => entry.id === selectedOfferId)!;
+                      return (
+                        <>
+                          <p className="font-semibold text-slate-900">Order summary</p>
+                          <dl className="mt-2 space-y-1 text-sm text-slate-700">
+                            <div className="flex justify-between gap-3"><dt>Provider</dt><dd className="text-right">{selectedHelper.name}</dd></div>
+                            <div className="flex justify-between gap-3"><dt>Service</dt><dd className="text-right">{selectedHelper.service}</dd></div>
+                            <div className="flex justify-between gap-3"><dt>Starts</dt><dd className="text-right">{formatDate(startDate)}</dd></div>
+                            <div className="flex justify-between gap-3"><dt>Duration</dt><dd className="text-right">{offer.duration_days} {offer.duration_days === 1 ? 'day' : 'days'}</dd></div>
+                            <div className="flex justify-between gap-3"><dt>Payment</dt><dd className="text-right">One-time · ₹{(offer.amount_in_paise / 100).toLocaleString('en-IN')}</dd></div>
+                          </dl>
+                          {selectedHelper.isDemo && <p className="mt-3 text-sm font-medium text-amber-900">Demo transaction only. No actual home-care service or booking will be provided.</p>}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+                {selectedOfferId && (() => {
+                  const offer = bookingOffers.find((entry) => entry.id === selectedOfferId);
+                  if (!offer) return null;
+                  return (
+                    <PaymentCheckoutButton
+                      payload={{
+                        kind: 'booking',
+                        helperId: selectedHelper.id,
+                        offerId: offer.id,
+                        offerType: offer.offer_type,
+                        startDate,
+                        patientName: patientName.trim(),
+                        location: selectedHelper.location,
+                        reason: careNotes.trim(),
+                        demoDisclosureAccepted: selectedHelper.isDemo ? demoDisclosureAccepted : undefined,
+                      }}
+                      description={`${selectedHelper.service} ${offer.offer_type} home-care payment`}
+                      buttonLabel="Continue to Payment"
+                      disabled={!patientName.trim() || !startDate || offersLoading || (selectedHelper.isDemo && !demoDisclosureAccepted)}
+                      onPaymentComplete={() => void handleBookingPaymentComplete()}
+                    />
+                  );
+                })()}
                 <div className="flex justify-end pt-2">
                   <button onClick={() => setShowBookingModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{t('cancel')}</button>
                 </div>
