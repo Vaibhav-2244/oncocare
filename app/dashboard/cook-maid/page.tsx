@@ -529,14 +529,23 @@ function BookingPageContent() {
       )}
 
       {showBookingModal && selectedHelper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" onClick={() => setShowBookingModal(false)}>
-          <div className="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-slate-900/50 p-3 backdrop-blur-sm sm:p-6"
+          onClick={() => setShowBookingModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cook-maid-booking-title"
+            className="mx-auto my-3 max-h-[calc(100vh-3rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-3xl border border-slate-200 bg-white p-4 shadow-2xl sm:my-6 sm:max-h-[calc(100vh-6rem)] sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 bg-white pb-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-600">{t('bookHelper')}</p>
-                <h2 className="mt-1 text-2xl font-bold text-slate-900">{selectedHelper.name}</h2>
+                <h2 id="cook-maid-booking-title" className="mt-1 text-2xl font-bold text-slate-900">{selectedHelper.name}</h2>
               </div>
-              <button onClick={() => setShowBookingModal(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+              <button type="button" onClick={() => setShowBookingModal(false)} aria-label="Close booking dialog" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -628,31 +637,38 @@ function BookingPageContent() {
                     })()}
                   </div>
                 )}
-                {selectedOfferId && (() => {
-                  const offer = bookingOffers.find((entry) => entry.id === selectedOfferId);
-                  if (!offer) return null;
-                  return (
-                    <PaymentCheckoutButton
-                      payload={{
-                        kind: 'booking',
-                        helperId: selectedHelper.id,
-                        offerId: offer.id,
-                        offerType: offer.offer_type,
-                        startDate,
-                        patientName: patientName.trim(),
-                        location: selectedHelper.location,
-                        reason: careNotes.trim(),
-                        demoDisclosureAccepted: selectedHelper.isDemo ? demoDisclosureAccepted : undefined,
-                      }}
-                      description={`${selectedHelper.service} ${offer.offer_type} home-care payment`}
-                      buttonLabel="Continue to Payment"
-                      disabled={!patientName.trim() || !startDate || offersLoading || (selectedHelper.isDemo && !demoDisclosureAccepted)}
-                      onPaymentComplete={() => void handleBookingPaymentComplete()}
-                    />
-                  );
-                })()}
-                <div className="flex justify-end pt-2">
-                  <button onClick={() => setShowBookingModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{t('cancel')}</button>
+                <div className="sticky bottom-0 -mx-4 flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 sm:-mx-6 sm:px-6">
+                  <p className="hidden text-xs text-slate-500 sm:block">
+                    {selectedOfferId
+                      ? 'Review the summary above, then continue securely.'
+                      : 'Select an available payment option to continue.'}
+                  </p>
+                  <div className="ml-auto flex items-center gap-3">
+                    <button type="button" onClick={() => setShowBookingModal(false)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100">{t('cancel')}</button>
+                    {selectedOfferId && (() => {
+                      const offer = bookingOffers.find((entry) => entry.id === selectedOfferId);
+                      if (!offer) return null;
+                      return (
+                        <PaymentCheckoutButton
+                          payload={{
+                            kind: 'booking',
+                            helperId: selectedHelper.id,
+                            offerId: offer.id,
+                            offerType: offer.offer_type,
+                            startDate,
+                            patientName: patientName.trim(),
+                            location: selectedHelper.location,
+                            reason: careNotes.trim(),
+                            demoDisclosureAccepted: selectedHelper.isDemo ? demoDisclosureAccepted : undefined,
+                          }}
+                          description={`${selectedHelper.service} ${offer.offer_type} home-care payment`}
+                          buttonLabel="Continue to Payment"
+                          disabled={!patientName.trim() || !startDate || offersLoading || (selectedHelper.isDemo && !demoDisclosureAccepted)}
+                          onPaymentComplete={() => void handleBookingPaymentComplete()}
+                        />
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             </div>
